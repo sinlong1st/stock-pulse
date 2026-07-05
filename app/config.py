@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     app_env: str = "development"
     log_level: str = "INFO"
 
+    # News collection (Phase 1+)
+    news_source_name: str = "Yahoo Finance"
+    news_rss_url: str = "https://finance.yahoo.com/news/rssindex"
+
     # Database (Phase 2+)
     database_url: str = "sqlite:///./stockpulse.db"
 
