@@ -31,6 +31,9 @@ pip install -e ".[dev]"
 
 # Configure environment
 cp .env.example .env            # then edit .env with real values
+
+# Create the database (runs migrations)
+alembic upgrade head
 ```
 
 ## Run
@@ -57,8 +60,8 @@ pytest
 Development proceeds one phase at a time (see the technical plan):
 
 0. Project foundation ✅
-1. News collection (RSS)
-2. Persistence & deduplication (SQLite)
+1. News collection (RSS) ✅
+2. Persistence & deduplication (SQLite) ✅
 3. Rule-based filtering
 4. AI classification
 5. Alert decision engine

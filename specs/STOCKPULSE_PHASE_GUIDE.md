@@ -14,7 +14,7 @@ check it works.** Update the status column as we go.
 ```
 ✅ Phase 0  Foundation (web server + /health)
 ✅ Phase 1  News collection (pull real headlines)
-⬜ Phase 2  Remember what it's seen (database + dedup)
+✅ Phase 2  Remember what it's seen (database + dedup)   ← YOU ARE HERE
 ⬜ Phase 3  Filter out the noise (keywords/watchlist)
 ⬜ Phase 4  AI decides what matters
 ⬜ Phase 5  Alert rules (should we notify?)
@@ -37,7 +37,7 @@ Each phase lights up one more box. Boxes with ✅ exist today.
    Collect + Normalize  ✅ Phase 1   → turn messy feeds into clean articles
         │
         ▼
-   Deduplicate          ⬜ Phase 2   → skip stories we've already handled
+   Store + Deduplicate  ✅ Phase 2   → save articles, skip ones already handled
         │
         ▼
    Rule filter          ⬜ Phase 3   → drop obvious noise before spending money
@@ -77,13 +77,14 @@ Each phase lights up one more box. Boxes with ✅ exist today.
 | **How to test** | Start the server, open http://127.0.0.1:8000/ in a browser · or run `pytest` |
 | **Not yet** | Nothing is saved — calling `/collect` twice returns the same items. |
 
-### ⬜ Phase 2 — Persistence & deduplication
+### ✅ Phase 2 — Persistence & deduplication
 | | |
 |---|---|
 | **Goal** | Save articles to a database and never process the same story twice. |
-| **What you can do** | Collect repeatedly without piling up duplicates. |
-| **What you'll see** | A `stockpulse.db` file; second `/collect` adds few/no new rows. |
-| **How to test** | Run collection twice; row count stays stable for repeat articles. |
+| **What you can do** | Click "Fetch latest news" repeatedly; articles accumulate, no duplicates. |
+| **What you'll see** | A `stockpulse.db` file; `/collect` returns `new` vs `duplicates` counts. |
+| **How to test** | `/collect` twice → 2nd run shows all duplicates, `stored_total` unchanged · or `pytest` |
+| **Setup** | Run `alembic upgrade head` once to create the database table. |
 
 ### ⬜ Phase 3 — Rule-based filtering
 | | |

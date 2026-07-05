@@ -10,6 +10,8 @@ def _format_time(published: datetime | None) -> str:
     """Human-friendly relative time, e.g. '3h ago'."""
     if published is None:
         return "unknown time"
+    if published.tzinfo is None:  # be robust to naive datetimes
+        published = published.replace(tzinfo=UTC)
     delta = datetime.now(tz=UTC) - published
     seconds = int(delta.total_seconds())
     if seconds < 0:
@@ -36,12 +38,13 @@ def _render_card(article: NewsArticle) -> str:
       </article>"""
 
 
-def render_news_page(source: str, articles: list[NewsArticle]) -> str:
-    """Return a full HTML document listing the collected articles."""
+def render_news_page(articles: list[NewsArticle], *, stored_total: int | None = None) -> str:
+    """Return a full HTML document listing stored articles."""
     cards = "\n".join(_render_card(a) for a in articles) or (
-        '<p class="empty">No articles were collected. Try refreshing in a bit.</p>'
+        '<p class="empty">No stored articles yet — click '
+        "<strong>Fetch latest news</strong> to pull some in.</p>"
     )
-    count = len(articles)
+    count = stored_total if stored_total is not None else len(articles)
     generated = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     return f"""<!doctype html>
@@ -91,10 +94,29 @@ def render_news_page(source: str, articles: list[NewsArticle]) -> str:
   <div class="wrap">
     <header>
       <h1>Stock<span class="pulse">Pulse</span></h1>
-      <a class="refresh" href="/">↻ Refresh</a>
+      <button id="fetch" class="refresh" type="button">↻ Fetch latest news</button>
     </header>
-    <p class="sub">{count} articles from {escape(source)} &middot; fetched {generated}</p>
+    <p class="sub" id="status">{count} stored articles &middot; page loaded {generated}</p>
     {cards}
   </div>
+  <script>
+    const btn = document.getElementById('fetch');
+    const status = document.getElementById('status');
+    btn.addEventListener('click', async () => {{
+      btn.disabled = true;
+      btn.textContent = 'Fetching…';
+      try {{
+        const res = await fetch('/collect');
+        const data = await res.json();
+        status.textContent = `+${{data.new}} new, ${{data.duplicates}} duplicates skipped `
+          + `(${{data.stored_total}} stored total) — reloading…`;
+        setTimeout(() => location.reload(), 800);
+      }} catch (err) {{
+        btn.disabled = false;
+        btn.textContent = '↻ Fetch latest news';
+        status.textContent = 'Fetch failed — is the server running?';
+      }}
+    }});
+  </script>
 </body>
 </html>"""

@@ -13,7 +13,9 @@ from fastapi.responses import HTMLResponse
 from app import __version__
 from app.collectors import RSSCollector
 from app.config import get_settings
+from app.db import ArticleRepository, SessionLocal
 from app.logging_config import configure_logging
+from app.pipeline.deduplicator import store_new_articles
 from app.web import render_news_page
 
 logger = logging.getLogger("stockpulse")
@@ -32,16 +34,18 @@ app = FastAPI(title="StockPulse", version=__version__, lifespan=lifespan)
 
 
 @app.get("/", response_class=HTMLResponse)
-async def news_page() -> HTMLResponse:
-    """A simple read-only page listing the latest collected headlines.
+def news_page() -> HTMLResponse:
+    """A simple read-only page listing articles already stored in the DB.
 
-    Debugging aid for humans — open it in a browser instead of reading the
-    raw JSON from /collect. Not the future dashboard.
+    Use the "Fetch latest news" button (which calls /collect) to pull and
+    store new articles, then this page shows the accumulated, de-duplicated
+    result. Not the future dashboard.
     """
-    settings = get_settings()
-    collector = RSSCollector(settings.news_source_name, settings.news_rss_url)
-    articles = await collector.collect()
-    return HTMLResponse(render_news_page(collector.source_name, articles))
+    with SessionLocal() as session:
+        repository = ArticleRepository(session)
+        articles = repository.list_recent(limit=100)
+        total = repository.count()
+    return HTMLResponse(render_news_page(articles, stored_total=total))
 
 
 @app.get("/health")
@@ -52,17 +56,30 @@ def health() -> dict[str, str]:
 
 @app.get("/collect")
 async def collect() -> dict:
-    """Manually trigger a one-off news collection (Phase 1 debugging aid).
+    """Fetch news, store new articles, and skip duplicates.
 
-    Fetches and normalizes recent articles from the configured RSS source
-    and returns them. It does not yet store, filter, or alert on anything.
+    Returns a summary of the run. It does not yet filter or alert on
+    anything — that arrives in later phases.
     """
     settings = get_settings()
     collector = RSSCollector(settings.news_source_name, settings.news_rss_url)
     articles = await collector.collect()
-    logger.info("Manual /collect fetched %d articles from %s", len(articles), collector.source_name)
+
+    with SessionLocal() as session:
+        result = store_new_articles(session, articles)
+
+    logger.info(
+        "Collect from %s -- collected=%d new=%d duplicates=%d stored_total=%d",
+        collector.source_name,
+        result.collected,
+        result.new,
+        result.duplicates,
+        result.stored_total,
+    )
     return {
         "source": collector.source_name,
-        "count": len(articles),
-        "articles": [a.model_dump(mode="json") for a in articles],
+        "collected": result.collected,
+        "new": result.new,
+        "duplicates": result.duplicates,
+        "stored_total": result.stored_total,
     }
