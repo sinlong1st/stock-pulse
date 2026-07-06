@@ -93,7 +93,7 @@ Each phase lights up one more box. Boxes with ✅ exist today.
 | **What you can do** | Separate "likely matters" from "obvious noise" using tickers, company names, macro + sector keywords. |
 | **What you'll see** | `/collect` reports a `relevant` count; the home page highlights matches with chips (NVDA, Fed, AI/Semiconductor…). |
 | **How to test** | `/collect` and read the `relevant` count · open `/` and look for highlighted cards · or `pytest` |
-| **Configure** | Edit `watchlist.json` (tickers + company names), then restart. Copy it from `watchlist.example.json`. |
+| **Configure** | Edit `watchlist.json` (tickers + names) and `keywords.json` (macro + sector keywords), then restart. Copy each from its `*.example.json`. |
 | **Note** | Matching is deliberately generous (better to over-include than miss news); the AI in Phase 4 is the second, smarter gate. |
 
 ### ✅ Phase 4 — AI classification

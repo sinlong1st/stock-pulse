@@ -31,17 +31,21 @@ pip install -e ".[dev]"
 
 # Configure environment
 cp .env.example .env            # then edit .env with real values
-cp watchlist.example.json watchlist.json   # then edit your tickers + company names
+cp watchlist.example.json watchlist.json   # your tickers + company names
+cp keywords.example.json keywords.json     # your macro + sector keywords
 
 # Create the database (runs migrations)
 alembic upgrade head
 ```
 
-## Configuring the watchlist
+## Configuring what StockPulse watches
 
-Your tracked tickers and their company-name aliases live in **`watchlist.json`**
-(git-ignored). It maps each ticker to the names that should also match in
-headlines:
+Two git-ignored JSON files control the rule filter. Edit them and **restart
+the app** to pick up changes. If either file is missing, StockPulse falls
+back to built-in defaults, so it always runs.
+
+**`watchlist.json`** — tracked tickers and their company-name aliases (the
+names that should also match in headlines):
 
 ```json
 {
@@ -51,8 +55,21 @@ headlines:
 }
 ```
 
-Edit the file and **restart the app** to pick up changes. If the file is
-missing, StockPulse falls back to built-in defaults, so it always runs.
+**`keywords.json`** — macro keywords and sector groups:
+
+```json
+{
+  "macro": ["Federal Reserve", "CPI", "inflation", "tariff"],
+  "sectors": {
+    "AI/Semiconductor": ["AI", "semiconductor", "GPU"],
+    "Crypto": ["bitcoin", "ethereum"]
+  }
+}
+```
+
+Omit a top-level key to keep its built-in default; use an empty list/object
+to disable that part. Broad words like `oil` or `bank` can over-match — trim
+them here if alerts get noisy.
 
 ## Run
 

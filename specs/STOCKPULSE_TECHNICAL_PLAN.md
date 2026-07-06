@@ -650,6 +650,22 @@ in a dedicated JSON file instead:
   defaults, so it always runs.
 - Loaded by `app/watchlist.py`; consumed by the rule filter.
 
+Macro and sector keywords follow the same pattern in a separate
+`keywords.json` file (`KEYWORDS_FILE`, default `keywords.json`), loaded by
+`app/keyword_config.py`:
+
+``` json
+// keywords.json  (git-ignored; copy from keywords.example.json)
+{
+  "macro": ["Federal Reserve", "CPI", "tariff"],
+  "sectors": { "AI/Semiconductor": ["AI", "semiconductor", "GPU"] }
+}
+```
+
+Omitting a top-level key keeps the built-in default for that part; an empty
+list/object disables it. So all rule-filter tuning — tickers, company
+names, macro, and sector keywords — lives in two editable JSON files.
+
 ------------------------------------------------------------------------
 
 ## 11. Recommended Project Structure
@@ -703,6 +719,7 @@ stock-pulse/
 ├── .env.example
 ├── .gitignore
 ├── watchlist.example.json   # template; copy to watchlist.json (git-ignored)
+├── keywords.example.json    # template; copy to keywords.json (git-ignored)
 ├── Dockerfile
 ├── docker-compose.yml
 ├── pyproject.toml

@@ -20,8 +20,9 @@ env/
 *.sqlite3
 stockpulse.db
 
-# Local watchlist config (edit watchlist.json; commit watchlist.example.json)
+# Local config files (edit the .json; commit the .example.json templates)
 watchlist.json
+keywords.json
 
 # Testing / tooling caches
 .pytest_cache/

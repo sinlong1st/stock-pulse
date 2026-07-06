@@ -16,6 +16,7 @@ import re
 from dataclasses import asdict, dataclass, field
 from functools import lru_cache
 
+from app.keyword_config import get_keyword_config
 from app.models.article import NewsArticle
 from app.pipeline.keywords import (
     DEFAULT_COMPANY_ALIASES,
@@ -140,6 +141,12 @@ class RuleFilter:
 
 @lru_cache
 def get_rule_filter() -> RuleFilter:
-    """Return a process-wide RuleFilter built from the watchlist config file."""
-    config = get_watchlist_config()
-    return RuleFilter(list(config.tickers), company_aliases=config.aliases)
+    """Return a process-wide RuleFilter built from the config files."""
+    watchlist = get_watchlist_config()
+    keywords = get_keyword_config()
+    return RuleFilter(
+        list(watchlist.tickers),
+        company_aliases=watchlist.aliases,
+        macro_keywords=keywords.macro,
+        sector_keywords=keywords.sectors,
+    )

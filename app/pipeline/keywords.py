@@ -1,8 +1,10 @@
 """Default keyword and alias data for rule-based relevance filtering.
 
-These are sensible starting defaults. The watchlist is configurable via
-settings; the alias/keyword sets can be made configurable later without
-changing the filter logic.
+These are the built-in fallbacks. At runtime they are overridden by the
+editable config files: aliases/tickers via ``watchlist.json`` (loaded by
+``app.watchlist``) and macro/sector keywords via ``keywords.json`` (loaded
+by ``app.keyword_config``). The defaults here are used when a file is
+missing or invalid.
 """
 
 # Ticker -> company name aliases (matched case-insensitively as whole words).

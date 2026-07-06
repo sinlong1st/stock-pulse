@@ -1,0 +1,32 @@
+{
+  "macro": [
+    "Federal Reserve",
+    "Fed",
+    "FOMC",
+    "Powell",
+    "interest rate",
+    "rate cut",
+    "rate hike",
+    "CPI",
+    "PPI",
+    "inflation",
+    "jobs report",
+    "nonfarm payroll",
+    "unemployment",
+    "GDP",
+    "Treasury yield",
+    "tariff",
+    "tariffs",
+    "sanctions",
+    "oil",
+    "crude",
+    "geopolitical",
+    "war"
+  ],
+  "sectors": {
+    "AI/Semiconductor": ["AI", "artificial intelligence", "semiconductor", "chip", "chips", "GPU", "data center"],
+    "Banks": ["bank", "banks", "banking"],
+    "Crypto": ["crypto", "cryptocurrency", "bitcoin", "ethereum"],
+    "Energy": ["oil", "crude", "energy"]
+  }
+}

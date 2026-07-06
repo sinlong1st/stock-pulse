@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     # watchlist.example.json for the format.
     watchlist_file: str = "watchlist.json"
 
+    # Keyword config file (macro + sector keywords), loaded by
+    # app.keyword_config. See keywords.example.json for the format.
+    keywords_file: str = "keywords.json"
+
 
 @lru_cache
 def get_settings() -> Settings:
