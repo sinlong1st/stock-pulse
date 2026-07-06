@@ -35,6 +35,8 @@ class RelevanceResult:
     matched_macro: list[str] = field(default_factory=list)
     matched_sectors: list[str] = field(default_factory=list)
     category_hint: str | None = None  # "TICKER" | "MACRO" | "SECTOR" | None
+    # Exact surface phrases that matched (for highlighting), e.g. "Nvidia".
+    highlights: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -65,35 +67,49 @@ class RuleFilter:
         macro = macro_keywords if macro_keywords is not None else DEFAULT_MACRO_KEYWORDS
         sectors = sector_keywords if sector_keywords is not None else DEFAULT_SECTOR_KEYWORDS
 
+        # Patterns keep their surface string so matches can be highlighted.
         self._ticker_patterns = {t: _ticker_pattern(t) for t in watchlist}
         self._alias_patterns = {
-            ticker: [_keyword_pattern(name) for name in names]
+            ticker: [(name, _keyword_pattern(name)) for name in names]
             for ticker, names in aliases.items()
         }
         self._macro_patterns = {kw: _keyword_pattern(kw) for kw in macro}
         self._sector_patterns = {
-            sector: [_keyword_pattern(kw) for kw in kws] for sector, kws in sectors.items()
+            sector: [(kw, _keyword_pattern(kw)) for kw in kws] for sector, kws in sectors.items()
         }
 
     def evaluate(self, article: NewsArticle) -> RelevanceResult:
         text = f"{article.title} {article.summary or ''}"
+        highlights: list[str] = []
 
         matched_tickers: list[str] = []
         for ticker, pattern in self._ticker_patterns.items():
             if pattern.search(text):
                 matched_tickers.append(ticker)
+                highlights.append(ticker)
         # Company-name aliases also imply their ticker.
-        for ticker, patterns in self._alias_patterns.items():
-            if ticker in matched_tickers:
-                continue
-            if any(p.search(text) for p in patterns):
-                matched_tickers.append(ticker)
+        for ticker, named_patterns in self._alias_patterns.items():
+            for name, pattern in named_patterns:
+                if pattern.search(text):
+                    if ticker not in matched_tickers:
+                        matched_tickers.append(ticker)
+                    highlights.append(name)
 
-        matched_macro = [kw for kw, p in self._macro_patterns.items() if p.search(text)]
-        matched_sectors = [
-            sector for sector, patterns in self._sector_patterns.items()
-            if any(p.search(text) for p in patterns)
-        ]
+        matched_macro: list[str] = []
+        for kw, pattern in self._macro_patterns.items():
+            if pattern.search(text):
+                matched_macro.append(kw)
+                highlights.append(kw)
+
+        matched_sectors: list[str] = []
+        for sector, named_patterns in self._sector_patterns.items():
+            hit = False
+            for kw, pattern in named_patterns:
+                if pattern.search(text):
+                    hit = True
+                    highlights.append(kw)
+            if hit:
+                matched_sectors.append(sector)
 
         score = len(matched_tickers) + len(matched_macro) + len(matched_sectors)
         if matched_tickers:
@@ -105,6 +121,9 @@ class RuleFilter:
         else:
             category_hint = None
 
+        # De-duplicate highlights, longest first (so multi-word phrases win).
+        unique_highlights = sorted(set(highlights), key=len, reverse=True)
+
         return RelevanceResult(
             is_relevant=score > 0,
             score=score,
@@ -112,6 +131,7 @@ class RuleFilter:
             matched_macro=matched_macro,
             matched_sectors=matched_sectors,
             category_hint=category_hint,
+            highlights=unique_highlights,
         )
 
     def is_relevant(self, article: NewsArticle) -> bool:

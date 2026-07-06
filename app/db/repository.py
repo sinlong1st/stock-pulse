@@ -90,10 +90,18 @@ class ArticleRepository:
         return self.session.scalar(select(func.count()).select_from(ArticleRow)) or 0
 
     def list_recent(self, limit: int = 100) -> list[NewsArticle]:
-        """Return stored articles, newest first."""
+        """Return stored articles, newest first by publish time.
+
+        Articles without a publish time sort last; ties fall back to
+        insertion order (id).
+        """
         stmt = (
             select(ArticleRow)
-            .order_by(ArticleRow.collected_at.desc(), ArticleRow.id.desc())
+            .order_by(
+                ArticleRow.published_at.is_(None),  # False (0) sorts before True (1)
+                ArticleRow.published_at.desc(),
+                ArticleRow.id.desc(),
+            )
             .limit(limit)
         )
         return [_to_model(row) for row in self.session.scalars(stmt)]

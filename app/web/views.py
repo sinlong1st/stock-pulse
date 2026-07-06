@@ -1,10 +1,37 @@
 """Render collected news as a simple, self-contained HTML page."""
 
+import re
 from datetime import UTC, datetime
 from html import escape
 
 from app.models.article import NewsArticle
 from app.pipeline.rule_filter import RelevanceResult
+
+
+def _highlight(text: str, terms: list[str]) -> str:
+    """HTML-escape `text`, wrapping any whole-word matches of `terms` in <strong>.
+
+    Terms are matched case-insensitively; escaping is applied to every
+    segment so the result is always safe HTML.
+    """
+    if not text:
+        return ""
+    if not terms:
+        return escape(text)
+    # Longest terms first so multi-word phrases win over their parts.
+    ordered = sorted({t for t in terms if t}, key=len, reverse=True)
+    pattern = re.compile(
+        r"(?<!\w)(" + "|".join(re.escape(t) for t in ordered) + r")(?!\w)",
+        re.IGNORECASE,
+    )
+    out: list[str] = []
+    last = 0
+    for match in pattern.finditer(text):
+        out.append(escape(text[last : match.start()]))
+        out.append(f"<strong>{escape(match.group(0))}</strong>")
+        last = match.end()
+    out.append(escape(text[last:]))
+    return "".join(out)
 
 
 def _format_time(published: datetime | None) -> str:
@@ -39,15 +66,18 @@ def _render_chips(result: RelevanceResult | None) -> str:
 
 
 def _render_card(article: NewsArticle, result: RelevanceResult | None = None) -> str:
-    title = escape(article.title)
+    is_relevant = result is not None and result.is_relevant
+    terms = result.highlights if is_relevant else []
+    title = _highlight(article.title, terms)
     url = escape(article.url, quote=True)
-    summary = escape(article.summary) if article.summary else ""
+    summary = _highlight(article.summary, terms) if article.summary else ""
     when = escape(_format_time(article.published_at))
     source = escape(article.source)
     summary_html = f'<p class="summary">{summary}</p>' if summary else ""
-    relevant_class = " relevant" if result is not None and result.is_relevant else ""
+    relevant_class = " relevant" if is_relevant else " muted"
+    data_relevant = "1" if is_relevant else "0"
     return f"""
-      <article class="card{relevant_class}">
+      <article class="card{relevant_class}" data-relevant="{data_relevant}">
         <a class="title" href="{url}" target="_blank" rel="noopener noreferrer">{title}</a>
         {summary_html}
         {_render_chips(result)}
@@ -74,6 +104,14 @@ def render_news_page(
     count = stored_total if stored_total is not None else len(articles)
     relevant = sum(1 for r in results if r is not None and r.is_relevant)
     relevant_note = f" &middot; {relevant} match the filter" if evaluations is not None else ""
+    controls = (
+        '<div class="controls">'
+        '<input type="checkbox" id="only-matches">'
+        f'<label for="only-matches">Only show matches ({relevant})</label>'
+        "</div>"
+        if evaluations is not None and relevant
+        else ""
+    )
     generated = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     return f"""<!doctype html>
@@ -118,6 +156,12 @@ def render_news_page(
   .meta {{ color: var(--muted); font-size: .82rem; margin-top: 10px; display: flex; gap: 8px; }}
   .empty {{ color: var(--muted); text-align: center; padding: 48px 0; }}
   .card.relevant {{ border-left: 3px solid var(--accent); }}
+  .card.muted {{ opacity: .55; }}
+  .card.muted:hover {{ opacity: 1; }}
+  .title strong, .summary strong {{ color: var(--accent); font-weight: 700; }}
+  .controls {{ display: flex; align-items: center; gap: 8px; margin: 0 0 20px; }}
+  .controls label {{ color: var(--muted); font-size: .88rem; cursor: pointer; user-select: none; }}
+  body.only-matches .card[data-relevant="0"] {{ display: none; }}
   .chips {{ display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }}
   .chip {{ font-size: .72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }}
   .chip-ticker {{ background: rgba(76,154,255,.16); color: var(--accent); }}
@@ -132,11 +176,18 @@ def render_news_page(
       <button id="fetch" class="refresh" type="button">↻ Fetch latest news</button>
     </header>
     <p class="sub" id="status">{count} stored articles{relevant_note} &middot; page loaded {generated}</p>
+    {controls}
     {cards}
   </div>
   <script>
     const btn = document.getElementById('fetch');
     const status = document.getElementById('status');
+    const only = document.getElementById('only-matches');
+    if (only) {{
+      only.addEventListener('change', () => {{
+        document.body.classList.toggle('only-matches', only.checked);
+      }});
+    }}
     btn.addEventListener('click', async () => {{
       btn.disabled = true;
       btn.textContent = 'Fetching…';

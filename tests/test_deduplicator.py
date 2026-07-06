@@ -86,6 +86,22 @@ def test_within_batch_duplicates_collapsed(session) -> None:
     assert len(new) == 1
 
 
+def test_list_recent_sorts_newest_published_first(session) -> None:
+    older = _article("Older", "https://e.com/old")
+    older.published_at = datetime(2026, 7, 1, 12, tzinfo=UTC)
+    newer = _article("Newer", "https://e.com/new")
+    newer.published_at = datetime(2026, 7, 5, 12, tzinfo=UTC)
+    no_date = _article("NoDate", "https://e.com/none")
+    no_date.published_at = None
+
+    # Insert out of order.
+    store_new_articles(session, [older, no_date, newer])
+    titles = [a.title for a in ArticleRepository(session).list_recent()]
+    assert titles[0] == "Newer"
+    assert titles[1] == "Older"
+    assert titles[-1] == "NoDate"  # undated sorts last
+
+
 def test_list_recent_returns_timezone_aware_datetimes(session) -> None:
     store_new_articles(session, [_article("A", "https://e.com/a")])
     (stored,) = ArticleRepository(session).list_recent()
