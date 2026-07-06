@@ -9,7 +9,8 @@ from datetime import UTC, datetime
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.db.models import ArticleRow, ClassificationRow
+from app.alerts.constants import STATUS_FAILED, STATUS_PENDING, STATUS_SENT
+from app.db.models import AlertRow, ArticleRow, ClassificationRow
 from app.models.article import NewsArticle
 from app.models.classification import ClassificationResult
 
@@ -167,3 +168,50 @@ class ClassificationRepository:
         )
         self.session.add(row)
         return row
+
+
+class AlertRepository:
+    """Read/write alert records for a given session."""
+
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def exists(self, article_id: int, channel: str) -> bool:
+        stmt = select(AlertRow.id).where(
+            AlertRow.article_id == article_id, AlertRow.channel == channel
+        ).limit(1)
+        return self.session.scalar(stmt) is not None
+
+    def create(self, article_id: int, importance: str, channel: str) -> AlertRow:
+        """Create a PENDING alert record (does not commit)."""
+        row = AlertRow(
+            article_id=article_id,
+            importance=importance,
+            channel=channel,
+            status=STATUS_PENDING,
+            created_at=datetime.now(tz=UTC),
+        )
+        self.session.add(row)
+        return row
+
+    def list_by_status(self, status: str, limit: int = 100) -> list[AlertRow]:
+        stmt = (
+            select(AlertRow)
+            .where(AlertRow.status == status)
+            .order_by(AlertRow.created_at.asc())
+            .limit(limit)
+        )
+        return list(self.session.scalars(stmt))
+
+    def count_by_status(self, status: str) -> int:
+        stmt = select(func.count()).select_from(AlertRow).where(AlertRow.status == status)
+        return self.session.scalar(stmt) or 0
+
+    def mark_sent(self, alert: AlertRow) -> None:
+        alert.status = STATUS_SENT
+        alert.sent_at = datetime.now(tz=UTC)
+        alert.error_message = None
+
+    def mark_failed(self, alert: AlertRow, error: str) -> None:
+        alert.status = STATUS_FAILED
+        alert.error_message = error

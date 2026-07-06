@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o-mini"
     openai_base_url: str = "https://api.openai.com/v1"
 
+    # Alerting (Phase 5+). Minimum importance that triggers an alert.
+    alert_min_importance: str = "MEDIUM"
+
     # Telegram notifications (Phase 6+)
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""

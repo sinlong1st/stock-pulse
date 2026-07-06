@@ -16,8 +16,8 @@ check it works.** Update the status column as we go.
 ✅ Phase 1  News collection (pull real headlines)
 ✅ Phase 2  Remember what it's seen (database + dedup)
 ✅ Phase 3  Filter out the noise (keywords/watchlist)
-✅ Phase 4  AI decides what matters   ← YOU ARE HERE
-⬜ Phase 5  Alert rules (should we notify?)
+✅ Phase 4  AI decides what matters
+✅ Phase 5  Alert rules (should we notify?)   ← YOU ARE HERE
 ⬜ Phase 6  Send Telegram alerts
 ⬜ Phase 7  Run automatically every few minutes
 ⬜ Phase 8  Package it up (Docker + CI)
@@ -46,7 +46,7 @@ Each phase lights up one more box. Boxes with ✅ exist today.
    AI classifier        ✅ Phase 4   → importance, category, tickers, summary
         │
         ▼
-   Alert decision       ⬜ Phase 5   → OUR rules decide: notify or not?
+   Alert decision       ✅ Phase 5   → OUR rules decide: notify or not?
         │
         ▼
    Notify (Telegram)    ⬜ Phase 6   → message hits your phone
@@ -106,13 +106,15 @@ Each phase lights up one more box. Boxes with ✅ exist today.
 | **Configure** | Set `OPENAI_API_KEY` in `.env` (and optionally `OPENAI_MODEL`, default `gpt-4o-mini`). |
 | **Cost** | Manual/opt-in only — nothing calls the API automatically. Already-classified articles are skipped. |
 
-### ⬜ Phase 5 — Alert decision engine
+### ✅ Phase 5 — Alert decision engine
 | | |
 |---|---|
 | **Goal** | **Our** app (not the AI) makes the final call on whether to alert. |
-| **What you can do** | Map importance → action consistently. |
-| **What you'll see** | `LOW → log only · MEDIUM/HIGH/CRITICAL → Telegram` (for the MVP). |
-| **How to test** | `pytest` on the decision rules. |
+| **What you can do** | Consistent importance → action; alert records are created (status PENDING). |
+| **What you'll see** | `LOW → log only · MEDIUM/HIGH/CRITICAL → Telegram`; `/classify` reports `alerts_created`. |
+| **How to test** | `pytest` on the decision rules and alert storage. |
+| **Configure** | `ALERT_MIN_IMPORTANCE` in `.env` (default `MEDIUM`). |
+| **Note** | The AI's `should_alert` is only a recommendation; the app decides by importance threshold + relevance. |
 
 ### ⬜ Phase 6 — Telegram notifications
 | | |

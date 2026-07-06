@@ -13,7 +13,13 @@ from fastapi.responses import HTMLResponse
 from app import __version__
 from app.collectors import RSSCollector
 from app.config import get_settings
-from app.db import ArticleRepository, ClassificationRepository, SessionLocal
+from app.alerts import get_alert_policy
+from app.db import (
+    AlertRepository,
+    ArticleRepository,
+    ClassificationRepository,
+    SessionLocal,
+)
 from app.logging_config import configure_logging
 from app.pipeline.classifier import ClassificationError, build_classifier
 from app.pipeline.deduplicator import store_new_articles
@@ -83,11 +89,13 @@ async def classify(limit: int = 5) -> dict:
         return {"error": str(exc), "hint": "Set OPENAI_API_KEY in .env."}
 
     rule_filter = get_rule_filter()
+    policy = get_alert_policy()
     settings = get_settings()
 
     with SessionLocal() as session:
         articles = ArticleRepository(session).list_recent(limit=200)
         classification_repo = ClassificationRepository(session)
+        alert_repo = AlertRepository(session)
         already = classification_repo.classified_article_ids(
             [int(a.id) for a in articles if a.id]
         )
@@ -99,6 +107,7 @@ async def classify(limit: int = 5) -> dict:
 
         results = []
         errors = 0
+        alerts_created = 0
         for article in candidates:
             try:
                 result = await classifier.classify(article)
@@ -106,7 +115,17 @@ async def classify(limit: int = 5) -> dict:
                 logger.exception("Classification failed for article %s", article.id)
                 errors += 1
                 continue
-            classification_repo.add(int(article.id), result, model=settings.openai_model)
+            article_id = int(article.id)
+            classification_repo.add(article_id, result, model=settings.openai_model)
+
+            # The app — not the AI — decides whether to alert.
+            decision = policy.decide(result)
+            if decision.should_alert:
+                for channel in decision.channels:
+                    if not alert_repo.exists(article_id, channel):
+                        alert_repo.create(article_id, decision.importance, channel)
+                        alerts_created += 1
+
             results.append(
                 {
                     "article_id": article.id,
@@ -114,13 +133,24 @@ async def classify(limit: int = 5) -> dict:
                     "importance": result.importance,
                     "category": result.category,
                     "related_tickers": result.related_tickers,
-                    "should_alert": result.should_alert,
+                    "ai_recommends_alert": result.should_alert,
+                    "will_alert": decision.should_alert,
                 }
             )
         session.commit()
 
-    logger.info("Classified %d articles (%d errors)", len(results), errors)
-    return {"classified": len(results), "errors": errors, "results": results}
+    logger.info(
+        "Classified %d articles (%d errors), created %d alerts",
+        len(results),
+        errors,
+        alerts_created,
+    )
+    return {
+        "classified": len(results),
+        "errors": errors,
+        "alerts_created": alerts_created,
+        "results": results,
+    }
 
 
 @app.get("/collect")
