@@ -131,17 +131,23 @@ def render_news_page(
         "<strong>Fetch latest news</strong> to pull some in.</p>"
     )
     count = stored_total if stored_total is not None else len(articles)
+    shown = len(articles)
     relevant = sum(1 for r in results if r is not None and r.is_relevant)
     classified = len(class_map)
     relevant_note = f" &middot; {relevant} match the filter" if evaluations is not None else ""
     if classified:
         relevant_note += f" &middot; {classified} AI-analyzed"
+
+    # Default to showing only matches (when there are any); the toggle
+    # reveals every article.
+    only_matches_default = evaluations is not None and relevant > 0
+    body_class = "only-matches" if only_matches_default else ""
     controls = (
         '<div class="controls">'
-        '<input type="checkbox" id="only-matches">'
-        f'<label for="only-matches">Only show matches ({relevant})</label>'
+        '<input type="checkbox" id="show-all">'
+        f'<label for="show-all">Show all articles &middot; {relevant} of {shown} match</label>'
         "</div>"
-        if evaluations is not None and relevant
+        if only_matches_default
         else ""
     )
     generated = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
@@ -213,7 +219,7 @@ def render_news_page(
   .chip-sector {{ background: rgba(120,200,120,.16); color: #4faf66; }}
 </style>
 </head>
-<body>
+<body class="{body_class}">
   <div class="wrap">
     <header>
       <h1>Stock<span class="pulse">Pulse</span></h1>
@@ -229,10 +235,11 @@ def render_news_page(
   <script>
     const btn = document.getElementById('fetch');
     const status = document.getElementById('status');
-    const only = document.getElementById('only-matches');
-    if (only) {{
-      only.addEventListener('change', () => {{
-        document.body.classList.toggle('only-matches', only.checked);
+    const showAll = document.getElementById('show-all');
+    if (showAll) {{
+      // Default view shows only matches; checking "Show all" reveals everything.
+      showAll.addEventListener('change', () => {{
+        document.body.classList.toggle('only-matches', !showAll.checked);
       }});
     }}
 

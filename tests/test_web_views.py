@@ -56,7 +56,7 @@ def test_render_bolds_matched_keywords_in_title() -> None:
     assert "<strong>Nvidia</strong>" in html
 
 
-def test_render_adds_data_relevant_attribute_and_toggle() -> None:
+def test_render_defaults_to_only_matches_with_show_all_toggle() -> None:
     from app.pipeline.rule_filter import RuleFilter
 
     rf = RuleFilter(["NVDA"])
@@ -66,7 +66,10 @@ def test_render_adds_data_relevant_attribute_and_toggle() -> None:
     html = render_news_page([relevant, noise], stored_total=2, evaluations=evals)
     assert 'data-relevant="1"' in html
     assert 'data-relevant="0"' in html
-    assert 'id="only-matches"' in html
+    # Only-matches is the default view; the toggle reveals all.
+    assert 'class="only-matches"' in html
+    assert 'id="show-all"' in html
+    assert "1 of 2 match" in html
 
 
 def test_render_shows_ai_verdict_when_classified() -> None:
