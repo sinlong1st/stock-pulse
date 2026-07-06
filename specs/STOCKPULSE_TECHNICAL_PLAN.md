@@ -612,7 +612,7 @@ OPENAI_API_KEY=
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
 
-WATCHLIST=QQQ,QQQM,VOO,NVDA,AMD,PLTR,SOFI,HOOD,META,AMZN
+WATCHLIST_FILE=watchlist.json
 ```
 
 Create:
@@ -626,6 +626,29 @@ Never commit:
 ``` text
 .env
 ```
+
+### Watchlist configuration (as implemented)
+
+The watchlist needs both ticker symbols **and** company-name aliases
+(e.g. `NVDA` should match "Nvidia"). That is a ticker-to-names mapping,
+which does not fit cleanly in a single environment variable, so it lives
+in a dedicated JSON file instead:
+
+``` json
+// watchlist.json  (git-ignored; copy from watchlist.example.json)
+{
+  "NVDA": ["Nvidia"],
+  "MSFT": ["Microsoft"],
+  "TSLA": ["Tesla"]
+}
+```
+
+- `WATCHLIST_FILE` (env, default `watchlist.json`) points to this file.
+- `watchlist.example.json` is committed as a template; `watchlist.json`
+  is git-ignored, like `.env`.
+- If the file is missing or invalid, the app falls back to built-in
+  defaults, so it always runs.
+- Loaded by `app/watchlist.py`; consumed by the rule filter.
 
 ------------------------------------------------------------------------
 
@@ -679,6 +702,7 @@ stock-pulse/
 ├── alembic/
 ├── .env.example
 ├── .gitignore
+├── watchlist.example.json   # template; copy to watchlist.json (git-ignored)
 ├── Dockerfile
 ├── docker-compose.yml
 ├── pyproject.toml
