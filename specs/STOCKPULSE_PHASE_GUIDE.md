@@ -14,8 +14,8 @@ check it works.** Update the status column as we go.
 ```
 ✅ Phase 0  Foundation (web server + /health)
 ✅ Phase 1  News collection (pull real headlines)
-✅ Phase 2  Remember what it's seen (database + dedup)   ← YOU ARE HERE
-⬜ Phase 3  Filter out the noise (keywords/watchlist)
+✅ Phase 2  Remember what it's seen (database + dedup)
+✅ Phase 3  Filter out the noise (keywords/watchlist)   ← YOU ARE HERE
 ⬜ Phase 4  AI decides what matters
 ⬜ Phase 5  Alert rules (should we notify?)
 ⬜ Phase 6  Send Telegram alerts
@@ -40,7 +40,7 @@ Each phase lights up one more box. Boxes with ✅ exist today.
    Store + Deduplicate  ✅ Phase 2   → save articles, skip ones already handled
         │
         ▼
-   Rule filter          ⬜ Phase 3   → drop obvious noise before spending money
+   Rule filter          ✅ Phase 3   → drop obvious noise before spending money
         │
         ▼
    AI classifier        ⬜ Phase 4   → importance, category, tickers, summary
@@ -86,13 +86,14 @@ Each phase lights up one more box. Boxes with ✅ exist today.
 | **How to test** | `/collect` twice → 2nd run shows all duplicates, `stored_total` unchanged · or `pytest` |
 | **Setup** | Run `alembic upgrade head` once to create the database table. |
 
-### ⬜ Phase 3 — Rule-based filtering
+### ✅ Phase 3 — Rule-based filtering
 | | |
 |---|---|
 | **Goal** | Cheaply drop irrelevant articles before involving AI (saves money). |
-| **What you can do** | Separate "likely matters" from "obvious noise" using keywords + your watchlist. |
-| **What you'll see** | Counts like "collected 50 → 7 passed the filter". |
-| **How to test** | `pytest` on relevant vs. irrelevant sample articles. |
+| **What you can do** | Separate "likely matters" from "obvious noise" using tickers, company names, macro + sector keywords. |
+| **What you'll see** | `/collect` reports a `relevant` count; the home page highlights matches with chips (NVDA, Fed, AI/Semiconductor…). |
+| **How to test** | `/collect` and read the `relevant` count · open `/` and look for highlighted cards · or `pytest` |
+| **Note** | Matching is deliberately generous (better to over-include than miss news); the AI in Phase 4 is the second, smarter gate. |
 
 ### ⬜ Phase 4 — AI classification
 | | |

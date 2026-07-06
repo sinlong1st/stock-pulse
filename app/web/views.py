@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from html import escape
 
 from app.models.article import NewsArticle
+from app.pipeline.rule_filter import RelevanceResult
 
 
 def _format_time(published: datetime | None) -> str:
@@ -23,28 +24,56 @@ def _format_time(published: datetime | None) -> str:
     return f"{seconds // 86400}d ago"
 
 
-def _render_card(article: NewsArticle) -> str:
+def _render_chips(result: RelevanceResult | None) -> str:
+    """Render match chips (tickers, macro, sector) for a relevant article."""
+    if result is None or not result.is_relevant:
+        return ""
+    chips: list[str] = []
+    for ticker in result.matched_tickers:
+        chips.append(f'<span class="chip chip-ticker">{escape(ticker)}</span>')
+    for macro in result.matched_macro:
+        chips.append(f'<span class="chip chip-macro">{escape(macro)}</span>')
+    for sector in result.matched_sectors:
+        chips.append(f'<span class="chip chip-sector">{escape(sector)}</span>')
+    return f'<div class="chips">{"".join(chips)}</div>'
+
+
+def _render_card(article: NewsArticle, result: RelevanceResult | None = None) -> str:
     title = escape(article.title)
     url = escape(article.url, quote=True)
     summary = escape(article.summary) if article.summary else ""
     when = escape(_format_time(article.published_at))
     source = escape(article.source)
     summary_html = f'<p class="summary">{summary}</p>' if summary else ""
+    relevant_class = " relevant" if result is not None and result.is_relevant else ""
     return f"""
-      <article class="card">
+      <article class="card{relevant_class}">
         <a class="title" href="{url}" target="_blank" rel="noopener noreferrer">{title}</a>
         {summary_html}
+        {_render_chips(result)}
         <div class="meta"><span>{source}</span><span>&middot;</span><span>{when}</span></div>
       </article>"""
 
 
-def render_news_page(articles: list[NewsArticle], *, stored_total: int | None = None) -> str:
-    """Return a full HTML document listing stored articles."""
-    cards = "\n".join(_render_card(a) for a in articles) or (
+def render_news_page(
+    articles: list[NewsArticle],
+    *,
+    stored_total: int | None = None,
+    evaluations: list[RelevanceResult] | None = None,
+) -> str:
+    """Return a full HTML document listing stored articles.
+
+    When `evaluations` (rule-filter results, aligned with `articles`) is
+    provided, relevant articles are highlighted with match chips.
+    """
+    results = evaluations if evaluations is not None else [None] * len(articles)
+    cards = "\n".join(_render_card(a, r) for a, r in zip(articles, results)) or (
         '<p class="empty">No stored articles yet — click '
         "<strong>Fetch latest news</strong> to pull some in.</p>"
     )
     count = stored_total if stored_total is not None else len(articles)
+    relevant = sum(1 for r in results if r is not None and r.is_relevant)
+    relevant_note = f" &middot; {relevant} match the filter" if evaluations is not None else ""
     generated = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     return f"""<!doctype html>
@@ -88,6 +117,12 @@ def render_news_page(articles: list[NewsArticle], *, stored_total: int | None = 
   .summary {{ color: var(--muted); font-size: .92rem; margin: 8px 0 0; }}
   .meta {{ color: var(--muted); font-size: .82rem; margin-top: 10px; display: flex; gap: 8px; }}
   .empty {{ color: var(--muted); text-align: center; padding: 48px 0; }}
+  .card.relevant {{ border-left: 3px solid var(--accent); }}
+  .chips {{ display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }}
+  .chip {{ font-size: .72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }}
+  .chip-ticker {{ background: rgba(76,154,255,.16); color: var(--accent); }}
+  .chip-macro {{ background: rgba(240,170,60,.16); color: #e0972f; }}
+  .chip-sector {{ background: rgba(120,200,120,.16); color: #4faf66; }}
 </style>
 </head>
 <body>
@@ -96,7 +131,7 @@ def render_news_page(articles: list[NewsArticle], *, stored_total: int | None = 
       <h1>Stock<span class="pulse">Pulse</span></h1>
       <button id="fetch" class="refresh" type="button">↻ Fetch latest news</button>
     </header>
-    <p class="sub" id="status">{count} stored articles &middot; page loaded {generated}</p>
+    <p class="sub" id="status">{count} stored articles{relevant_note} &middot; page loaded {generated}</p>
     {cards}
   </div>
   <script>

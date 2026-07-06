@@ -16,6 +16,7 @@ from app.config import get_settings
 from app.db import ArticleRepository, SessionLocal
 from app.logging_config import configure_logging
 from app.pipeline.deduplicator import store_new_articles
+from app.pipeline.rule_filter import get_rule_filter
 from app.web import render_news_page
 
 logger = logging.getLogger("stockpulse")
@@ -45,7 +46,9 @@ def news_page() -> HTMLResponse:
         repository = ArticleRepository(session)
         articles = repository.list_recent(limit=100)
         total = repository.count()
-    return HTMLResponse(render_news_page(articles, stored_total=total))
+    rule_filter = get_rule_filter()
+    evaluations = [rule_filter.evaluate(a) for a in articles]
+    return HTMLResponse(render_news_page(articles, stored_total=total, evaluations=evaluations))
 
 
 @app.get("/health")
@@ -68,12 +71,16 @@ async def collect() -> dict:
     with SessionLocal() as session:
         result = store_new_articles(session, articles)
 
+    rule_filter = get_rule_filter()
+    relevant = sum(1 for a in articles if rule_filter.is_relevant(a))
+
     logger.info(
-        "Collect from %s -- collected=%d new=%d duplicates=%d stored_total=%d",
+        "Collect from %s -- collected=%d new=%d duplicates=%d relevant=%d stored_total=%d",
         collector.source_name,
         result.collected,
         result.new,
         result.duplicates,
+        relevant,
         result.stored_total,
     )
     return {
@@ -81,5 +88,6 @@ async def collect() -> dict:
         "collected": result.collected,
         "new": result.new,
         "duplicates": result.duplicates,
+        "relevant": relevant,
         "stored_total": result.stored_total,
     }

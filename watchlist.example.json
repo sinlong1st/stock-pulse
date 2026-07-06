@@ -1,0 +1,12 @@
+{
+  "QQQ": ["Invesco QQQ", "Nasdaq 100", "Nasdaq-100"],
+  "QQQM": ["Invesco Nasdaq 100"],
+  "VOO": ["Vanguard S&P 500", "S&P 500"],
+  "NVDA": ["Nvidia"],
+  "AMD": ["Advanced Micro Devices"],
+  "PLTR": ["Palantir"],
+  "SOFI": ["SoFi", "SoFi Technologies"],
+  "HOOD": ["Robinhood"],
+  "META": ["Meta", "Meta Platforms", "Facebook", "Instagram", "WhatsApp"],
+  "AMZN": ["Amazon", "AWS"]
+}

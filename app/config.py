@@ -7,7 +7,6 @@ values are declared here so configuration stays in one typed place.
 
 from functools import lru_cache
 
-from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -45,18 +44,10 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
 
-    # Watchlist
-    watchlist: list[str] = Field(
-        default=["QQQ", "QQQM", "VOO", "NVDA", "AMD", "PLTR", "SOFI", "HOOD", "META", "AMZN"]
-    )
-
-    @field_validator("watchlist", mode="before")
-    @classmethod
-    def _split_watchlist(cls, value: object) -> object:
-        """Allow WATCHLIST to be a comma-separated string in the environment."""
-        if isinstance(value, str):
-            return [item.strip().upper() for item in value.split(",") if item.strip()]
-        return value
+    # Watchlist config file (tickers + company aliases), loaded by
+    # app.watchlist. Edit watchlist.json rather than code; see
+    # watchlist.example.json for the format.
+    watchlist_file: str = "watchlist.json"
 
 
 @lru_cache

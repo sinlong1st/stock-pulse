@@ -31,10 +31,28 @@ pip install -e ".[dev]"
 
 # Configure environment
 cp .env.example .env            # then edit .env with real values
+cp watchlist.example.json watchlist.json   # then edit your tickers + company names
 
 # Create the database (runs migrations)
 alembic upgrade head
 ```
+
+## Configuring the watchlist
+
+Your tracked tickers and their company-name aliases live in **`watchlist.json`**
+(git-ignored). It maps each ticker to the names that should also match in
+headlines:
+
+```json
+{
+  "NVDA": ["Nvidia"],
+  "MSFT": ["Microsoft"],
+  "TSLA": ["Tesla"]
+}
+```
+
+Edit the file and **restart the app** to pick up changes. If the file is
+missing, StockPulse falls back to built-in defaults, so it always runs.
 
 ## Run
 
@@ -62,7 +80,7 @@ Development proceeds one phase at a time (see the technical plan):
 0. Project foundation ✅
 1. News collection (RSS) ✅
 2. Persistence & deduplication (SQLite) ✅
-3. Rule-based filtering
+3. Rule-based filtering ✅
 4. AI classification
 5. Alert decision engine
 6. Telegram notifications

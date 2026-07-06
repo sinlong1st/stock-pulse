@@ -36,6 +36,17 @@ def test_render_handles_empty_list() -> None:
     assert "No stored articles yet" in html
 
 
+def test_render_shows_match_chips_for_relevant_articles() -> None:
+    from app.pipeline.rule_filter import RuleFilter
+
+    article = _article("NVDA jumps on strong demand")
+    result = RuleFilter(["NVDA"]).evaluate(article)
+    html = render_news_page([article], stored_total=1, evaluations=[result])
+    assert "chip-ticker" in html
+    assert "NVDA" in html
+    assert "1 match the filter" in html
+
+
 def test_render_tolerates_naive_datetime() -> None:
     # Datetimes read back from SQLite are timezone-naive; rendering must not crash.
     article = _article("Fed holds rates")
