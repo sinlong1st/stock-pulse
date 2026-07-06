@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from html import escape
 
 from app.models.article import NewsArticle
+from app.models.classification import ClassificationResult
 from app.pipeline.rule_filter import RelevanceResult
 
 
@@ -65,7 +66,28 @@ def _render_chips(result: RelevanceResult | None) -> str:
     return f'<div class="chips">{"".join(chips)}</div>'
 
 
-def _render_card(article: NewsArticle, result: RelevanceResult | None = None) -> str:
+def _render_verdict(classification: ClassificationResult | None) -> str:
+    """Render the AI verdict block (importance + why it matters)."""
+    if classification is None:
+        return ""
+    importance = escape(classification.importance)
+    category = escape(classification.category)
+    why = escape(classification.why_it_matters)
+    bell = " 🔔 alert" if classification.should_alert else ""
+    return f"""
+        <div class="verdict verdict-{importance}">
+          <span class="badge badge-{importance}">{importance}</span>
+          <span class="cat">{category}</span>
+          <span class="alert-flag">{bell}</span>
+          <p class="why"><strong>Why it matters:</strong> {why}</p>
+        </div>"""
+
+
+def _render_card(
+    article: NewsArticle,
+    result: RelevanceResult | None = None,
+    classification: ClassificationResult | None = None,
+) -> str:
     is_relevant = result is not None and result.is_relevant
     terms = result.highlights if is_relevant else []
     title = _highlight(article.title, terms)
@@ -81,6 +103,7 @@ def _render_card(article: NewsArticle, result: RelevanceResult | None = None) ->
         <a class="title" href="{url}" target="_blank" rel="noopener noreferrer">{title}</a>
         {summary_html}
         {_render_chips(result)}
+        {_render_verdict(classification)}
         <div class="meta"><span>{source}</span><span>&middot;</span><span>{when}</span></div>
       </article>"""
 
@@ -90,20 +113,29 @@ def render_news_page(
     *,
     stored_total: int | None = None,
     evaluations: list[RelevanceResult] | None = None,
+    classifications: dict[str, ClassificationResult] | None = None,
 ) -> str:
     """Return a full HTML document listing stored articles.
 
     When `evaluations` (rule-filter results, aligned with `articles`) is
-    provided, relevant articles are highlighted with match chips.
+    provided, relevant articles are highlighted with match chips. When
+    `classifications` (keyed by article id) is provided, classified
+    articles also show the AI verdict.
     """
     results = evaluations if evaluations is not None else [None] * len(articles)
-    cards = "\n".join(_render_card(a, r) for a, r in zip(articles, results)) or (
+    class_map = classifications or {}
+    cards = "\n".join(
+        _render_card(a, r, class_map.get(a.id or "")) for a, r in zip(articles, results)
+    ) or (
         '<p class="empty">No stored articles yet — click '
         "<strong>Fetch latest news</strong> to pull some in.</p>"
     )
     count = stored_total if stored_total is not None else len(articles)
     relevant = sum(1 for r in results if r is not None and r.is_relevant)
+    classified = len(class_map)
     relevant_note = f" &middot; {relevant} match the filter" if evaluations is not None else ""
+    if classified:
+        relevant_note += f" &middot; {classified} AI-analyzed"
     controls = (
         '<div class="controls">'
         '<input type="checkbox" id="only-matches">'
@@ -162,7 +194,19 @@ def render_news_page(
   .controls {{ display: flex; align-items: center; gap: 8px; margin: 0 0 20px; }}
   .controls label {{ color: var(--muted); font-size: .88rem; cursor: pointer; user-select: none; }}
   body.only-matches .card[data-relevant="0"] {{ display: none; }}
+  .actions {{ display: flex; gap: 8px; flex-wrap: wrap; }}
+  .refresh.accent {{ color: #a06bff; border-color: rgba(150,110,255,.4); }}
   .chips {{ display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }}
+  .verdict {{ margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: rgba(127,127,127,.08); }}
+  .badge {{ font-size: .72rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; letter-spacing: .03em; }}
+  .badge-LOW {{ background: rgba(150,160,175,.2); color: var(--muted); }}
+  .badge-MEDIUM {{ background: rgba(76,154,255,.2); color: var(--accent); }}
+  .badge-HIGH {{ background: rgba(240,150,50,.2); color: #e0872f; }}
+  .badge-CRITICAL {{ background: rgba(240,70,70,.22); color: #ef5252; }}
+  .cat {{ font-size: .72rem; color: var(--muted); margin-left: 8px; letter-spacing: .04em; }}
+  .alert-flag {{ font-size: .72rem; color: #e0872f; margin-left: 8px; }}
+  .why {{ font-size: .9rem; margin: 8px 0 0; color: var(--text); }}
+  .why strong {{ color: var(--muted); font-weight: 600; }}
   .chip {{ font-size: .72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }}
   .chip-ticker {{ background: rgba(76,154,255,.16); color: var(--accent); }}
   .chip-macro {{ background: rgba(240,170,60,.16); color: #e0972f; }}
@@ -173,7 +217,10 @@ def render_news_page(
   <div class="wrap">
     <header>
       <h1>Stock<span class="pulse">Pulse</span></h1>
-      <button id="fetch" class="refresh" type="button">↻ Fetch latest news</button>
+      <div class="actions">
+        <button id="fetch" class="refresh" type="button">↻ Fetch latest news</button>
+        <button id="analyze" class="refresh accent" type="button">✨ Analyze with AI</button>
+      </div>
     </header>
     <p class="sub" id="status">{count} stored articles{relevant_note} &middot; page loaded {generated}</p>
     {controls}
@@ -188,6 +235,29 @@ def render_news_page(
         document.body.classList.toggle('only-matches', only.checked);
       }});
     }}
+
+    const analyze = document.getElementById('analyze');
+    analyze.addEventListener('click', async () => {{
+      if (!confirm('Send the latest unanalyzed matches to the AI? This uses a small amount of OpenAI credit.')) return;
+      analyze.disabled = true;
+      analyze.textContent = 'Analyzing…';
+      try {{
+        const res = await fetch('/classify?limit=5', {{ method: 'POST' }});
+        const data = await res.json();
+        if (data.error) {{
+          status.textContent = data.error + (data.hint ? ' — ' + data.hint : '');
+          analyze.disabled = false;
+          analyze.textContent = '✨ Analyze with AI';
+          return;
+        }}
+        status.textContent = `AI analyzed ${{data.classified}} article(s), ${{data.errors}} error(s) — reloading…`;
+        setTimeout(() => location.reload(), 900);
+      }} catch (err) {{
+        analyze.disabled = false;
+        analyze.textContent = '✨ Analyze with AI';
+        status.textContent = 'Analyze failed — is the server running?';
+      }}
+    }});
     btn.addEventListener('click', async () => {{
       btn.disabled = true;
       btn.textContent = 'Fetching…';

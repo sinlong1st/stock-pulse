@@ -101,8 +101,8 @@ Each phase lights up one more box. Boxes with ✅ exist today.
 |---|---|
 | **Goal** | Ask an AI model (OpenAI) to judge each filtered article. |
 | **What you can do** | Get structured output: importance, category, tickers, summary, why it matters, alert recommendation. |
-| **What you'll see** | `POST /classify` returns a validated verdict per article and stores it. |
-| **How to test** | `pytest` uses a *mocked* AI (no API calls) · live: `POST /classify?limit=1` with a key set. |
+| **What you'll see** | `POST /classify` returns a validated verdict per article and stores it; classified cards on the home page show an importance badge + "why it matters". |
+| **How to test** | `pytest` uses a *mocked* AI (no API calls) · live: click "Analyze with AI" on `/`, or `POST /classify?limit=1`. |
 | **Configure** | Set `OPENAI_API_KEY` in `.env` (and optionally `OPENAI_MODEL`, default `gpt-4o-mini`). |
 | **Cost** | Manual/opt-in only — nothing calls the API automatically. Already-classified articles are skipped. |
 

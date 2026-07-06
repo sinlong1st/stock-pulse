@@ -107,6 +107,19 @@ class ArticleRepository:
         return [_to_model(row) for row in self.session.scalars(stmt)]
 
 
+def _classification_to_model(row: ClassificationRow) -> ClassificationResult:
+    return ClassificationResult(
+        is_market_relevant=row.is_market_relevant,
+        importance=row.importance,
+        category=row.category,
+        related_tickers=row.related_tickers or [],
+        summary=row.summary,
+        why_it_matters=row.why_it_matters,
+        should_alert=row.should_alert,
+        confidence=row.confidence,
+    )
+
+
 class ClassificationRepository:
     """Read/write AI classifications for a given session."""
 
@@ -127,6 +140,13 @@ class ClassificationRepository:
             ClassificationRow.article_id.in_(article_ids)
         )
         return set(self.session.scalars(stmt))
+
+    def results_for_articles(self, article_ids: list[int]) -> dict[int, ClassificationResult]:
+        """Return stored classifications for the given articles, keyed by article id."""
+        if not article_ids:
+            return {}
+        stmt = select(ClassificationRow).where(ClassificationRow.article_id.in_(article_ids))
+        return {row.article_id: _classification_to_model(row) for row in self.session.scalars(stmt)}
 
     def add(
         self, article_id: int, result: ClassificationResult, *, model: str | None = None

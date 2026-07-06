@@ -47,9 +47,20 @@ def news_page() -> HTMLResponse:
         repository = ArticleRepository(session)
         articles = repository.list_recent(limit=100)
         total = repository.count()
+        article_ids = [int(a.id) for a in articles if a.id]
+        classifications = ClassificationRepository(session).results_for_articles(article_ids)
     rule_filter = get_rule_filter()
     evaluations = [rule_filter.evaluate(a) for a in articles]
-    return HTMLResponse(render_news_page(articles, stored_total=total, evaluations=evaluations))
+    # Key classifications by the article's string id to match NewsArticle.id.
+    classification_map = {str(aid): result for aid, result in classifications.items()}
+    return HTMLResponse(
+        render_news_page(
+            articles,
+            stored_total=total,
+            evaluations=evaluations,
+            classifications=classification_map,
+        )
+    )
 
 
 @app.get("/health")

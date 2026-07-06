@@ -69,6 +69,29 @@ def test_render_adds_data_relevant_attribute_and_toggle() -> None:
     assert 'id="only-matches"' in html
 
 
+def test_render_shows_ai_verdict_when_classified() -> None:
+    from app.models.classification import ClassificationResult
+
+    article = _article("Fed signals rate cuts")
+    article.id = "42"
+    verdict = ClassificationResult(
+        is_market_relevant=True,
+        importance="HIGH",
+        category="MACRO",
+        related_tickers=["QQQ"],
+        summary="Fed may delay cuts.",
+        why_it_matters="Higher-for-longer pressures tech.",
+        should_alert=True,
+        confidence=0.9,
+    )
+    html = render_news_page([article], stored_total=1, classifications={"42": verdict})
+    assert "badge-HIGH" in html
+    assert "HIGH" in html
+    assert "Why it matters:" in html
+    assert "Higher-for-longer pressures tech." in html
+    assert "1 AI-analyzed" in html
+
+
 def test_highlight_escapes_and_is_injection_safe() -> None:
     from app.web.views import _highlight
 
