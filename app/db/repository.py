@@ -9,8 +9,9 @@ from datetime import UTC, datetime
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.db.models import ArticleRow
+from app.db.models import ArticleRow, ClassificationRow
 from app.models.article import NewsArticle
+from app.models.classification import ClassificationResult
 
 
 def _as_utc(value: datetime | None) -> datetime | None:
@@ -96,3 +97,45 @@ class ArticleRepository:
             .limit(limit)
         )
         return [_to_model(row) for row in self.session.scalars(stmt)]
+
+
+class ClassificationRepository:
+    """Read/write AI classifications for a given session."""
+
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def exists_for(self, article_id: int) -> bool:
+        stmt = select(ClassificationRow.id).where(
+            ClassificationRow.article_id == article_id
+        ).limit(1)
+        return self.session.scalar(stmt) is not None
+
+    def classified_article_ids(self, article_ids: list[int]) -> set[int]:
+        """Return which of the given article ids already have a classification."""
+        if not article_ids:
+            return set()
+        stmt = select(ClassificationRow.article_id).where(
+            ClassificationRow.article_id.in_(article_ids)
+        )
+        return set(self.session.scalars(stmt))
+
+    def add(
+        self, article_id: int, result: ClassificationResult, *, model: str | None = None
+    ) -> ClassificationRow:
+        """Insert a classification (does not commit)."""
+        row = ClassificationRow(
+            article_id=article_id,
+            is_market_relevant=result.is_market_relevant,
+            importance=result.importance,
+            category=result.category,
+            related_tickers=result.related_tickers,
+            summary=result.summary,
+            why_it_matters=result.why_it_matters,
+            should_alert=result.should_alert,
+            confidence=result.confidence,
+            model=model,
+            created_at=datetime.now(tz=UTC),
+        )
+        self.session.add(row)
+        return row

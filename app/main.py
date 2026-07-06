@@ -13,8 +13,9 @@ from fastapi.responses import HTMLResponse
 from app import __version__
 from app.collectors import RSSCollector
 from app.config import get_settings
-from app.db import ArticleRepository, SessionLocal
+from app.db import ArticleRepository, ClassificationRepository, SessionLocal
 from app.logging_config import configure_logging
+from app.pipeline.classifier import ClassificationError, build_classifier
 from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
 from app.web import render_news_page
@@ -55,6 +56,60 @@ def news_page() -> HTMLResponse:
 def health() -> dict[str, str]:
     """Liveness probe."""
     return {"status": "ok", "version": __version__}
+
+
+@app.post("/classify")
+async def classify(limit: int = 5) -> dict:
+    """Classify stored, relevant, not-yet-classified articles with the AI.
+
+    Manual/opt-in so it never spends API budget automatically. Picks up to
+    `limit` articles, calls the AI, validates and stores each result, and
+    skips articles that already have a classification (cost control).
+    """
+    try:
+        classifier = build_classifier()
+    except ClassificationError as exc:
+        return {"error": str(exc), "hint": "Set OPENAI_API_KEY in .env."}
+
+    rule_filter = get_rule_filter()
+    settings = get_settings()
+
+    with SessionLocal() as session:
+        articles = ArticleRepository(session).list_recent(limit=200)
+        classification_repo = ClassificationRepository(session)
+        already = classification_repo.classified_article_ids(
+            [int(a.id) for a in articles if a.id]
+        )
+        candidates = [
+            a
+            for a in articles
+            if a.id and int(a.id) not in already and rule_filter.is_relevant(a)
+        ][:limit]
+
+        results = []
+        errors = 0
+        for article in candidates:
+            try:
+                result = await classifier.classify(article)
+            except ClassificationError:
+                logger.exception("Classification failed for article %s", article.id)
+                errors += 1
+                continue
+            classification_repo.add(int(article.id), result, model=settings.openai_model)
+            results.append(
+                {
+                    "article_id": article.id,
+                    "title": article.title,
+                    "importance": result.importance,
+                    "category": result.category,
+                    "related_tickers": result.related_tickers,
+                    "should_alert": result.should_alert,
+                }
+            )
+        session.commit()
+
+    logger.info("Classified %d articles (%d errors)", len(results), errors)
+    return {"classified": len(results), "errors": errors, "results": results}
 
 
 @app.get("/collect")

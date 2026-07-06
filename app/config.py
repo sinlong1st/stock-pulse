@@ -39,6 +39,8 @@ class Settings(BaseSettings):
 
     # AI classifier (Phase 4+)
     openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+    openai_base_url: str = "https://api.openai.com/v1"
 
     # Telegram notifications (Phase 6+)
     telegram_bot_token: str = ""

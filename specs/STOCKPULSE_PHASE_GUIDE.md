@@ -15,8 +15,8 @@ check it works.** Update the status column as we go.
 ✅ Phase 0  Foundation (web server + /health)
 ✅ Phase 1  News collection (pull real headlines)
 ✅ Phase 2  Remember what it's seen (database + dedup)
-✅ Phase 3  Filter out the noise (keywords/watchlist)   ← YOU ARE HERE
-⬜ Phase 4  AI decides what matters
+✅ Phase 3  Filter out the noise (keywords/watchlist)
+✅ Phase 4  AI decides what matters   ← YOU ARE HERE
 ⬜ Phase 5  Alert rules (should we notify?)
 ⬜ Phase 6  Send Telegram alerts
 ⬜ Phase 7  Run automatically every few minutes
@@ -43,7 +43,7 @@ Each phase lights up one more box. Boxes with ✅ exist today.
    Rule filter          ✅ Phase 3   → drop obvious noise before spending money
         │
         ▼
-   AI classifier        ⬜ Phase 4   → importance, category, tickers, summary
+   AI classifier        ✅ Phase 4   → importance, category, tickers, summary
         │
         ▼
    Alert decision       ⬜ Phase 5   → OUR rules decide: notify or not?
@@ -96,14 +96,15 @@ Each phase lights up one more box. Boxes with ✅ exist today.
 | **Configure** | Edit `watchlist.json` (tickers + company names), then restart. Copy it from `watchlist.example.json`. |
 | **Note** | Matching is deliberately generous (better to over-include than miss news); the AI in Phase 4 is the second, smarter gate. |
 
-### ⬜ Phase 4 — AI classification
+### ✅ Phase 4 — AI classification
 | | |
 |---|---|
-| **Goal** | Ask an AI model to judge each filtered article. |
-| **What you can do** | Get structured output: importance, category, tickers, summary, why it matters. |
-| **What you'll see** | A JSON verdict per article (validated before we trust it). |
-| **How to test** | `pytest` with a *mocked* AI — no real API calls in normal tests. |
-| **Note** | This is the first phase that can cost money to run for real. |
+| **Goal** | Ask an AI model (OpenAI) to judge each filtered article. |
+| **What you can do** | Get structured output: importance, category, tickers, summary, why it matters, alert recommendation. |
+| **What you'll see** | `POST /classify` returns a validated verdict per article and stores it. |
+| **How to test** | `pytest` uses a *mocked* AI (no API calls) · live: `POST /classify?limit=1` with a key set. |
+| **Configure** | Set `OPENAI_API_KEY` in `.env` (and optionally `OPENAI_MODEL`, default `gpt-4o-mini`). |
+| **Cost** | Manual/opt-in only — nothing calls the API automatically. Already-classified articles are skipped. |
 
 ### ⬜ Phase 5 — Alert decision engine
 | | |
