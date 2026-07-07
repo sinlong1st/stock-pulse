@@ -36,6 +36,13 @@ class Settings(BaseSettings):
 
     # News monitoring (Phase 7+)
     news_check_interval_minutes: int = 10
+    # Scheduler is OFF by default — enable it to run the pipeline
+    # automatically (which then spends OpenAI credit and sends Telegram
+    # messages on its own).
+    scheduler_enabled: bool = False
+    # Cost caps per scheduled/triggered run.
+    max_classifications_per_run: int = 5
+    max_alerts_per_run: int = 20
 
     # AI classifier (Phase 4+)
     openai_api_key: str = ""

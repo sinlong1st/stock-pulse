@@ -1,0 +1,188 @@
+"""The end-to-end news monitoring job (Phase 7).
+
+Connects every pipeline stage into one run:
+
+    collect -> normalize -> deduplicate -> filter -> classify
+            -> decide -> create alerts -> send -> persist
+
+Designed to be safe to run on a schedule: individual article failures do
+not abort the batch, and classification/sending are capped per run to
+control cost. Classifier and notifier are optional — if their credentials
+are missing, those stages are skipped and the run still completes.
+"""
+
+import logging
+from dataclasses import dataclass
+
+from sqlalchemy.orm import Session
+
+from app.alerts import (
+    CHANNEL_TELEGRAM,
+    NotifierError,
+    build_telegram_notifier,
+    get_alert_policy,
+    send_pending_alerts,
+)
+from app.alerts.policy import AlertPolicy
+from app.alerts.telegram import Notifier
+from app.collectors import RSSCollector
+from app.collectors.base import NewsCollector
+from app.config import Settings, get_settings
+from app.db import AlertRepository, ArticleRepository, ClassificationRepository, SessionLocal
+from app.pipeline.classifier import ClassificationError, Classifier, build_classifier
+from app.pipeline.deduplicator import store_new_articles
+from app.pipeline.rule_filter import get_rule_filter
+
+logger = logging.getLogger("stockpulse.jobs.news_monitor")
+
+_UNSET = object()
+
+
+@dataclass
+class AnalyzeSummary:
+    classified: int = 0
+    errors: int = 0
+    alerts_created: int = 0
+
+
+@dataclass
+class MonitorSummary:
+    collected: int = 0
+    new: int = 0
+    duplicates: int = 0
+    relevant: int = 0
+    classified: int = 0
+    errors: int = 0
+    alerts_created: int = 0
+    alerts_sent: int = 0
+    alerts_failed: int = 0
+
+
+async def analyze_relevant_articles(
+    session: Session,
+    *,
+    classifier: Classifier,
+    policy: AlertPolicy,
+    model: str | None,
+    limit: int,
+) -> AnalyzeSummary:
+    """Classify relevant, not-yet-classified articles and create alerts.
+
+    Shared by the manual /classify endpoint and the scheduled job. One bad
+    article is logged and skipped without aborting the rest.
+    """
+    rule_filter = get_rule_filter()
+    article_repo = ArticleRepository(session)
+    classification_repo = ClassificationRepository(session)
+    alert_repo = AlertRepository(session)
+
+    articles = article_repo.list_recent(limit=200)
+    already = classification_repo.classified_article_ids([int(a.id) for a in articles if a.id])
+    candidates = [
+        a for a in articles if a.id and int(a.id) not in already and rule_filter.is_relevant(a)
+    ][:limit]
+
+    summary = AnalyzeSummary()
+    for article in candidates:
+        try:
+            result = await classifier.classify(article)
+        except ClassificationError:
+            logger.exception("Classification failed for article %s", article.id)
+            summary.errors += 1
+            continue
+
+        article_id = int(article.id)
+        classification_repo.add(article_id, result, model=model)
+        summary.classified += 1
+
+        decision = policy.decide(result)
+        if decision.should_alert:
+            for channel in decision.channels:
+                if not alert_repo.exists(article_id, channel):
+                    alert_repo.create(article_id, decision.importance, channel)
+                    summary.alerts_created += 1
+
+    session.commit()
+    return summary
+
+
+async def run_news_monitor(
+    *,
+    session_factory=SessionLocal,
+    settings: Settings | None = None,
+    collector: NewsCollector | None = None,
+    classifier: object = _UNSET,
+    notifier: object = _UNSET,
+) -> MonitorSummary:
+    """Run the full pipeline once and return a summary.
+
+    `classifier`/`notifier` default to being built from settings (or None
+    if credentials are missing); pass explicit values (including None) to
+    override, which is what the tests do.
+    """
+    settings = settings or get_settings()
+    collector = collector or RSSCollector(settings.news_source_name, settings.news_rss_url)
+    policy = get_alert_policy()
+    rule_filter = get_rule_filter()
+
+    if classifier is _UNSET:
+        try:
+            classifier = build_classifier(settings)
+        except ClassificationError:
+            logger.warning("OPENAI_API_KEY not set — skipping classification this run.")
+            classifier = None
+    if notifier is _UNSET:
+        try:
+            notifier = build_telegram_notifier(settings)
+        except NotifierError:
+            logger.warning("Telegram credentials not set — leaving alerts pending.")
+            notifier = None
+
+    summary = MonitorSummary()
+
+    # 1. Collect + 2. Store/dedupe.
+    articles = await collector.collect()
+    with session_factory() as session:
+        store = store_new_articles(session, articles)
+    summary.collected = store.collected
+    summary.new = store.new
+    summary.duplicates = store.duplicates
+    summary.relevant = sum(1 for a in articles if rule_filter.is_relevant(a))
+
+    # 3. Classify + decide + create alerts.
+    if classifier is not None:
+        with session_factory() as session:
+            analyzed = await analyze_relevant_articles(
+                session,
+                classifier=classifier,
+                policy=policy,
+                model=settings.openai_model,
+                limit=settings.max_classifications_per_run,
+            )
+        summary.classified = analyzed.classified
+        summary.errors = analyzed.errors
+        summary.alerts_created = analyzed.alerts_created
+
+    # 4. Send pending alerts.
+    if notifier is not None:
+        with session_factory() as session:
+            delivery = await send_pending_alerts(
+                session, {CHANNEL_TELEGRAM: notifier}, limit=settings.max_alerts_per_run
+            )
+        summary.alerts_sent = delivery.sent
+        summary.alerts_failed = delivery.failed
+
+    logger.info(
+        "News monitor run -- collected=%d new=%d duplicates=%d relevant=%d "
+        "classified=%d errors=%d alerts_created=%d sent=%d failed=%d",
+        summary.collected,
+        summary.new,
+        summary.duplicates,
+        summary.relevant,
+        summary.classified,
+        summary.errors,
+        summary.alerts_created,
+        summary.alerts_sent,
+        summary.alerts_failed,
+    )
+    return summary

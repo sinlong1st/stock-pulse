@@ -18,8 +18,8 @@ check it works.** Update the status column as we go.
 ✅ Phase 3  Filter out the noise (keywords/watchlist)
 ✅ Phase 4  AI decides what matters
 ✅ Phase 5  Alert rules (should we notify?)
-✅ Phase 6  Send Telegram alerts   ← YOU ARE HERE
-⬜ Phase 7  Run automatically every few minutes
+✅ Phase 6  Send Telegram alerts
+✅ Phase 7  Run automatically every few minutes   ← YOU ARE HERE
 ⬜ Phase 8  Package it up (Docker + CI)
 ```
 
@@ -52,7 +52,7 @@ Each phase lights up one more box. Boxes with ✅ exist today.
    Notify (Telegram)    ✅ Phase 6   → message hits your phone
         │
         ▼
-   (runs on a timer)    ⬜ Phase 7   → all of the above, automatic
+   (runs on a timer)    ✅ Phase 7   → all of the above, automatic
 ```
 
 ---
@@ -125,14 +125,15 @@ Each phase lights up one more box. Boxes with ✅ exist today.
 | **How to test** | Mocked tests for formatting/sending/routing · live: click "Send pending" on `/alerts`. |
 | **Needs** | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` in `.env` (create a bot via @BotFather). |
 
-### ⬜ Phase 7 — Scheduled end-to-end pipeline
+### ✅ Phase 7 — Scheduled end-to-end pipeline
 | | |
 |---|---|
 | **Goal** | Tie it all together and run it **automatically**. |
-| **What you can do** | Leave it running; it checks news every N minutes on its own. |
-| **What you'll see** | Log summaries: `Collected 50 · Duplicates 31 · Filtered 7 · Alerts 2`. |
-| **How to test** | Start the app and watch scheduled runs fire in the logs. |
-| **This is the finish line** | The "it checks news by itself" behavior you originally expected. |
+| **What you can do** | `POST /run` to run the whole pipeline once, or enable the scheduler to repeat it. |
+| **What you'll see** | One log line per run: `collected=… new=… relevant=… classified=… alerts_created=… sent=…`. |
+| **How to test** | `pytest` (fully mocked) · live: `POST /run` once, or set `SCHEDULER_ENABLED=true`. |
+| **Configure** | `SCHEDULER_ENABLED` (default false), `NEWS_CHECK_INTERVAL_MINUTES`, `MAX_CLASSIFICATIONS_PER_RUN`, `MAX_ALERTS_PER_RUN`. |
+| **Cost** | Enabling the scheduler spends OpenAI credit and sends Telegram on its own; caps limit each run. |
 
 ### ⬜ Phase 8 — Docker & CI
 | | |

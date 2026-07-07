@@ -84,6 +84,21 @@ curl http://127.0.0.1:8000/health
 # {"status":"ok","version":"0.1.0"}
 ```
 
+Open http://127.0.0.1:8000/ for the news page and http://127.0.0.1:8000/alerts
+for alert history.
+
+## Running the pipeline
+
+The full pipeline is **collect → dedupe → filter → classify → decide → alert**.
+
+- **Once, on demand:** `POST /run` (or the buttons on the news page). This is
+  the safe way to test — it runs a single cycle.
+- **Automatically:** set `SCHEDULER_ENABLED=true` in `.env` and StockPulse
+  runs the pipeline every `NEWS_CHECK_INTERVAL_MINUTES`.
+
+> ⚠️ Automatic mode spends OpenAI credit and sends Telegram messages on its
+> own. `MAX_CLASSIFICATIONS_PER_RUN` and `MAX_ALERTS_PER_RUN` cap each run.
+
 ## Test
 
 ```bash
@@ -101,5 +116,5 @@ Development proceeds one phase at a time (see the technical plan):
 4. AI classification ✅
 5. Alert decision engine ✅
 6. Telegram notifications ✅
-7. Scheduled end-to-end pipeline
+7. Scheduled end-to-end pipeline ✅
 8. Docker & CI
