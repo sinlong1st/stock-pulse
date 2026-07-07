@@ -13,7 +13,13 @@ from fastapi.responses import HTMLResponse
 from app import __version__
 from app.collectors import RSSCollector
 from app.config import get_settings
-from app.alerts import get_alert_policy
+from app.alerts import (
+    CHANNEL_TELEGRAM,
+    NotifierError,
+    build_telegram_notifier,
+    get_alert_policy,
+    send_pending_alerts,
+)
 from app.db import (
     AlertRepository,
     ArticleRepository,
@@ -24,7 +30,7 @@ from app.logging_config import configure_logging
 from app.pipeline.classifier import ClassificationError, build_classifier
 from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
-from app.web import render_news_page
+from app.web import render_alerts_page, render_news_page
 
 logger = logging.getLogger("stockpulse")
 
@@ -67,6 +73,32 @@ def news_page() -> HTMLResponse:
             classifications=classification_map,
         )
     )
+
+
+@app.get("/alerts", response_class=HTMLResponse)
+def alerts_page() -> HTMLResponse:
+    """A page listing alert records and their delivery status."""
+    with SessionLocal() as session:
+        alerts = AlertRepository(session).list_views(limit=200)
+    return HTMLResponse(render_alerts_page(alerts))
+
+
+@app.post("/alerts/send")
+async def send_alerts(limit: int = 20) -> dict:
+    """Send PENDING alerts to Telegram and record their status (manual)."""
+    try:
+        notifier = build_telegram_notifier()
+    except NotifierError as exc:
+        return {
+            "error": str(exc),
+            "hint": "Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env.",
+        }
+
+    with SessionLocal() as session:
+        result = await send_pending_alerts(
+            session, {CHANNEL_TELEGRAM: notifier}, limit=limit
+        )
+    return {"processed": result.processed, "sent": result.sent, "failed": result.failed}
 
 
 @app.get("/health")

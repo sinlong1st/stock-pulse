@@ -100,6 +100,6 @@ Development proceeds one phase at a time (see the technical plan):
 3. Rule-based filtering ✅
 4. AI classification ✅
 5. Alert decision engine ✅
-6. Telegram notifications
+6. Telegram notifications ✅
 7. Scheduled end-to-end pipeline
 8. Docker & CI

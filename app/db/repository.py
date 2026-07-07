@@ -4,6 +4,7 @@ Keeps SQLAlchemy queries in one place and converts between the ORM row
 (`ArticleRow`) and the domain model (`NewsArticle`).
 """
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy import and_, func, or_, select
@@ -87,6 +88,10 @@ class ArticleRepository:
         self.session.add(row)
         return row
 
+    def get(self, article_id: int) -> NewsArticle | None:
+        row = self.session.get(ArticleRow, article_id)
+        return _to_model(row) if row else None
+
     def count(self) -> int:
         return self.session.scalar(select(func.count()).select_from(ArticleRow)) or 0
 
@@ -133,6 +138,13 @@ class ClassificationRepository:
         ).limit(1)
         return self.session.scalar(stmt) is not None
 
+    def get_for(self, article_id: int) -> ClassificationResult | None:
+        stmt = select(ClassificationRow).where(
+            ClassificationRow.article_id == article_id
+        ).limit(1)
+        row = self.session.scalar(stmt)
+        return _classification_to_model(row) if row else None
+
     def classified_article_ids(self, article_ids: list[int]) -> set[int]:
         """Return which of the given article ids already have a classification."""
         if not article_ids:
@@ -168,6 +180,21 @@ class ClassificationRepository:
         )
         self.session.add(row)
         return row
+
+
+@dataclass
+class AlertView:
+    """An alert joined with its article, for display."""
+
+    id: int
+    article_title: str
+    url: str
+    importance: str
+    channel: str
+    status: str
+    created_at: datetime
+    sent_at: datetime | None
+    error_message: str | None
 
 
 class AlertRepository:
@@ -206,6 +233,31 @@ class AlertRepository:
     def count_by_status(self, status: str) -> int:
         stmt = select(func.count()).select_from(AlertRow).where(AlertRow.status == status)
         return self.session.scalar(stmt) or 0
+
+    def list_views(self, limit: int = 100) -> list[AlertView]:
+        """Return alerts joined with their article, newest first."""
+        stmt = (
+            select(AlertRow, ArticleRow.title, ArticleRow.url)
+            .join(ArticleRow, AlertRow.article_id == ArticleRow.id)
+            .order_by(AlertRow.created_at.desc(), AlertRow.id.desc())
+            .limit(limit)
+        )
+        views: list[AlertView] = []
+        for alert, title, url in self.session.execute(stmt):
+            views.append(
+                AlertView(
+                    id=alert.id,
+                    article_title=title,
+                    url=url,
+                    importance=alert.importance,
+                    channel=alert.channel,
+                    status=alert.status,
+                    created_at=alert.created_at,
+                    sent_at=alert.sent_at,
+                    error_message=alert.error_message,
+                )
+            )
+        return views
 
     def mark_sent(self, alert: AlertRow) -> None:
         alert.status = STATUS_SENT

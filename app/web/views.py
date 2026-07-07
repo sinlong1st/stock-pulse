@@ -4,6 +4,7 @@ import re
 from datetime import UTC, datetime
 from html import escape
 
+from app.db.repository import AlertView
 from app.models.article import NewsArticle
 from app.models.classification import ClassificationResult
 from app.pipeline.rule_filter import RelevanceResult
@@ -226,6 +227,7 @@ def render_news_page(
       <div class="actions">
         <button id="fetch" class="refresh" type="button">↻ Fetch latest news</button>
         <button id="analyze" class="refresh accent" type="button">✨ Analyze with AI</button>
+        <a class="refresh" href="/alerts">🔔 Alerts</a>
       </div>
     </header>
     <p class="sub" id="status">{count} stored articles{relevant_note} &middot; page loaded {generated}</p>
@@ -278,6 +280,141 @@ def render_news_page(
         btn.disabled = false;
         btn.textContent = '↻ Fetch latest news';
         status.textContent = 'Fetch failed — is the server running?';
+      }}
+    }});
+  </script>
+</body>
+</html>"""
+
+
+_ALERT_STATUS_ORDER = ["PENDING", "SENT", "FAILED", "ACKNOWLEDGED"]
+
+
+def _render_alert_row(alert: AlertView) -> str:
+    title = escape(alert.article_title)
+    url = escape(alert.url, quote=True)
+    importance = escape(alert.importance)
+    status = escape(alert.status)
+    channel = escape(alert.channel)
+    created = escape(_format_time(alert.created_at))
+    sent = f" &middot; sent {escape(_format_time(alert.sent_at))}" if alert.sent_at else ""
+    error = (
+        f'<p class="why"><strong>Error:</strong> {escape(alert.error_message)}</p>'
+        if alert.error_message
+        else ""
+    )
+    return f"""
+      <article class="card" data-status="{status}">
+        <div class="alert-head">
+          <span class="badge badge-{importance}">{importance}</span>
+          <span class="status status-{status}">{status}</span>
+          <span class="cat">{channel}</span>
+        </div>
+        <a class="title" href="{url}" target="_blank" rel="noopener noreferrer">{title}</a>
+        {error}
+        <div class="meta"><span>created {created}{sent}</span></div>
+      </article>"""
+
+
+def render_alerts_page(alerts: list[AlertView]) -> str:
+    """Return a full HTML document listing alert records and their status."""
+    counts = {status: 0 for status in _ALERT_STATUS_ORDER}
+    for alert in alerts:
+        counts[alert.status] = counts.get(alert.status, 0) + 1
+    summary = " &middot; ".join(f"{counts.get(s, 0)} {s.lower()}" for s in _ALERT_STATUS_ORDER)
+
+    rows = "\n".join(_render_alert_row(a) for a in alerts) or (
+        '<p class="empty">No alerts yet. Classify some matching articles on the '
+        '<a href="/">news page</a> to generate alerts.</p>'
+    )
+    pending = counts.get("PENDING", 0)
+    generated = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
+
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StockPulse — Alerts</title>
+<style>
+  :root {{
+    --bg: #0f1115; --card: #1a1e27; --border: #2a2f3a;
+    --text: #e6e8ec; --muted: #9aa4b2; --accent: #4c9aff;
+  }}
+  @media (prefers-color-scheme: light) {{
+    :root {{
+      --bg: #f4f6fa; --card: #ffffff; --border: #e2e6ee;
+      --text: #1a1e27; --muted: #66707e; --accent: #1a6dff;
+    }}
+  }}
+  * {{ box-sizing: border-box; }}
+  body {{ margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }}
+  .wrap {{ max-width: 760px; margin: 0 auto; padding: 32px 20px 64px; }}
+  header {{ display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }}
+  h1 {{ font-size: 1.6rem; margin: 0; }}
+  h1 .pulse {{ color: var(--accent); }}
+  .sub {{ color: var(--muted); font-size: .9rem; margin: 0 0 24px; }}
+  .actions {{ display: flex; gap: 8px; flex-wrap: wrap; }}
+  .refresh {{ color: var(--accent); text-decoration: none; border: 1px solid var(--border);
+    padding: 6px 14px; border-radius: 8px; font-size: .9rem; white-space: nowrap; cursor: pointer; background: transparent; }}
+  .refresh:hover {{ border-color: var(--accent); }}
+  .card {{ background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 12px; }}
+  .alert-head {{ display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }}
+  .title {{ color: var(--text); text-decoration: none; font-weight: 600; font-size: 1.02rem; display: block; }}
+  .title:hover {{ color: var(--accent); }}
+  .meta {{ color: var(--muted); font-size: .82rem; margin-top: 10px; }}
+  .why {{ font-size: .9rem; margin: 8px 0 0; color: var(--text); }}
+  .why strong {{ color: #ef5252; font-weight: 600; }}
+  .empty {{ color: var(--muted); text-align: center; padding: 48px 0; }}
+  .empty a, .sub a {{ color: var(--accent); }}
+  .cat {{ font-size: .72rem; color: var(--muted); letter-spacing: .04em; }}
+  .badge {{ font-size: .72rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; }}
+  .badge-LOW {{ background: rgba(150,160,175,.2); color: var(--muted); }}
+  .badge-MEDIUM {{ background: rgba(76,154,255,.2); color: var(--accent); }}
+  .badge-HIGH {{ background: rgba(240,150,50,.2); color: #e0872f; }}
+  .badge-CRITICAL {{ background: rgba(240,70,70,.22); color: #ef5252; }}
+  .status {{ font-size: .72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; }}
+  .status-PENDING {{ background: rgba(240,170,60,.18); color: #e0972f; }}
+  .status-SENT {{ background: rgba(120,200,120,.18); color: #4faf66; }}
+  .status-FAILED {{ background: rgba(240,70,70,.2); color: #ef5252; }}
+  .status-ACKNOWLEDGED {{ background: rgba(76,154,255,.18); color: var(--accent); }}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Stock<span class="pulse">Pulse</span> Alerts</h1>
+      <div class="actions">
+        <a class="refresh" href="/">← News</a>
+        <button id="send" class="refresh" type="button">📨 Send pending ({pending})</button>
+      </div>
+    </header>
+    <p class="sub" id="status">{summary} &middot; page loaded {generated}</p>
+    {rows}
+  </div>
+  <script>
+    const status = document.getElementById('status');
+    const send = document.getElementById('send');
+    send.addEventListener('click', async () => {{
+      if (!confirm('Send all pending alerts to Telegram now?')) return;
+      send.disabled = true;
+      send.textContent = 'Sending…';
+      try {{
+        const res = await fetch('/alerts/send', {{ method: 'POST' }});
+        const data = await res.json();
+        if (data.error) {{
+          status.textContent = data.error + (data.hint ? ' — ' + data.hint : '');
+          send.disabled = false;
+          send.textContent = '📨 Send pending';
+          return;
+        }}
+        status.textContent = `Sent ${{data.sent}}, failed ${{data.failed}} (of ${{data.processed}}) — reloading…`;
+        setTimeout(() => location.reload(), 900);
+      }} catch (err) {{
+        send.disabled = false;
+        send.textContent = '📨 Send pending';
+        status.textContent = 'Send failed — is the server running?';
       }}
     }});
   </script>

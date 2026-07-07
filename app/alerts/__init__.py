@@ -8,6 +8,13 @@ from app.alerts.constants import (
     STATUS_SENT,
 )
 from app.alerts.policy import AlertDecision, AlertPolicy, get_alert_policy
+from app.alerts.router import DeliveryResult, send_pending_alerts
+from app.alerts.telegram import (
+    Notifier,
+    NotifierError,
+    TelegramNotifier,
+    build_telegram_notifier,
+)
 
 __all__ = [
     "CHANNEL_TELEGRAM",
@@ -18,4 +25,10 @@ __all__ = [
     "AlertDecision",
     "AlertPolicy",
     "get_alert_policy",
+    "DeliveryResult",
+    "send_pending_alerts",
+    "Notifier",
+    "NotifierError",
+    "TelegramNotifier",
+    "build_telegram_notifier",
 ]

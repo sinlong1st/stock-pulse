@@ -17,8 +17,8 @@ check it works.** Update the status column as we go.
 ✅ Phase 2  Remember what it's seen (database + dedup)
 ✅ Phase 3  Filter out the noise (keywords/watchlist)
 ✅ Phase 4  AI decides what matters
-✅ Phase 5  Alert rules (should we notify?)   ← YOU ARE HERE
-⬜ Phase 6  Send Telegram alerts
+✅ Phase 5  Alert rules (should we notify?)
+✅ Phase 6  Send Telegram alerts   ← YOU ARE HERE
 ⬜ Phase 7  Run automatically every few minutes
 ⬜ Phase 8  Package it up (Docker + CI)
 ```
@@ -49,7 +49,7 @@ Each phase lights up one more box. Boxes with ✅ exist today.
    Alert decision       ✅ Phase 5   → OUR rules decide: notify or not?
         │
         ▼
-   Notify (Telegram)    ⬜ Phase 6   → message hits your phone
+   Notify (Telegram)    ✅ Phase 6   → message hits your phone
         │
         ▼
    (runs on a timer)    ⬜ Phase 7   → all of the above, automatic
@@ -116,14 +116,14 @@ Each phase lights up one more box. Boxes with ✅ exist today.
 | **Configure** | `ALERT_MIN_IMPORTANCE` in `.env` (default `MEDIUM`). |
 | **Note** | The AI's `should_alert` is only a recommendation; the app decides by importance threshold + relevance. |
 
-### ⬜ Phase 6 — Telegram notifications
+### ✅ Phase 6 — Telegram notifications
 | | |
 |---|---|
 | **Goal** | Actually deliver a message to your phone. |
-| **What you can do** | Receive a formatted alert with the headline, why it matters, and a link. |
-| **What you'll see** | A real Telegram message during manual testing. |
-| **How to test** | Mocked tests for formatting; one real manual send to confirm. |
-| **Needs** | A Telegram bot token + chat ID in `.env`. |
+| **What you can do** | Send PENDING alerts to Telegram; view all alerts + status on the `/alerts` page. |
+| **What you'll see** | A real Telegram message (headline, why it matters, tickers, link); alerts move PENDING → SENT/FAILED. |
+| **How to test** | Mocked tests for formatting/sending/routing · live: click "Send pending" on `/alerts`. |
+| **Needs** | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` in `.env` (create a bot via @BotFather). |
 
 ### ⬜ Phase 7 — Scheduled end-to-end pipeline
 | | |
