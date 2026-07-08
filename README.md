@@ -80,6 +80,11 @@ language; only new ones use the new setting.
 
 ### Alert message options
 
+Each AI verdict also includes a **sentiment** — whether the news is good
+(🟢 bullish, green ▲), bad (🟠 bearish, orange ▼), or neutral (⚪ →) for the
+related stock. It shows on the news page next to the importance badge and in
+the alert header. It's the AI's read of the news, not a price prediction.
+
 The Telegram alert leads with the AI summary and "why it matters", then the
 source and article title (the title is also in the link). Two `.env` toggles:
 

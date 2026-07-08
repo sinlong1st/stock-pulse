@@ -31,6 +31,7 @@ def _classification() -> ClassificationResult:
         is_market_relevant=True,
         importance="HIGH",
         category="MACRO",
+        sentiment="BEARISH",
         related_tickers=["QQQ", "NVDA"],
         summary="Fed may delay cuts.",
         why_it_matters="Higher-for-longer rates pressure tech.",
@@ -42,6 +43,7 @@ def _classification() -> ClassificationResult:
 def test_format_alert_message_contains_key_fields() -> None:
     message = format_alert_message(_article(), _classification())
     assert "HIGH" in message and "MACRO" in message
+    assert "Bearish" in message  # sentiment shown in header
     assert "Fed may delay cuts." in message  # AI summary leads
     assert "Why it matters:" in message
     assert "QQQ, NVDA" in message

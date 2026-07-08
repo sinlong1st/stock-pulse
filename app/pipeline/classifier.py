@@ -40,6 +40,9 @@ _SYSTEM_PROMPT = (
     '  "is_market_relevant" (boolean),\n'
     '  "importance" (one of "LOW", "MEDIUM", "HIGH", "CRITICAL"),\n'
     '  "category" (one of "MACRO", "TICKER", "SECTOR", "OTHER"),\n'
+    '  "sentiment" (one of "BULLISH", "BEARISH", "NEUTRAL" — is the news good '
+    "(likely pushes the related stock/market up), bad (likely down), or "
+    'neutral/unclear),\n'
     '  "related_tickers" (array of uppercase ticker symbols, possibly empty),\n'
     '  "summary" (one concise sentence),\n'
     '  "why_it_matters" (one concise sentence),\n'

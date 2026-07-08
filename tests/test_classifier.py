@@ -49,6 +49,7 @@ def test_result_normalizes_case_and_tickers() -> None:
             "is_market_relevant": True,
             "importance": "high",
             "category": "macro",
+            "sentiment": "positive",
             "related_tickers": ["nvda", " amd "],
             "summary": "s",
             "why_it_matters": "w",
@@ -58,8 +59,23 @@ def test_result_normalizes_case_and_tickers() -> None:
     )
     assert result.importance == "HIGH"
     assert result.category == "MACRO"
+    assert result.sentiment == "BULLISH"  # synonym normalized
     assert result.related_tickers == ["NVDA", "AMD"]
     assert result.confidence == 1.0  # clamped
+
+
+def test_sentiment_defaults_to_neutral_and_maps_synonyms() -> None:
+    base = {
+        "is_market_relevant": True,
+        "importance": "LOW",
+        "category": "OTHER",
+        "summary": "s",
+        "why_it_matters": "w",
+        "should_alert": False,
+    }
+    assert ClassificationResult.model_validate(base).sentiment == "NEUTRAL"  # default
+    assert ClassificationResult.model_validate({**base, "sentiment": "DOWN"}).sentiment == "BEARISH"
+    assert ClassificationResult.model_validate({**base, "sentiment": "bull"}).sentiment == "BULLISH"
 
 
 def test_result_rejects_invalid_importance() -> None:

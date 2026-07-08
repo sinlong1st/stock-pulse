@@ -4,6 +4,11 @@ from app.models.article import NewsArticle
 from app.models.classification import ClassificationResult
 
 _IMPORTANCE_EMOJI = {"MEDIUM": "⚠️", "HIGH": "🚨", "CRITICAL": "🔴"}
+_SENTIMENT_TAG = {
+    "BULLISH": "🟢 Bullish",
+    "BEARISH": "🟠 Bearish",
+    "NEUTRAL": "⚪ Neutral",
+}
 
 
 def format_alert_message(
@@ -18,9 +23,10 @@ def format_alert_message(
     the source (the title is also in the link). The URL is optional.
     """
     emoji = _IMPORTANCE_EMOJI.get(classification.importance, "📰")
+    sentiment = _SENTIMENT_TAG.get(classification.sentiment, "⚪ Neutral")
     tickers = ", ".join(classification.related_tickers) if classification.related_tickers else "—"
     lines = [
-        f"{emoji} {classification.importance} · {classification.category}",
+        f"{emoji} {classification.importance} · {classification.category} · {sentiment}",
         "",
         classification.summary,
         "",

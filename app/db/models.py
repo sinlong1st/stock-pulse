@@ -50,6 +50,7 @@ class ClassificationRow(Base):
     is_market_relevant: Mapped[bool] = mapped_column(Boolean)
     importance: Mapped[str] = mapped_column(String(16))
     category: Mapped[str] = mapped_column(String(16))
+    sentiment: Mapped[str | None] = mapped_column(String(16), nullable=True)
     related_tickers: Mapped[list[str]] = mapped_column(JSON, default=list)
     summary: Mapped[str] = mapped_column(Text)
     why_it_matters: Mapped[str] = mapped_column(Text)

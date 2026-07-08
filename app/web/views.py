@@ -67,6 +67,22 @@ def _render_chips(result: RelevanceResult | None) -> str:
     return f'<div class="chips">{"".join(chips)}</div>'
 
 
+_SENTIMENT_ICON = {"BULLISH": "▲", "BEARISH": "▼", "NEUTRAL": "→"}
+_SENTIMENT_LABEL = {
+    "BULLISH": "Good news (bullish)",
+    "BEARISH": "Bad news (bearish)",
+    "NEUTRAL": "Neutral / unclear",
+}
+
+
+def _sentiment_html(sentiment: str | None) -> str:
+    """A small colored up/down arrow for the news sentiment."""
+    s = (sentiment or "NEUTRAL").upper()
+    icon = _SENTIMENT_ICON.get(s, "→")
+    label = _SENTIMENT_LABEL.get(s, "Neutral / unclear")
+    return f'<span class="sentiment sent-{escape(s)}" title="{escape(label)}">{icon}</span>'
+
+
 def _render_verdict(classification: ClassificationResult | None) -> str:
     """Render the AI verdict block (importance + why it matters)."""
     if classification is None:
@@ -78,6 +94,7 @@ def _render_verdict(classification: ClassificationResult | None) -> str:
     return f"""
         <div class="verdict verdict-{importance}">
           <span class="badge badge-{importance}">{importance}</span>
+          {_sentiment_html(classification.sentiment)}
           <span class="cat">{category}</span>
           <span class="alert-flag">{bell}</span>
           <p class="why"><strong>Why it matters:</strong> {why}</p>
@@ -105,6 +122,7 @@ def _render_card(
         imp = escape(classification.importance)
         digest_html = (
             f'<div class="digest-line"><span class="badge badge-{imp}">{imp}</span>'
+            f"{_sentiment_html(classification.sentiment)}"
             f'<span class="digest-summary">{escape(classification.summary)}</span></div>'
         )
     return f"""
@@ -235,6 +253,10 @@ def render_news_page(
   .badge-CRITICAL {{ background: rgba(240,70,70,.22); color: #ef5252; }}
   .cat {{ font-size: .72rem; color: var(--muted); margin-left: 8px; letter-spacing: .04em; }}
   .alert-flag {{ font-size: .72rem; color: #e0872f; margin-left: 8px; }}
+  .sentiment {{ font-weight: 800; font-size: .95rem; line-height: 1; }}
+  .sent-BULLISH {{ color: #3fbf6f; }}
+  .sent-BEARISH {{ color: #e0872f; }}
+  .sent-NEUTRAL {{ color: var(--muted); }}
   .why {{ font-size: .9rem; margin: 8px 0 0; color: var(--text); }}
   .why strong {{ color: var(--muted); font-weight: 600; }}
   .chip {{ font-size: .72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }}
