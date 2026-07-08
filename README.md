@@ -112,10 +112,19 @@ for alert history.
 
 The full pipeline is **collect → dedupe → filter → classify → decide → alert**.
 
-- **Once, on demand:** `POST /run` (or the buttons on the news page). This is
-  the safe way to test — it runs a single cycle.
-- **Automatically:** set `SCHEDULER_ENABLED=true` in `.env` and StockPulse
-  runs the pipeline every `NEWS_CHECK_INTERVAL_MINUTES`.
+News comes from two sources, each on its own fetch cadence:
+
+- **Watchlist** — Yahoo Finance per-ticker feeds (from `watchlist.json`),
+  every `WATCHLIST_FETCH_INTERVAL_MINUTES` (default 5).
+- **Macro** — a Google News search over your macro keywords, every
+  `MACRO_FETCH_INTERVAL_MINUTES` (default 30).
+
+How to run it:
+
+- **Once, on demand:** `POST /run` (or the buttons on the news page) — runs
+  both sources through one full cycle. The safe way to test.
+- **Automatically:** set `SCHEDULER_ENABLED=true` in `.env`; the two sources
+  run as independent scheduled jobs on their own intervals.
 
 > ⚠️ Automatic mode spends OpenAI credit and sends Telegram messages on its
 > own. `MAX_CLASSIFICATIONS_PER_RUN` and `MAX_ALERTS_PER_RUN` cap each run.

@@ -118,7 +118,7 @@ async def test_run_news_monitor_full_pipeline(session_factory) -> None:
     summary = await run_news_monitor(
         session_factory=session_factory,
         settings=settings,
-        collector=collector,
+        collectors=[collector],
         classifier=_FakeClassifier("HIGH"),
         notifier=notifier,
     )
@@ -140,7 +140,7 @@ async def test_run_news_monitor_skips_stages_without_credentials(session_factory
     summary = await run_news_monitor(
         session_factory=session_factory,
         settings=settings,
-        collector=collector,
+        collectors=[collector],
         classifier=None,
         notifier=None,
     )

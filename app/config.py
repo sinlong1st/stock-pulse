@@ -30,6 +30,17 @@ class Settings(BaseSettings):
     # News collection (Phase 1+)
     news_source_name: str = "Yahoo Finance"
     news_rss_url: str = "https://finance.yahoo.com/news/rssindex"
+    # Per-source feeds (Phase: separate macro/watchlist fetching).
+    # {ticker} and {query} are filled in at runtime.
+    yahoo_ticker_feed_url: str = (
+        "https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker}&region=US&lang=en-US"
+    )
+    google_news_rss_url: str = (
+        "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
+    )
+    # Separate fetch cadences (minutes) for each source.
+    watchlist_fetch_interval_minutes: int = 5
+    macro_fetch_interval_minutes: int = 30
 
     # Database (Phase 2+)
     database_url: str = "sqlite:///./stockpulse.db"

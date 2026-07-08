@@ -15,7 +15,7 @@ from app.alerts import (
     get_alert_policy,
     send_pending_alerts,
 )
-from app.collectors import RSSCollector
+from app.collectors import build_all_collectors, collect_from
 from app.config import get_settings
 from app.db import (
     AlertRepository,
@@ -23,7 +23,12 @@ from app.db import (
     ClassificationRepository,
     SessionLocal,
 )
-from app.jobs import analyze_relevant_articles, run_news_monitor
+from app.jobs import (
+    analyze_relevant_articles,
+    run_macro_monitor,
+    run_news_monitor,
+    run_watchlist_monitor,
+)
 from app.logging_config import configure_logging
 from app.pipeline.classifier import ClassificationError, build_classifier
 from app.pipeline.deduplicator import store_new_articles
@@ -43,17 +48,26 @@ async def lifespan(app: FastAPI):
     if settings.scheduler_enabled:
         scheduler = AsyncIOScheduler()
         scheduler.add_job(
-            run_news_monitor,
+            run_watchlist_monitor,
             "interval",
-            minutes=settings.news_check_interval_minutes,
-            id="news_monitor",
-            max_instances=1,  # never overlap runs
-            coalesce=True,  # collapse missed runs into one
+            minutes=settings.watchlist_fetch_interval_minutes,
+            id="watchlist_monitor",
+            max_instances=1,
+            coalesce=True,
+        )
+        scheduler.add_job(
+            run_macro_monitor,
+            "interval",
+            minutes=settings.macro_fetch_interval_minutes,
+            id="macro_monitor",
+            max_instances=1,
+            coalesce=True,
         )
         scheduler.start()
         logger.info(
-            "Scheduler ENABLED — running news monitor every %d min.",
-            settings.news_check_interval_minutes,
+            "Scheduler ENABLED — watchlist every %d min, macro every %d min.",
+            settings.watchlist_fetch_interval_minutes,
+            settings.macro_fetch_interval_minutes,
         )
     else:
         logger.info("Scheduler disabled (set SCHEDULER_ENABLED=true to automate).")
@@ -194,8 +208,7 @@ async def collect() -> dict:
     anything — that arrives in later phases.
     """
     settings = get_settings()
-    collector = RSSCollector(settings.news_source_name, settings.news_rss_url)
-    articles = await collector.collect()
+    articles = await collect_from(build_all_collectors(settings))
 
     with SessionLocal() as session:
         result = store_new_articles(session, articles)
@@ -204,8 +217,7 @@ async def collect() -> dict:
     relevant = sum(1 for a in articles if rule_filter.is_relevant(a))
 
     logger.info(
-        "Collect from %s -- collected=%d new=%d duplicates=%d relevant=%d stored_total=%d",
-        collector.source_name,
+        "Collect (watchlist+macro) -- collected=%d new=%d duplicates=%d relevant=%d stored_total=%d",
         result.collected,
         result.new,
         result.duplicates,
@@ -213,7 +225,6 @@ async def collect() -> dict:
         result.stored_total,
     )
     return {
-        "source": collector.source_name,
         "collected": result.collected,
         "new": result.new,
         "duplicates": result.duplicates,

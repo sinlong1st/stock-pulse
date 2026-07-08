@@ -132,7 +132,7 @@ Each phase lights up one more box. Boxes with ✅ exist today.
 | **What you can do** | `POST /run` to run the whole pipeline once, or enable the scheduler to repeat it. |
 | **What you'll see** | One log line per run: `collected=… new=… relevant=… classified=… alerts_created=… sent=…`. |
 | **How to test** | `pytest` (fully mocked) · live: `POST /run` once, or set `SCHEDULER_ENABLED=true`. |
-| **Configure** | `SCHEDULER_ENABLED` (default false), `NEWS_CHECK_INTERVAL_MINUTES`, `MAX_CLASSIFICATIONS_PER_RUN`, `MAX_ALERTS_PER_RUN`. |
+| **Configure** | `SCHEDULER_ENABLED` (default false); `WATCHLIST_FETCH_INTERVAL_MINUTES` (5) + `MACRO_FETCH_INTERVAL_MINUTES` (30) run as two independent jobs; `MAX_CLASSIFICATIONS_PER_RUN`, `MAX_ALERTS_PER_RUN`. |
 | **Cost** | Enabling the scheduler spends OpenAI credit and sends Telegram on its own; caps limit each run. |
 
 ### ⬜ Phase 8 — Docker & CI

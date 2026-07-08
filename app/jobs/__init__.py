@@ -4,7 +4,9 @@ from app.jobs.news_monitor import (
     AnalyzeSummary,
     MonitorSummary,
     analyze_relevant_articles,
+    run_macro_monitor,
     run_news_monitor,
+    run_watchlist_monitor,
 )
 
 __all__ = [
@@ -12,4 +14,6 @@ __all__ = [
     "MonitorSummary",
     "analyze_relevant_articles",
     "run_news_monitor",
+    "run_watchlist_monitor",
+    "run_macro_monitor",
 ]

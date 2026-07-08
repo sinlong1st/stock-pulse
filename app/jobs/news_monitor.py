@@ -11,6 +11,7 @@ control cost. Classifier and notifier are optional — if their credentials
 are missing, those stages are skipped and the run still completes.
 """
 
+import asyncio
 import logging
 from dataclasses import dataclass
 
@@ -25,7 +26,12 @@ from app.alerts import (
 )
 from app.alerts.policy import AlertPolicy
 from app.alerts.telegram import Notifier
-from app.collectors import RSSCollector
+from app.collectors import (
+    build_all_collectors,
+    build_macro_collector,
+    build_watchlist_collector,
+    collect_from,
+)
 from app.collectors.base import NewsCollector
 from app.config import Settings, get_settings
 from app.db import AlertRepository, ArticleRepository, ClassificationRepository, SessionLocal
@@ -36,6 +42,10 @@ from app.pipeline.rule_filter import get_rule_filter
 logger = logging.getLogger("stockpulse.jobs.news_monitor")
 
 _UNSET = object()
+
+# Serializes the classify + alert stage so two source jobs (watchlist and
+# macro) running on different cadences never classify the same article twice.
+_analyze_lock = asyncio.Lock()
 
 
 @dataclass
@@ -110,18 +120,21 @@ async def run_news_monitor(
     *,
     session_factory=SessionLocal,
     settings: Settings | None = None,
-    collector: NewsCollector | None = None,
+    collectors: list[NewsCollector] | None = None,
     classifier: object = _UNSET,
     notifier: object = _UNSET,
+    label: str = "all",
 ) -> MonitorSummary:
-    """Run the full pipeline once and return a summary.
+    """Run the full pipeline once for the given collectors and return a summary.
 
-    `classifier`/`notifier` default to being built from settings (or None
-    if credentials are missing); pass explicit values (including None) to
-    override, which is what the tests do.
+    `collectors` defaults to both sources (watchlist + macro). `classifier`/
+    `notifier` default to being built from settings (or None if credentials
+    are missing); pass explicit values (including None) to override, which is
+    what the tests do.
     """
     settings = settings or get_settings()
-    collector = collector or RSSCollector(settings.news_source_name, settings.news_rss_url)
+    if collectors is None:
+        collectors = build_all_collectors(settings)
     policy = get_alert_policy()
     rule_filter = get_rule_filter()
 
@@ -141,7 +154,7 @@ async def run_news_monitor(
     summary = MonitorSummary()
 
     # 1. Collect + 2. Store/dedupe.
-    articles = await collector.collect()
+    articles = await collect_from(collectors)
     with session_factory() as session:
         store = store_new_articles(session, articles)
     summary.collected = store.collected
@@ -149,35 +162,37 @@ async def run_news_monitor(
     summary.duplicates = store.duplicates
     summary.relevant = sum(1 for a in articles if rule_filter.is_relevant(a))
 
-    # 3. Classify + decide + create alerts.
-    if classifier is not None:
-        with session_factory() as session:
-            analyzed = await analyze_relevant_articles(
-                session,
-                classifier=classifier,
-                policy=policy,
-                model=settings.openai_model,
-                limit=settings.max_classifications_per_run,
-            )
-        summary.classified = analyzed.classified
-        summary.errors = analyzed.errors
-        summary.alerts_created = analyzed.alerts_created
+    # 3 + 4. Classify/decide/alert, serialized so overlapping source jobs
+    # never process the same article twice.
+    async with _analyze_lock:
+        if classifier is not None:
+            with session_factory() as session:
+                analyzed = await analyze_relevant_articles(
+                    session,
+                    classifier=classifier,
+                    policy=policy,
+                    model=settings.openai_model,
+                    limit=settings.max_classifications_per_run,
+                )
+            summary.classified = analyzed.classified
+            summary.errors = analyzed.errors
+            summary.alerts_created = analyzed.alerts_created
 
-    # 4. Send pending alerts.
-    if notifier is not None:
-        with session_factory() as session:
-            delivery = await send_pending_alerts(
-                session,
-                {CHANNEL_TELEGRAM: notifier},
-                limit=settings.max_alerts_per_run,
-                include_link=settings.alert_include_link,
-            )
-        summary.alerts_sent = delivery.sent
-        summary.alerts_failed = delivery.failed
+        if notifier is not None:
+            with session_factory() as session:
+                delivery = await send_pending_alerts(
+                    session,
+                    {CHANNEL_TELEGRAM: notifier},
+                    limit=settings.max_alerts_per_run,
+                    include_link=settings.alert_include_link,
+                )
+            summary.alerts_sent = delivery.sent
+            summary.alerts_failed = delivery.failed
 
     logger.info(
-        "News monitor run -- collected=%d new=%d duplicates=%d relevant=%d "
+        "News monitor [%s] -- collected=%d new=%d duplicates=%d relevant=%d "
         "classified=%d errors=%d alerts_created=%d sent=%d failed=%d",
+        label,
         summary.collected,
         summary.new,
         summary.duplicates,
@@ -189,3 +204,15 @@ async def run_news_monitor(
         summary.alerts_failed,
     )
     return summary
+
+
+async def run_watchlist_monitor() -> MonitorSummary:
+    """Scheduled job: fetch watchlist (per-ticker) news, then analyze + alert."""
+    return await run_news_monitor(
+        collectors=[build_watchlist_collector()], label="watchlist"
+    )
+
+
+async def run_macro_monitor() -> MonitorSummary:
+    """Scheduled job: fetch macro news, then analyze + alert."""
+    return await run_news_monitor(collectors=[build_macro_collector()], label="macro")
