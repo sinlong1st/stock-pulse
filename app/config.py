@@ -27,10 +27,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     log_level: str = "INFO"
 
-    # News collection (Phase 1+)
-    news_source_name: str = "Yahoo Finance"
-    news_rss_url: str = "https://finance.yahoo.com/news/rssindex"
-    # Per-source feeds (Phase: separate macro/watchlist fetching).
+    # News collection: per-source feeds (separate macro/watchlist fetching).
     # {ticker} and {query} are filled in at runtime.
     yahoo_ticker_feed_url: str = (
         "https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker}&region=US&lang=en-US"
@@ -46,7 +43,6 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./stockpulse.db"
 
     # News monitoring (Phase 7+)
-    news_check_interval_minutes: int = 10
     # Scheduler is OFF by default — enable it to run the pipeline
     # automatically (which then spends OpenAI credit and sends Telegram
     # messages on its own).

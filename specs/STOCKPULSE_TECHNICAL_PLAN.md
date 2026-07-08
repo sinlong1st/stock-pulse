@@ -179,13 +179,15 @@ MVP:
 
 -   APScheduler
 
-Use it to trigger the news monitoring job every configurable number of
+Use it to trigger the news monitoring jobs every configurable number of
 minutes.
 
-The default interval should be configurable, for example:
+As implemented, the two news sources run as separate scheduled jobs, each
+with its own interval, so their cadence can be tuned independently:
 
 ``` text
-NEWS_CHECK_INTERVAL_MINUTES=10
+WATCHLIST_FETCH_INTERVAL_MINUTES=5
+MACRO_FETCH_INTERVAL_MINUTES=30
 ```
 
 ### AI Classification
@@ -613,15 +615,31 @@ APP_ENV=development
 
 DATABASE_URL=sqlite:///./stockpulse.db
 
-NEWS_CHECK_INTERVAL_MINUTES=10
+# Scheduling (two independent source cadences)
+SCHEDULER_ENABLED=false
+WATCHLIST_FETCH_INTERVAL_MINUTES=5
+MACRO_FETCH_INTERVAL_MINUTES=30
+MAX_CLASSIFICATIONS_PER_RUN=5
+MAX_ALERTS_PER_RUN=20
 
+# AI classifier
 OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4o-mini
+OUTPUT_LANGUAGE=English
+
+# Alerting
+ALERT_MIN_IMPORTANCE=MEDIUM
+ALERT_INCLUDE_LINK=true
+ALERT_LINK_PREVIEW=false
 
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
 
 WATCHLIST_FILE=watchlist.json
+KEYWORDS_FILE=keywords.json
 ```
+
+See `.env.example` for the authoritative, always-current list.
 
 Create:
 
