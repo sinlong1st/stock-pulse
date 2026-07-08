@@ -591,6 +591,14 @@ Yahoo Finance
 
 The original article URL should be included when available.
 
+### As implemented
+
+The message leads with the AI summary and "why it matters" (in
+`OUTPUT_LANGUAGE`), then `Source:` and the article title — the title comes
+last since it is also in the link. Two toggles control the link:
+`ALERT_INCLUDE_LINK` (include the URL) and `ALERT_LINK_PREVIEW` (show
+Telegram's preview thumbnail; off by default to keep messages short).
+
 ------------------------------------------------------------------------
 
 ## 10. Configuration

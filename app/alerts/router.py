@@ -30,6 +30,7 @@ async def send_pending_alerts(
     notifiers: dict[str, Notifier],
     *,
     limit: int = 20,
+    include_link: bool = True,
 ) -> DeliveryResult:
     """Send up to `limit` pending alerts and persist their delivery status."""
     alert_repo = AlertRepository(session)
@@ -54,7 +55,7 @@ async def send_pending_alerts(
             failed += 1
             continue
 
-        message = format_alert_message(article, classification)
+        message = format_alert_message(article, classification, include_link=include_link)
         try:
             await notifier.send(message)
         except NotifierError as exc:

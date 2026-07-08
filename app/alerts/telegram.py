@@ -34,6 +34,7 @@ class TelegramNotifier(Notifier):
         bot_token: str,
         chat_id: str,
         *,
+        disable_preview: bool = True,
         timeout: float = 10.0,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
@@ -41,6 +42,7 @@ class TelegramNotifier(Notifier):
             raise NotifierError("TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must be set.")
         self.bot_token = bot_token
         self.chat_id = chat_id
+        self.disable_preview = disable_preview
         self.timeout = timeout
         self._transport = transport
 
@@ -53,7 +55,7 @@ class TelegramNotifier(Notifier):
                     json={
                         "chat_id": self.chat_id,
                         "text": text,
-                        "disable_web_page_preview": False,
+                        "disable_web_page_preview": self.disable_preview,
                     },
                 )
                 response.raise_for_status()
@@ -68,4 +70,8 @@ class TelegramNotifier(Notifier):
 def build_telegram_notifier(settings: Settings | None = None) -> TelegramNotifier:
     """Construct a Telegram notifier from settings. Raises if creds are missing."""
     settings = settings or get_settings()
-    return TelegramNotifier(settings.telegram_bot_token, settings.telegram_chat_id)
+    return TelegramNotifier(
+        settings.telegram_bot_token,
+        settings.telegram_chat_id,
+        disable_preview=not settings.alert_link_preview,
+    )

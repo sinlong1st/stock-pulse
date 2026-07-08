@@ -54,6 +54,9 @@ class Settings(BaseSettings):
 
     # Alerting (Phase 5+). Minimum importance that triggers an alert.
     alert_min_importance: str = "MEDIUM"
+    # Alert message options.
+    alert_include_link: bool = True  # include the article URL in the message
+    alert_link_preview: bool = False  # show Telegram's link preview/thumbnail
 
     # Telegram notifications (Phase 6+)
     telegram_bot_token: str = ""

@@ -116,9 +116,13 @@ async def send_alerts(limit: int = 20) -> dict:
             "hint": "Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env.",
         }
 
+    settings = get_settings()
     with SessionLocal() as session:
         result = await send_pending_alerts(
-            session, {CHANNEL_TELEGRAM: notifier}, limit=limit
+            session,
+            {CHANNEL_TELEGRAM: notifier},
+            limit=limit,
+            include_link=settings.alert_include_link,
         )
     return {"processed": result.processed, "sent": result.sent, "failed": result.failed}
 

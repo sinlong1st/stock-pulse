@@ -167,7 +167,10 @@ async def run_news_monitor(
     if notifier is not None:
         with session_factory() as session:
             delivery = await send_pending_alerts(
-                session, {CHANNEL_TELEGRAM: notifier}, limit=settings.max_alerts_per_run
+                session,
+                {CHANNEL_TELEGRAM: notifier},
+                limit=settings.max_alerts_per_run,
+                include_link=settings.alert_include_link,
             )
         summary.alerts_sent = delivery.sent
         summary.alerts_failed = delivery.failed

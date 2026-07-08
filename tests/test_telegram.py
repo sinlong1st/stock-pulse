@@ -41,12 +41,30 @@ def _classification() -> ClassificationResult:
 
 def test_format_alert_message_contains_key_fields() -> None:
     message = format_alert_message(_article(), _classification())
-    assert "HIGH MACRO NEWS" in message
-    assert "Fed signals rate cuts may be delayed" in message
+    assert "HIGH" in message and "MACRO" in message
+    assert "Fed may delay cuts." in message  # AI summary leads
     assert "Why it matters:" in message
     assert "QQQ, NVDA" in message
     assert "Yahoo Finance" in message
+    assert "Fed signals rate cuts may be delayed" in message  # title still present
     assert "https://example.com/fed" in message
+
+
+def test_format_alert_message_title_comes_after_source() -> None:
+    message = format_alert_message(_article(), _classification())
+    assert message.index("Source:") < message.index("Fed signals rate cuts may be delayed")
+
+
+def test_format_alert_message_has_blank_line_before_why() -> None:
+    message = format_alert_message(_article(), _classification())
+    # Blank line separates the summary from "Why it matters".
+    assert "Fed may delay cuts.\n\nWhy it matters:" in message
+
+
+def test_format_alert_message_can_omit_link() -> None:
+    message = format_alert_message(_article(), _classification(), include_link=False)
+    assert "https://example.com/fed" not in message
+    assert "Fed signals rate cuts may be delayed" in message  # title still there
 
 
 async def test_telegram_send_success() -> None:

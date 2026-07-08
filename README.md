@@ -78,6 +78,15 @@ choose the language the AI writes the summary and "why it matters" in.
 Telegram alerts inherit it. Existing classifications keep their original
 language; only new ones use the new setting.
 
+### Alert message options
+
+The Telegram alert leads with the AI summary and "why it matters", then the
+source and article title (the title is also in the link). Two `.env` toggles:
+
+- `ALERT_INCLUDE_LINK` (default `true`) — include the article URL.
+- `ALERT_LINK_PREVIEW` (default `false`) — show Telegram's link preview/
+  thumbnail. Off keeps messages short.
+
 ## Run
 
 ```bash
