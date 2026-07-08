@@ -198,6 +198,7 @@ async def run_pipeline() -> dict:
         "alerts_created": summary.alerts_created,
         "alerts_sent": summary.alerts_sent,
         "alerts_failed": summary.alerts_failed,
+        "alerts_held": summary.alerts_held,
     }
 
 

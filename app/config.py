@@ -65,6 +65,14 @@ class Settings(BaseSettings):
     alert_include_link: bool = True  # include the article URL in the message
     alert_link_preview: bool = False  # show Telegram's link preview/thumbnail
 
+    # Quiet hours: hold non-urgent alerts during a daily window (in the
+    # user's local timezone); they stay PENDING and go out afterward.
+    quiet_hours_enabled: bool = False
+    quiet_hours_start: str = "22:00"
+    quiet_hours_end: str = "07:00"
+    quiet_hours_timezone: str = "Asia/Ho_Chi_Minh"
+    quiet_hours_min_importance: str = "CRITICAL"  # this level and above always sends
+
     # Telegram notifications (Phase 6+)
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""

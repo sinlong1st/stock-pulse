@@ -25,6 +25,7 @@ from app.alerts import (
     send_pending_alerts,
 )
 from app.alerts.policy import AlertPolicy
+from app.alerts.quiet_hours import is_quiet_now
 from app.alerts.telegram import Notifier
 from app.collectors import (
     build_all_collectors,
@@ -66,6 +67,7 @@ class MonitorSummary:
     alerts_created: int = 0
     alerts_sent: int = 0
     alerts_failed: int = 0
+    alerts_held: int = 0
 
 
 async def analyze_relevant_articles(
@@ -186,13 +188,16 @@ async def run_news_monitor(
                     limit=settings.max_alerts_per_run,
                     include_link=settings.alert_include_link,
                     language=settings.output_language,
+                    quiet_now=is_quiet_now(settings),
+                    quiet_min_importance=settings.quiet_hours_min_importance,
                 )
             summary.alerts_sent = delivery.sent
             summary.alerts_failed = delivery.failed
+            summary.alerts_held = delivery.held
 
     logger.info(
         "News monitor [%s] -- collected=%d new=%d duplicates=%d relevant=%d "
-        "classified=%d errors=%d alerts_created=%d sent=%d failed=%d",
+        "classified=%d errors=%d alerts_created=%d sent=%d failed=%d held=%d",
         label,
         summary.collected,
         summary.new,
@@ -203,6 +208,7 @@ async def run_news_monitor(
         summary.alerts_created,
         summary.alerts_sent,
         summary.alerts_failed,
+        summary.alerts_held,
     )
     return summary
 
