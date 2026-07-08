@@ -104,6 +104,32 @@ async def test_classify_returns_validated_result() -> None:
     assert result.related_tickers == ["QQQ", "NVDA"]
 
 
+async def test_classify_includes_language_instruction() -> None:
+    payload = {
+        "is_market_relevant": True,
+        "importance": "MEDIUM",
+        "category": "MACRO",
+        "related_tickers": [],
+        "summary": "s",
+        "why_it_matters": "w",
+        "should_alert": True,
+        "confidence": 0.5,
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = request.read().decode()
+        assert "Vietnamese" in body  # language instruction is sent
+        return _openai_response(payload)
+
+    classifier = OpenAIClassifier(
+        "test-key",
+        watchlist=["NVDA"],
+        language="Vietnamese",
+        transport=httpx.MockTransport(handler),
+    )
+    await classifier.classify(_article())
+
+
 async def test_classify_raises_on_invalid_json() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return _openai_response("this is not json")

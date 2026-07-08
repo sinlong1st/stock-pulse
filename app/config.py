@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     openai_base_url: str = "https://api.openai.com/v1"
+    # Language for AI-written summary + why-it-matters (e.g. "English",
+    # "Vietnamese"). Alerts inherit this since they use those fields.
+    output_language: str = "English"
 
     # Alerting (Phase 5+). Minimum importance that triggers an alert.
     alert_min_importance: str = "MEDIUM"

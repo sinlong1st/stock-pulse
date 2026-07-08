@@ -10,8 +10,8 @@ from datetime import UTC, datetime
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.alerts.constants import STATUS_FAILED, STATUS_PENDING, STATUS_SENT
 from app.db.models import AlertRow, ArticleRow, ClassificationRow
+from app.status import STATUS_FAILED, STATUS_PENDING, STATUS_SENT
 from app.models.article import NewsArticle
 from app.models.classification import ClassificationResult
 

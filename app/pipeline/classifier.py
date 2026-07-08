@@ -50,6 +50,17 @@ _SYSTEM_PROMPT = (
 )
 
 
+def _system_prompt(language: str) -> str:
+    """System prompt, with the output language for the free-text fields."""
+    if language and language.strip().lower() != "english":
+        return (
+            _SYSTEM_PROMPT
+            + f' Write the "summary" and "why_it_matters" values in {language}. '
+            "Keep all keys, enum values, and tickers exactly as specified in English."
+        )
+    return _SYSTEM_PROMPT
+
+
 def _build_user_prompt(article: NewsArticle, watchlist: list[str]) -> str:
     return (
         f"Watchlist: {', '.join(watchlist)}\n\n"
@@ -69,6 +80,7 @@ class OpenAIClassifier(Classifier):
         model: str = "gpt-4o-mini",
         base_url: str = "https://api.openai.com/v1",
         watchlist: list[str] | None = None,
+        language: str = "English",
         timeout: float = 30.0,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
@@ -78,6 +90,7 @@ class OpenAIClassifier(Classifier):
         self.model = model
         self.base_url = base_url.rstrip("/")
         self.watchlist = watchlist if watchlist is not None else list(get_watchlist_config().tickers)
+        self.language = language
         self.timeout = timeout
         self._transport = transport
 
@@ -87,7 +100,7 @@ class OpenAIClassifier(Classifier):
             "temperature": 0,
             "response_format": {"type": "json_object"},
             "messages": [
-                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "system", "content": _system_prompt(self.language)},
                 {"role": "user", "content": _build_user_prompt(article, self.watchlist)},
             ],
         }
@@ -133,4 +146,5 @@ def build_classifier(settings: Settings | None = None) -> Classifier:
         settings.openai_api_key,
         model=settings.openai_model,
         base_url=settings.openai_base_url,
+        language=settings.output_language,
     )

@@ -99,9 +99,18 @@ def _render_card(
     summary_html = f'<p class="summary">{summary}</p>' if summary else ""
     relevant_class = " relevant" if is_relevant else " muted"
     data_relevant = "1" if is_relevant else "0"
+    # One-line digest (shown in compact mode): importance + AI summary.
+    digest_html = ""
+    if classification is not None:
+        imp = escape(classification.importance)
+        digest_html = (
+            f'<div class="digest-line"><span class="badge badge-{imp}">{imp}</span>'
+            f'<span class="digest-summary">{escape(classification.summary)}</span></div>'
+        )
     return f"""
       <article class="card{relevant_class}" data-relevant="{data_relevant}">
         <a class="title" href="{url}" target="_blank" rel="noopener noreferrer">{title}</a>
+        {digest_html}
         {summary_html}
         {_render_chips(result)}
         {_render_verdict(classification)}
@@ -139,18 +148,25 @@ def render_news_page(
     if classified:
         relevant_note += f" &middot; {classified} AI-analyzed"
 
-    # Default to showing only matches (when there are any); the toggle
-    # reveals every article.
+    # Default to a compact digest, showing only matches (when there are any).
+    # Toggles switch to full cards and reveal every article.
     only_matches_default = evaluations is not None and relevant > 0
-    body_class = "only-matches" if only_matches_default else ""
-    controls = (
-        '<div class="controls">'
-        '<input type="checkbox" id="show-all">'
-        f'<label for="show-all">Show all articles &middot; {relevant} of {shown} match</label>'
-        "</div>"
-        if only_matches_default
-        else ""
-    )
+    classes = ["compact"]
+    if only_matches_default:
+        classes.append("only-matches")
+    body_class = " ".join(classes)
+
+    control_items = []
+    if articles:
+        control_items.append(
+            '<label class="ctl"><input type="checkbox" id="compact" checked> Compact digest</label>'
+        )
+    if only_matches_default:
+        control_items.append(
+            '<label class="ctl"><input type="checkbox" id="show-all"> '
+            f"Show all &middot; {relevant} of {shown} match</label>"
+        )
+    controls = f'<div class="controls">{"".join(control_items)}</div>' if control_items else ""
     generated = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     return f"""<!doctype html>
@@ -198,9 +214,16 @@ def render_news_page(
   .card.muted {{ opacity: .55; }}
   .card.muted:hover {{ opacity: 1; }}
   .title strong, .summary strong {{ color: var(--accent); font-weight: 700; }}
-  .controls {{ display: flex; align-items: center; gap: 8px; margin: 0 0 20px; }}
-  .controls label {{ color: var(--muted); font-size: .88rem; cursor: pointer; user-select: none; }}
+  .controls {{ display: flex; align-items: center; gap: 18px; margin: 0 0 20px; flex-wrap: wrap; }}
+  .controls .ctl {{ color: var(--muted); font-size: .88rem; cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 6px; }}
   body.only-matches .card[data-relevant="0"] {{ display: none; }}
+  /* Compact digest: one skimmable line per item. */
+  .digest-line {{ display: flex; align-items: center; gap: 8px; margin-top: 8px; }}
+  .digest-summary {{ color: var(--muted); font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+  body:not(.compact) .digest-line {{ display: none; }}
+  body.compact .card {{ padding: 10px 14px; margin-bottom: 8px; }}
+  body.compact .title {{ font-size: .98rem; }}
+  body.compact .summary, body.compact .chips, body.compact .verdict, body.compact .meta {{ display: none; }}
   .actions {{ display: flex; gap: 8px; flex-wrap: wrap; }}
   .refresh.accent {{ color: #a06bff; border-color: rgba(150,110,255,.4); }}
   .chips {{ display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }}
@@ -242,6 +265,13 @@ def render_news_page(
       // Default view shows only matches; checking "Show all" reveals everything.
       showAll.addEventListener('change', () => {{
         document.body.classList.toggle('only-matches', !showAll.checked);
+      }});
+    }}
+
+    const compact = document.getElementById('compact');
+    if (compact) {{
+      compact.addEventListener('change', () => {{
+        document.body.classList.toggle('compact', compact.checked);
       }});
     }}
 

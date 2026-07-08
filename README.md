@@ -71,6 +71,13 @@ Omit a top-level key to keep its built-in default; use an empty list/object
 to disable that part. Broad words like `oil` or `bank` can over-match — trim
 them here if alerts get noisy.
 
+### Language
+
+Set `OUTPUT_LANGUAGE` in `.env` (e.g. `English`, `Vietnamese`, `Spanish`) to
+choose the language the AI writes the summary and "why it matters" in.
+Telegram alerts inherit it. Existing classifications keep their original
+language; only new ones use the new setting.
+
 ## Run
 
 ```bash

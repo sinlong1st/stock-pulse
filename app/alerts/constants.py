@@ -1,10 +1,22 @@
-"""Alert channel and status constants (no imports, to avoid cycles)."""
+"""Alert channel and status constants.
 
-# Delivery channels.
-CHANNEL_TELEGRAM = "telegram"
+Re-exported from the dependency-free ``app.status`` leaf module so the db
+layer can import the constants without triggering the alerts package
+(which would create an import cycle).
+"""
 
-# Alert lifecycle statuses.
-STATUS_PENDING = "PENDING"
-STATUS_SENT = "SENT"
-STATUS_FAILED = "FAILED"
-STATUS_ACKNOWLEDGED = "ACKNOWLEDGED"
+from app.status import (
+    CHANNEL_TELEGRAM,
+    STATUS_ACKNOWLEDGED,
+    STATUS_FAILED,
+    STATUS_PENDING,
+    STATUS_SENT,
+)
+
+__all__ = [
+    "CHANNEL_TELEGRAM",
+    "STATUS_PENDING",
+    "STATUS_SENT",
+    "STATUS_FAILED",
+    "STATUS_ACKNOWLEDGED",
+]

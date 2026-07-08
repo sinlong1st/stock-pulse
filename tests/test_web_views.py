@@ -66,10 +66,32 @@ def test_render_defaults_to_only_matches_with_show_all_toggle() -> None:
     html = render_news_page([relevant, noise], stored_total=2, evaluations=evals)
     assert 'data-relevant="1"' in html
     assert 'data-relevant="0"' in html
-    # Only-matches is the default view; the toggle reveals all.
-    assert 'class="only-matches"' in html
+    # Compact + only-matches are the default view; toggles change them.
+    assert "only-matches" in html
+    assert "compact" in html
     assert 'id="show-all"' in html
+    assert 'id="compact"' in html
     assert "1 of 2 match" in html
+
+
+def test_compact_digest_shows_importance_and_summary() -> None:
+    from app.models.classification import ClassificationResult
+
+    article = _article("Fed signals rate cuts")
+    article.id = "9"
+    verdict = ClassificationResult(
+        is_market_relevant=True,
+        importance="HIGH",
+        category="MACRO",
+        related_tickers=[],
+        summary="Fed có thể hoãn cắt giảm lãi suất.",
+        why_it_matters="Lãi suất cao gây áp lực lên cổ phiếu công nghệ.",
+        should_alert=True,
+        confidence=0.9,
+    )
+    html = render_news_page([article], stored_total=1, classifications={"9": verdict})
+    assert "digest-line" in html
+    assert "Fed có thể hoãn cắt giảm lãi suất." in html  # non-ASCII summary renders
 
 
 def test_render_shows_ai_verdict_when_classified() -> None:
