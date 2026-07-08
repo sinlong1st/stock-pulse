@@ -69,6 +69,23 @@ def test_format_alert_message_can_omit_link() -> None:
     assert "Fed signals rate cuts may be delayed" in message  # title still there
 
 
+def test_format_alert_message_localizes_labels() -> None:
+    vi = format_alert_message(_article(), _classification(), language="Vietnamese")
+    assert "Vì sao quan trọng:" in vi
+    assert "Ảnh hưởng:" in vi
+    assert "Nguồn:" in vi
+    assert "Giảm giá" in vi  # BEARISH localized
+
+    en = format_alert_message(_article(), _classification(), language="English")
+    assert "Why it matters:" in en
+    assert "Bearish" in en
+
+
+def test_format_alert_message_unknown_language_falls_back_to_english() -> None:
+    message = format_alert_message(_article(), _classification(), language="Klingon")
+    assert "Why it matters:" in message
+
+
 async def test_telegram_send_success() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/bottoken/sendMessage"

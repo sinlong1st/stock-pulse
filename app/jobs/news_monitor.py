@@ -185,6 +185,7 @@ async def run_news_monitor(
                     {CHANNEL_TELEGRAM: notifier},
                     limit=settings.max_alerts_per_run,
                     include_link=settings.alert_include_link,
+                    language=settings.output_language,
                 )
             summary.alerts_sent = delivery.sent
             summary.alerts_failed = delivery.failed

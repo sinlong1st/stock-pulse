@@ -137,6 +137,7 @@ async def send_alerts(limit: int = 20) -> dict:
             {CHANNEL_TELEGRAM: notifier},
             limit=limit,
             include_link=settings.alert_include_link,
+            language=settings.output_language,
         )
     return {"processed": result.processed, "sent": result.sent, "failed": result.failed}
 
