@@ -92,6 +92,12 @@ class ArticleRepository:
         row = self.session.get(ArticleRow, article_id)
         return _to_model(row) if row else None
 
+    def get_many(self, article_ids: list[int]) -> list[NewsArticle]:
+        if not article_ids:
+            return []
+        stmt = select(ArticleRow).where(ArticleRow.id.in_(article_ids))
+        return [_to_model(row) for row in self.session.scalars(stmt)]
+
     def count(self) -> int:
         return self.session.scalar(select(func.count()).select_from(ArticleRow)) or 0
 

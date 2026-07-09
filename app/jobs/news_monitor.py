@@ -14,6 +14,7 @@ are missing, those stages are skipped and the run still completes.
 import asyncio
 import logging
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -39,6 +40,7 @@ from app.db import AlertRepository, ArticleRepository, ClassificationRepository,
 from app.pipeline.classifier import ClassificationError, Classifier, build_classifier
 from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
+from app.prices import maybe_price_client
 
 logger = logging.getLogger("stockpulse.jobs.news_monitor")
 
@@ -77,22 +79,33 @@ async def analyze_relevant_articles(
     policy: AlertPolicy,
     model: str | None,
     limit: int,
+    article_ids: list[int] | None = None,
 ) -> AnalyzeSummary:
     """Classify relevant, not-yet-classified articles and create alerts.
 
-    Shared by the manual /classify endpoint and the scheduled job. One bad
-    article is logged and skipped without aborting the rest.
+    With `article_ids`, only those articles are considered (scheduled jobs
+    pass the batch they just fetched, so each source alerts on its own
+    cadence). Without it, the newest stored articles are used (manual
+    /classify). One bad article is logged and skipped without aborting.
     """
     rule_filter = get_rule_filter()
     article_repo = ArticleRepository(session)
     classification_repo = ClassificationRepository(session)
     alert_repo = AlertRepository(session)
 
-    articles = article_repo.list_recent(limit=200)
+    if article_ids is None:
+        articles = article_repo.list_recent(limit=200)
+    else:
+        articles = article_repo.get_many(article_ids)
     already = classification_repo.classified_article_ids([int(a.id) for a in articles if a.id])
     candidates = [
         a for a in articles if a.id and int(a.id) not in already and rule_filter.is_relevant(a)
-    ][:limit]
+    ]
+    # Newest first, then cap (so a big batch classifies the freshest items).
+    candidates.sort(
+        key=lambda a: a.published_at or datetime.min.replace(tzinfo=UTC), reverse=True
+    )
+    candidates = candidates[:limit]
 
     summary = AnalyzeSummary()
     for article in candidates:
@@ -175,6 +188,7 @@ async def run_news_monitor(
                     policy=policy,
                     model=settings.openai_model,
                     limit=settings.max_classifications_per_run,
+                    article_ids=store.new_ids,  # only this source's fresh batch
                 )
             summary.classified = analyzed.classified
             summary.errors = analyzed.errors
@@ -190,6 +204,7 @@ async def run_news_monitor(
                     language=settings.output_language,
                     quiet_now=is_quiet_now(settings),
                     quiet_min_importance=settings.quiet_hours_min_importance,
+                    price_client=maybe_price_client(settings),
                 )
             summary.alerts_sent = delivery.sent
             summary.alerts_failed = delivery.failed

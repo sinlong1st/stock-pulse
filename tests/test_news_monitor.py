@@ -100,6 +100,26 @@ async def test_analyze_only_relevant_and_creates_alerts(session_factory) -> None
         assert AlertRepository(session).count_by_status("PENDING") == 1
 
 
+async def test_analyze_scopes_to_given_article_ids(session_factory) -> None:
+    # Two relevant articles; scoping to one means only that one is classified.
+    with session_factory() as session:
+        repo = ArticleRepository(session)
+        r1 = repo.add(_article("NVDA hits a new high", "https://e.com/1"))
+        repo.add(_article("NVDA unveils a new chip", "https://e.com/2"))
+        session.commit()
+        r1_id = r1.id
+
+        summary = await analyze_relevant_articles(
+            session,
+            classifier=_FakeClassifier("HIGH"),
+            policy=AlertPolicy(),
+            model="fake",
+            limit=10,
+            article_ids=[r1_id],
+        )
+    assert summary.classified == 1  # only the in-scope article
+
+
 async def test_run_news_monitor_full_pipeline(session_factory) -> None:
     settings = Settings(
         _env_file=None,

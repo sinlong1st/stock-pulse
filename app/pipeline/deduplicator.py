@@ -4,7 +4,7 @@ Filters a freshly collected batch down to articles that are neither
 already stored nor repeated within the same batch.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
@@ -44,18 +44,19 @@ class StoreResult:
     new: int
     duplicates: int
     stored_total: int
+    new_ids: list[int] = field(default_factory=list)
 
 
 def store_new_articles(session: Session, articles: list[NewsArticle]) -> StoreResult:
     """Deduplicate a batch against the DB, persist the new ones, and commit."""
     repository = ArticleRepository(session)
     new_articles = partition_new_articles(repository, articles)
-    for article in new_articles:
-        repository.add(article)
+    rows = [repository.add(article) for article in new_articles]
     session.commit()
     return StoreResult(
         collected=len(articles),
         new=len(new_articles),
         duplicates=len(articles) - len(new_articles),
         stored_total=repository.count(),
+        new_ids=[row.id for row in rows],
     )
