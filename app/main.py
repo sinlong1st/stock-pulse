@@ -33,6 +33,7 @@ from app.logging_config import configure_logging
 from app.pipeline.classifier import ClassificationError, build_classifier
 from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
+from app.prices import maybe_price_client
 from app.web import render_alerts_page, render_news_page
 
 logger = logging.getLogger("stockpulse")
@@ -138,6 +139,7 @@ async def send_alerts(limit: int = 20) -> dict:
             limit=limit,
             include_link=settings.alert_include_link,
             language=settings.output_language,
+            price_client=maybe_price_client(settings),
         )
     return {"processed": result.processed, "sent": result.sent, "failed": result.failed}
 

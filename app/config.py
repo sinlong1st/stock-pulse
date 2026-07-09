@@ -77,6 +77,13 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
 
+    # Price data (Alpaca Market Data API). Keys work for paper accounts too.
+    alpaca_api_key: str = ""
+    alpaca_secret_key: str = ""
+    alpaca_data_url: str = "https://data.alpaca.markets/v2"
+    price_features_enabled: bool = False
+    price_context_in_alerts: bool = False  # add a "MU +3.4% today" line to alerts
+
     # Watchlist config file (tickers + company aliases), loaded by
     # app.watchlist. Edit watchlist.json rather than code; see
     # watchlist.example.json for the format.

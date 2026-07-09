@@ -42,12 +42,13 @@ def format_alert_message(
     *,
     include_link: bool = True,
     language: str = "English",
+    price_line: str | None = None,
 ) -> str:
     """Build the plain-text alert body (used for Telegram and logs).
 
     Leads with the AI summary and reasoning; the article title comes after
     the source (the title is also in the link). Labels follow `language`;
-    the URL is optional.
+    `price_line` (optional) and the URL are appended when present.
     """
     labels = _labels(language)
     emoji = _IMPORTANCE_EMOJI.get(classification.importance, "📰")
@@ -62,10 +63,10 @@ def format_alert_message(
         "",
         f"{labels['why']}: {classification.why_it_matters}",
         f"{labels['affected']}: {tickers}",
-        "",
-        f"{labels['source']}: {article.source}",
-        article.title,
     ]
+    if price_line:
+        lines.append(price_line)
+    lines += ["", f"{labels['source']}: {article.source}", article.title]
     if include_link and article.url:
         lines.append(article.url)
     return "\n".join(lines)

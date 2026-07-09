@@ -15,6 +15,7 @@ from app.alerts.formatter import format_alert_message
 from app.alerts.policy import IMPORTANCE_ORDER
 from app.alerts.telegram import Notifier, NotifierError
 from app.db.repository import AlertRepository, ArticleRepository, ClassificationRepository
+from app.prices import PriceClient, price_context_line
 
 logger = logging.getLogger("stockpulse.alerts.router")
 
@@ -36,6 +37,7 @@ async def send_pending_alerts(
     language: str = "English",
     quiet_now: bool = False,
     quiet_min_importance: str = "CRITICAL",
+    price_client: PriceClient | None = None,
 ) -> DeliveryResult:
     """Send up to `limit` pending alerts and persist their delivery status.
 
@@ -70,8 +72,21 @@ async def send_pending_alerts(
             failed += 1
             continue
 
+        price_line = None
+        if price_client is not None and classification.related_tickers:
+            try:
+                move = await price_client.change_today(classification.related_tickers[0])
+                if move is not None:
+                    price_line = price_context_line(move, language)
+            except Exception:  # price is best-effort; never block an alert
+                logger.debug("Price lookup failed for alert %s", alert.id, exc_info=True)
+
         message = format_alert_message(
-            article, classification, include_link=include_link, language=language
+            article,
+            classification,
+            include_link=include_link,
+            language=language,
+            price_line=price_line,
         )
         try:
             await notifier.send(message)
