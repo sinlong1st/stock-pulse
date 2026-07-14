@@ -39,6 +39,8 @@ def horizons_from_settings(settings: Settings | None = None) -> list[str]:
     return [h.strip() for h in settings.evaluation_horizons.split(",") if h.strip()]
 
 
+
+
 def _is_sane_price(price: float | None) -> bool:
     """Basic guard against missing/garbage baseline prices."""
     return price is not None and price > 0

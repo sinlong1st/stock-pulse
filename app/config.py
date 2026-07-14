@@ -1,13 +1,16 @@
 """Typed application configuration loaded from environment variables.
 
 Settings are read from the process environment and, if present, a local
-``.env`` file. Only Phase 0 values are actively used today; later-phase
-values are declared here so configuration stays in one typed place.
+``.env`` file, keeping configuration in one typed place.
 """
 
+import logging
 from functools import lru_cache
+from zoneinfo import ZoneInfo
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger("stockpulse.config")
 
 
 class Settings(BaseSettings):
@@ -26,6 +29,9 @@ class Settings(BaseSettings):
     # Application
     app_env: str = "development"
     log_level: str = "INFO"
+    # Your local timezone — used everywhere a local time matters (quiet
+    # hours, the daily digest). One setting for the whole app.
+    timezone: str = "Asia/Ho_Chi_Minh"
 
     # News collection: per-source feeds (separate macro/watchlist fetching).
     # {ticker} and {query} are filled in at runtime.
@@ -70,7 +76,6 @@ class Settings(BaseSettings):
     quiet_hours_enabled: bool = False
     quiet_hours_start: str = "22:00"
     quiet_hours_end: str = "07:00"
-    quiet_hours_timezone: str = "Asia/Ho_Chi_Minh"
     quiet_hours_min_importance: str = "CRITICAL"  # this level and above always sends
 
     # Telegram notifications (Phase 6+)
@@ -90,8 +95,7 @@ class Settings(BaseSettings):
     evaluation_move_threshold_pct: float = 0.5  # ±band that counts as "flat"
     evaluation_max_move_pct: float = 40.0  # bigger => treat as bad data, skip
     evaluation_check_interval_minutes: int = 15
-    evaluation_market_timezone: str = "America/New_York"
-    # Daily self-evaluation digest to Telegram (uses quiet-hours timezone).
+    # Daily self-evaluation digest to Telegram (hour is in TIMEZONE).
     evaluation_digest_enabled: bool = False
     evaluation_digest_hour: int = 8
 
@@ -109,3 +113,20 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Return a cached Settings instance."""
     return Settings()
+
+
+def resolve_timezone(settings: "Settings | None" = None) -> str:
+    """The app's local timezone name, validated.
+
+    Falls back to UTC (with a warning) if the configured name is unknown,
+    so a typo never crashes the scheduler at startup.
+    """
+    settings = settings or get_settings()
+    name = (settings.timezone or "").strip()
+    if name:
+        try:
+            ZoneInfo(name)
+            return name
+        except Exception:
+            logger.warning("Unknown TIMEZONE %r; falling back to UTC.", name)
+    return "UTC"

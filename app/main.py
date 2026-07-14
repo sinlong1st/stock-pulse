@@ -16,7 +16,7 @@ from app.alerts import (
     send_pending_alerts,
 )
 from app.collectors import build_all_collectors, collect_from
-from app.config import get_settings
+from app.config import get_settings, resolve_timezone
 from app.db import (
     AlertRepository,
     ArticleRepository,
@@ -79,16 +79,22 @@ async def lifespan(app: FastAPI):
                 coalesce=True,
             )
             if settings.evaluation_digest_enabled:
+                digest_tz = resolve_timezone(settings)
                 scheduler.add_job(
                     run_daily_digest,
                     CronTrigger(
                         hour=settings.evaluation_digest_hour,
                         minute=0,
-                        timezone=settings.quiet_hours_timezone,
+                        timezone=digest_tz,
                     ),
                     id="daily_digest",
                     max_instances=1,
                     coalesce=True,
+                )
+                logger.info(
+                    "Daily digest scheduled at %02d:00 %s.",
+                    settings.evaluation_digest_hour,
+                    digest_tz,
                 )
         scheduler.start()
         logger.info(

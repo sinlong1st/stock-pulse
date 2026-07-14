@@ -26,7 +26,7 @@ def _settings(**kw) -> Settings:
         quiet_hours_enabled=True,
         quiet_hours_start="22:00",
         quiet_hours_end="07:00",
-        quiet_hours_timezone=TZ,
+        timezone=TZ,
         quiet_hours_min_importance="CRITICAL",
     )
     base.update(kw)

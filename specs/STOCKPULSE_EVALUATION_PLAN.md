@@ -45,7 +45,7 @@ non-critical sends while the window is open** — they naturally flush later.
 QUIET_HOURS_ENABLED=true
 QUIET_HOURS_START=22:00        # local time
 QUIET_HOURS_END=07:00          # may cross midnight
-QUIET_HOURS_TIMEZONE=Asia/Ho_Chi_Minh
+TIMEZONE=Asia/Ho_Chi_Minh      # app-wide local timezone (also used by the digest)
 QUIET_HOURS_MIN_IMPORTANCE=CRITICAL   # this level and above always sends
 ```
 
@@ -56,7 +56,7 @@ and a check in the delivery router (`send_pending_alerts`): skip an alert if
 
 ### Edge cases
 - Window crossing midnight (22:00–07:00) — handle with a simple range check.
-- Timezone via `zoneinfo` (`QUIET_HOURS_TIMEZONE`).
+- Timezone via `zoneinfo` (`TIMEZONE` — one app-wide setting).
 - Held alerts must not be marked `FAILED`; they simply stay `PENDING`.
 
 ### Effort: small (½ day). Independent of the other two.
@@ -215,7 +215,7 @@ Delivered as:
 EVALUATION_ENABLED=true
 EVALUATION_HORIZONS=1h,1d          # market-time horizons
 EVALUATION_MOVE_THRESHOLD_PCT=0.3
-EVALUATION_MARKET_TIMEZONE=America/New_York
+EVALUATION_DIGEST_ENABLED=false    # daily Telegram summary (hour is in TIMEZONE)
 EVALUATION_DIGEST_ENABLED=false    # daily Telegram summary
 ```
 

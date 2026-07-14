@@ -246,6 +246,17 @@ async def test_report_computes_accuracy(session) -> None:
     assert report.bullish.total == 2
 
 
+def test_single_timezone_setting_drives_everything() -> None:
+    from app.config import Settings, resolve_timezone
+
+    s = Settings(_env_file=None, timezone="America/Los_Angeles")
+    assert resolve_timezone(s) == "America/Los_Angeles"
+
+    # A typo falls back to UTC instead of crashing the scheduler.
+    s = Settings(_env_file=None, timezone="Not/AZone")
+    assert resolve_timezone(s) == "UTC"
+
+
 def test_digest_empty_state() -> None:
     from app.evaluation import EvaluationReport, SentimentStat
 

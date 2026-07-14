@@ -7,10 +7,10 @@ so they stay PENDING and go out on the next send after the window ends.
 
 import logging
 from datetime import datetime, time
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from zoneinfo import ZoneInfo
 
 from app.alerts.policy import IMPORTANCE_ORDER
-from app.config import Settings, get_settings
+from app.config import Settings, get_settings, resolve_timezone
 
 logger = logging.getLogger("stockpulse.alerts.quiet_hours")
 
@@ -26,15 +26,7 @@ def is_quiet_now(settings: Settings | None = None, now: datetime | None = None) 
     if not settings.quiet_hours_enabled:
         return False
 
-    try:
-        tz = ZoneInfo(settings.quiet_hours_timezone)
-    except ZoneInfoNotFoundError:
-        logger.warning(
-            "Unknown QUIET_HOURS_TIMEZONE '%s'; quiet hours disabled.",
-            settings.quiet_hours_timezone,
-        )
-        return False
-
+    tz = ZoneInfo(resolve_timezone(settings))
     current = (now or datetime.now(tz)).astimezone(tz).time()
     start = _parse_hhmm(settings.quiet_hours_start)
     end = _parse_hhmm(settings.quiet_hours_end)
