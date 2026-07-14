@@ -11,7 +11,14 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.models import AlertRow, ArticleRow, ClassificationRow, PredictionRow
-from app.status import PRED_PENDING, STATUS_FAILED, STATUS_PENDING, STATUS_SENT
+from app.status import (
+    PRED_EVALUATED,
+    PRED_PENDING,
+    PRED_SKIPPED,
+    STATUS_FAILED,
+    STATUS_PENDING,
+    STATUS_SENT,
+)
 from app.models.article import NewsArticle
 from app.models.classification import ClassificationResult
 
@@ -320,3 +327,29 @@ class PredictionRepository:
     def count_by_status(self, status: str) -> int:
         stmt = select(func.count()).select_from(PredictionRow).where(PredictionRow.status == status)
         return self.session.scalar(stmt) or 0
+
+    def list_due(self, now: datetime, limit: int = 200) -> list[PredictionRow]:
+        """Pending predictions whose evaluation horizon has passed."""
+        stmt = (
+            select(PredictionRow)
+            .where(
+                PredictionRow.status == PRED_PENDING,
+                PredictionRow.evaluate_after <= now,
+            )
+            .order_by(PredictionRow.evaluate_after)
+            .limit(limit)
+        )
+        return list(self.session.scalars(stmt))
+
+    def mark_evaluated(
+        self, prediction: PredictionRow, price_at_horizon: float, return_pct: float, outcome: str
+    ) -> None:
+        prediction.price_at_horizon = price_at_horizon
+        prediction.return_pct = return_pct
+        prediction.outcome = outcome
+        prediction.status = PRED_EVALUATED
+        prediction.evaluated_at = datetime.now(tz=UTC)
+
+    def mark_skipped(self, prediction: PredictionRow) -> None:
+        prediction.status = PRED_SKIPPED
+        prediction.evaluated_at = datetime.now(tz=UTC)

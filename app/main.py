@@ -25,6 +25,7 @@ from app.db import (
 )
 from app.jobs import (
     analyze_relevant_articles,
+    run_evaluation,
     run_macro_monitor,
     run_news_monitor,
     run_watchlist_monitor,
@@ -65,11 +66,25 @@ async def lifespan(app: FastAPI):
             max_instances=1,
             coalesce=True,
         )
+        if settings.evaluation_enabled:
+            scheduler.add_job(
+                run_evaluation,
+                "interval",
+                minutes=settings.evaluation_check_interval_minutes,
+                id="evaluation",
+                max_instances=1,
+                coalesce=True,
+            )
         scheduler.start()
         logger.info(
-            "Scheduler ENABLED — watchlist every %d min, macro every %d min.",
+            "Scheduler ENABLED — watchlist every %d min, macro every %d min%s.",
             settings.watchlist_fetch_interval_minutes,
             settings.macro_fetch_interval_minutes,
+            (
+                f", evaluation every {settings.evaluation_check_interval_minutes} min"
+                if settings.evaluation_enabled
+                else ""
+            ),
         )
     else:
         logger.info("Scheduler disabled (set SCHEDULER_ENABLED=true to automate).")
@@ -111,6 +126,19 @@ def news_page() -> HTMLResponse:
             classifications=classification_map,
         )
     )
+
+
+@app.post("/evaluate")
+async def evaluate() -> dict:
+    """Score predictions whose horizon has passed (manual trigger)."""
+    summary = await run_evaluation()
+    return {
+        "evaluated": summary.evaluated,
+        "hits": summary.hits,
+        "misses": summary.misses,
+        "flats": summary.flats,
+        "skipped": summary.skipped,
+    }
 
 
 @app.get("/alerts", response_class=HTMLResponse)

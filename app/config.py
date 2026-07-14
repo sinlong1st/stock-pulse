@@ -87,7 +87,9 @@ class Settings(BaseSettings):
     # Self-evaluation: record AI predictions and later score them vs price.
     evaluation_enabled: bool = False
     evaluation_horizons: str = "1d"  # comma-separated, e.g. "1h,1d"
-    evaluation_move_threshold_pct: float = 0.3  # ±band that counts as "flat"
+    evaluation_move_threshold_pct: float = 0.5  # ±band that counts as "flat"
+    evaluation_max_move_pct: float = 40.0  # bigger => treat as bad data, skip
+    evaluation_check_interval_minutes: int = 15
     evaluation_market_timezone: str = "America/New_York"
 
     # Watchlist config file (tickers + company aliases), loaded by

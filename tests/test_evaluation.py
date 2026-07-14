@@ -12,11 +12,23 @@ from app.db.repository import (
     ClassificationRepository,
     PredictionRepository,
 )
-from app.evaluation import parse_horizon, record_predictions
+from app.evaluation import (
+    evaluate_predictions,
+    parse_horizon,
+    record_predictions,
+    score_outcome,
+)
 from app.models.article import NewsArticle
 from app.models.classification import ClassificationResult
 from app.prices import PriceClient
-from app.status import PRED_PENDING
+from app.status import (
+    OUTCOME_FLAT,
+    OUTCOME_HIT,
+    OUTCOME_MISS,
+    PRED_EVALUATED,
+    PRED_PENDING,
+    PRED_SKIPPED,
+)
 
 
 class _FakePriceClient(PriceClient):
@@ -123,3 +135,74 @@ async def test_no_tickers_records_nothing(session) -> None:
         horizons=["1d"],
     )
     assert created == 0
+
+
+# --- scoring (step D) -------------------------------------------------------
+
+
+def test_score_outcome_with_tolerance_band() -> None:
+    t = 0.5  # ±0.5% counts as flat
+    # Bullish: up = hit, real down = miss, small dip within tolerance = flat.
+    assert score_outcome("BULLISH", 2.0, t) == OUTCOME_HIT
+    assert score_outcome("BULLISH", -2.0, t) == OUTCOME_MISS
+    assert score_outcome("BULLISH", -0.4, t) == OUTCOME_FLAT  # a -0.4% dip is tolerated
+    # Bearish: down = hit, up = miss.
+    assert score_outcome("BEARISH", -2.0, t) == OUTCOME_HIT
+    assert score_outcome("BEARISH", 2.0, t) == OUTCOME_MISS
+    # Neutral: flat = hit, any real move = miss.
+    assert score_outcome("NEUTRAL", 0.2, t) == OUTCOME_HIT
+    assert score_outcome("NEUTRAL", 3.0, t) == OUTCOME_MISS
+
+
+async def test_evaluate_scores_due_prediction(session) -> None:
+    from datetime import timedelta
+
+    class_id, article_id = _seed_classification(session, ["NVDA"])
+    await record_predictions(
+        session,
+        classification_id=class_id,
+        article_id=article_id,
+        result=_classification(["NVDA"]),
+        price_client=_FakePriceClient({"NVDA": 100.0}),  # baseline 100
+        horizons=["1d"],
+    )
+    session.commit()
+
+    # Price rose to 105 (+5%); horizon is due.
+    summary = await evaluate_predictions(
+        session,
+        price_client=_FakePriceClient({"NVDA": 105.0}),
+        threshold_pct=0.5,
+        max_move_pct=40.0,
+        now=datetime.now(tz=UTC) + timedelta(days=2),
+    )
+    assert summary.evaluated == 1
+    assert summary.hits == 1  # bullish + up
+    assert PredictionRepository(session).count_by_status(PRED_EVALUATED) == 1
+
+
+async def test_evaluate_skips_implausible_move(session) -> None:
+    from datetime import timedelta
+
+    class_id, article_id = _seed_classification(session, ["MU"])
+    await record_predictions(
+        session,
+        classification_id=class_id,
+        article_id=article_id,
+        result=_classification(["MU"]),
+        price_client=_FakePriceClient({"MU": 942.0}),  # bad baseline
+        horizons=["1d"],
+    )
+    session.commit()
+
+    # Real price ~100 → -89% vs bad baseline → implausible → skipped.
+    summary = await evaluate_predictions(
+        session,
+        price_client=_FakePriceClient({"MU": 100.0}),
+        threshold_pct=0.5,
+        max_move_pct=40.0,
+        now=datetime.now(tz=UTC) + timedelta(days=2),
+    )
+    assert summary.skipped == 1
+    assert summary.evaluated == 0
+    assert PredictionRepository(session).count_by_status(PRED_SKIPPED) == 1
