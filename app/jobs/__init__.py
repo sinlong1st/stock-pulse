@@ -1,6 +1,6 @@
 """Background jobs."""
 
-from app.jobs.evaluator import run_evaluation
+from app.jobs.evaluator import run_daily_digest, run_evaluation
 from app.jobs.news_monitor import (
     AnalyzeSummary,
     MonitorSummary,
@@ -18,4 +18,5 @@ __all__ = [
     "run_watchlist_monitor",
     "run_macro_monitor",
     "run_evaluation",
+    "run_daily_digest",
 ]

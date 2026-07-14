@@ -353,3 +353,13 @@ class PredictionRepository:
     def mark_skipped(self, prediction: PredictionRow) -> None:
         prediction.status = PRED_SKIPPED
         prediction.evaluated_at = datetime.now(tz=UTC)
+
+    def list_evaluated(self, limit: int = 2000) -> list[PredictionRow]:
+        """Evaluated predictions, most recently evaluated first."""
+        stmt = (
+            select(PredictionRow)
+            .where(PredictionRow.status == PRED_EVALUATED)
+            .order_by(PredictionRow.evaluated_at.desc(), PredictionRow.id.desc())
+            .limit(limit)
+        )
+        return list(self.session.scalars(stmt))

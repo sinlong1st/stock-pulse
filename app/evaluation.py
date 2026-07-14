@@ -16,7 +16,7 @@ from app.config import Settings, get_settings
 from app.db.repository import PredictionRepository
 from app.models.classification import ClassificationResult
 from app.prices import PriceClient
-from app.status import OUTCOME_FLAT, OUTCOME_HIT, OUTCOME_MISS
+from app.status import OUTCOME_FLAT, OUTCOME_HIT, OUTCOME_MISS, PRED_PENDING
 
 logger = logging.getLogger("stockpulse.evaluation")
 
@@ -75,6 +75,168 @@ class EvalSummary:
     misses: int = 0
     flats: int = 0
     skipped: int = 0
+
+
+def _accuracy(hits: int, misses: int) -> float | None:
+    """Directional accuracy = hits / (hits + misses); FLATs excluded."""
+    decided = hits + misses
+    return (hits / decided * 100) if decided else None
+
+
+@dataclass
+class SentimentStat:
+    label: str
+    total: int
+    hits: int
+    misses: int
+    flats: int
+    accuracy_pct: float | None
+    avg_return_pct: float | None
+
+
+@dataclass
+class ImportanceStat:
+    importance: str
+    total: int
+    accuracy_pct: float | None
+
+
+@dataclass
+class RecentItem:
+    ticker: str
+    sentiment: str
+    horizon: str
+    return_pct: float | None
+    outcome: str
+
+
+@dataclass
+class EvaluationReport:
+    total_evaluated: int
+    hits: int
+    misses: int
+    flats: int
+    accuracy_pct: float | None
+    bullish: SentimentStat
+    bearish: SentimentStat
+    by_importance: list[ImportanceStat]
+    recent: list[RecentItem]
+    pending: int
+
+
+def build_evaluation_digest(report: "EvaluationReport", language: str = "English") -> str:
+    """Short text summary of the evaluation, for a Telegram digest."""
+    vi = language.strip().lower() == "vietnamese"
+
+    def pct(v: float | None) -> str:
+        return f"{v:.0f}%" if v is not None else "—"
+
+    def signed(v: float | None) -> str:
+        return f"{v:+.1f}%" if v is not None else "—"
+
+    if report.total_evaluated == 0:
+        return (
+            "📊 StockPulse — chưa đủ dữ liệu đánh giá."
+            if vi
+            else "📊 StockPulse — not enough evaluation data yet."
+        )
+
+    b, r = report.bullish, report.bearish
+    if vi:
+        return "\n".join(
+            [
+                "📊 StockPulse — Tự đánh giá",
+                "",
+                f"Đã đánh giá: {report.total_evaluated} dự đoán",
+                f"🟢 Tin tốt: {pct(b.accuracy_pct)} đúng ({b.hits}/{b.hits + b.misses}) · LN TB {signed(b.avg_return_pct)}",
+                f"🟠 Tin xấu: {pct(r.accuracy_pct)} đúng ({r.hits}/{r.hits + r.misses}) · LN TB {signed(r.avg_return_pct)}",
+                f"Tổng chính xác: {pct(report.accuracy_pct)}",
+                "",
+                "⚠️ Mẫu nhỏ, chỉ tham khảo — không phải lời khuyên đầu tư.",
+            ]
+        )
+    return "\n".join(
+        [
+            "📊 StockPulse — Self-evaluation",
+            "",
+            f"Evaluated: {report.total_evaluated} predictions",
+            f"🟢 Bullish: {pct(b.accuracy_pct)} correct ({b.hits}/{b.hits + b.misses}) · avg {signed(b.avg_return_pct)}",
+            f"🟠 Bearish: {pct(r.accuracy_pct)} correct ({r.hits}/{r.hits + r.misses}) · avg {signed(r.avg_return_pct)}",
+            f"Overall accuracy: {pct(report.accuracy_pct)}",
+            "",
+            "⚠️ Small sample — for reference only, not investment advice.",
+        ]
+    )
+
+
+def _sentiment_stat(rows: list, label: str, sentiment: str) -> SentimentStat:
+    subset = [r for r in rows if r.sentiment == sentiment]
+    hits = sum(1 for r in subset if r.outcome == OUTCOME_HIT)
+    misses = sum(1 for r in subset if r.outcome == OUTCOME_MISS)
+    flats = sum(1 for r in subset if r.outcome == OUTCOME_FLAT)
+    returns = [r.return_pct for r in subset if r.return_pct is not None]
+    avg_return = sum(returns) / len(returns) if returns else None
+    return SentimentStat(
+        label=label,
+        total=len(subset),
+        hits=hits,
+        misses=misses,
+        flats=flats,
+        accuracy_pct=_accuracy(hits, misses),
+        avg_return_pct=avg_return,
+    )
+
+
+def build_evaluation_report(session: Session, *, recent_limit: int = 15) -> EvaluationReport:
+    """Aggregate scored predictions into an accuracy report."""
+    repo = PredictionRepository(session)
+    rows = repo.list_evaluated(limit=2000)
+
+    hits = sum(1 for r in rows if r.outcome == OUTCOME_HIT)
+    misses = sum(1 for r in rows if r.outcome == OUTCOME_MISS)
+    flats = sum(1 for r in rows if r.outcome == OUTCOME_FLAT)
+
+    importances: dict[str, list] = {}
+    for r in rows:
+        importances.setdefault(r.importance, []).append(r)
+    by_importance = [
+        ImportanceStat(
+            importance=imp,
+            total=len(items),
+            accuracy_pct=_accuracy(
+                sum(1 for r in items if r.outcome == OUTCOME_HIT),
+                sum(1 for r in items if r.outcome == OUTCOME_MISS),
+            ),
+        )
+        for imp, items in sorted(
+            importances.items(),
+            key=lambda kv: {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}.get(kv[0], 9),
+        )
+    ]
+
+    recent = [
+        RecentItem(
+            ticker=r.ticker,
+            sentiment=r.sentiment,
+            horizon=r.horizon,
+            return_pct=r.return_pct,
+            outcome=r.outcome or OUTCOME_FLAT,
+        )
+        for r in rows[:recent_limit]
+    ]
+
+    return EvaluationReport(
+        total_evaluated=len(rows),
+        hits=hits,
+        misses=misses,
+        flats=flats,
+        accuracy_pct=_accuracy(hits, misses),
+        bullish=_sentiment_stat(rows, "Bullish", "BULLISH"),
+        bearish=_sentiment_stat(rows, "Bearish", "BEARISH"),
+        by_importance=by_importance,
+        recent=recent,
+        pending=repo.count_by_status(PRED_PENDING),
+    )
 
 
 async def evaluate_predictions(

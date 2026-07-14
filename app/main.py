@@ -23,8 +23,11 @@ from app.db import (
     ClassificationRepository,
     SessionLocal,
 )
+from apscheduler.triggers.cron import CronTrigger
+
 from app.jobs import (
     analyze_relevant_articles,
+    run_daily_digest,
     run_evaluation,
     run_macro_monitor,
     run_news_monitor,
@@ -32,11 +35,11 @@ from app.jobs import (
 )
 from app.logging_config import configure_logging
 from app.pipeline.classifier import ClassificationError, build_classifier
-from app.evaluation import horizons_from_settings
+from app.evaluation import build_evaluation_report, horizons_from_settings
 from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
 from app.prices import maybe_eval_price_client, maybe_price_client
-from app.web import render_alerts_page, render_news_page
+from app.web import render_alerts_page, render_evaluation_page, render_news_page
 
 logger = logging.getLogger("stockpulse")
 
@@ -75,6 +78,18 @@ async def lifespan(app: FastAPI):
                 max_instances=1,
                 coalesce=True,
             )
+            if settings.evaluation_digest_enabled:
+                scheduler.add_job(
+                    run_daily_digest,
+                    CronTrigger(
+                        hour=settings.evaluation_digest_hour,
+                        minute=0,
+                        timezone=settings.quiet_hours_timezone,
+                    ),
+                    id="daily_digest",
+                    max_instances=1,
+                    coalesce=True,
+                )
         scheduler.start()
         logger.info(
             "Scheduler ENABLED — watchlist every %d min, macro every %d min%s.",
@@ -128,6 +143,15 @@ def news_page() -> HTMLResponse:
     )
 
 
+@app.get("/evaluation", response_class=HTMLResponse)
+def evaluation_page() -> HTMLResponse:
+    """Self-evaluation dashboard: accuracy of the AI's directional calls."""
+    settings = get_settings()
+    with SessionLocal() as session:
+        report = build_evaluation_report(session)
+    return HTMLResponse(render_evaluation_page(report, language=settings.output_language))
+
+
 @app.post("/evaluate")
 async def evaluate() -> dict:
     """Score predictions whose horizon has passed (manual trigger)."""
@@ -139,6 +163,13 @@ async def evaluate() -> dict:
         "flats": summary.flats,
         "skipped": summary.skipped,
     }
+
+
+@app.post("/evaluate/digest")
+async def evaluate_digest() -> dict:
+    """Send the self-evaluation summary to Telegram now (manual trigger)."""
+    sent = await run_daily_digest()
+    return {"sent": sent}
 
 
 @app.get("/alerts", response_class=HTMLResponse)

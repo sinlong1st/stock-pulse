@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from html import escape
 
 from app.db.repository import AlertView
+from app.evaluation import EvaluationReport
 from app.models.article import NewsArticle
 from app.models.classification import ClassificationResult
 from app.pipeline.rule_filter import RelevanceResult
@@ -273,6 +274,7 @@ def render_news_page(
         <button id="fetch" class="refresh" type="button">↻ Fetch latest news</button>
         <button id="analyze" class="refresh accent" type="button">✨ Analyze with AI</button>
         <a class="refresh" href="/alerts">🔔 Alerts</a>
+        <a class="refresh" href="/evaluation">📊 Evaluation</a>
       </div>
     </header>
     <p class="sub" id="status">{count} stored articles{relevant_note} &middot; page loaded {generated}</p>
@@ -470,5 +472,199 @@ def render_alerts_page(alerts: list[AlertView]) -> str:
       }}
     }});
   </script>
+</body>
+</html>"""
+
+
+_EVAL_LABELS = {
+    "english": {
+        "title": "Evaluation",
+        "subtitle": "Do the AI's calls match what prices did?",
+        "accuracy": "Overall accuracy",
+        "evaluated": "predictions evaluated",
+        "bullish": "Bullish · good news",
+        "bearish": "Bearish · bad news",
+        "correct": "correct",
+        "avg": "avg return",
+        "by_importance": "Accuracy by importance",
+        "recent": "Recent predictions",
+        "predicted": "predicted",
+        "actual": "actual",
+        "up": "up",
+        "down": "down",
+        "empty": "No predictions scored yet. Once collected predictions age past their horizon, results appear here.",
+        "pending": "awaiting evaluation",
+        "caveat": "Correlation, not causation · small samples mislead · prices may be delayed · not investment advice.",
+    },
+    "vietnamese": {
+        "title": "Đánh giá",
+        "subtitle": "Dự đoán của AI có khớp với biến động giá không?",
+        "accuracy": "Độ chính xác tổng thể",
+        "evaluated": "dự đoán đã đánh giá",
+        "bullish": "Tăng giá · tin tốt",
+        "bearish": "Giảm giá · tin xấu",
+        "correct": "đúng",
+        "avg": "LN trung bình",
+        "by_importance": "Độ chính xác theo mức độ",
+        "recent": "Dự đoán gần đây",
+        "predicted": "dự đoán",
+        "actual": "thực tế",
+        "up": "tăng",
+        "down": "giảm",
+        "empty": "Chưa có dự đoán nào được chấm. Khi các dự đoán đủ thời gian, kết quả sẽ hiện ở đây.",
+        "pending": "đang chờ đánh giá",
+        "caveat": "Tương quan không phải nhân quả · mẫu nhỏ dễ sai · giá có thể trễ · không phải lời khuyên đầu tư.",
+    },
+}
+
+
+def _pct(value: float | None) -> str:
+    return f"{value:.0f}%" if value is not None else "—"
+
+
+def _signed(value: float | None) -> str:
+    return f"{value:+.1f}%" if value is not None else "—"
+
+
+def _render_recent(item, labels: dict[str, str]) -> str:
+    arrow_cls = {"BULLISH": "up", "BEARISH": "down"}.get(item.sentiment, "flat")
+    arrow = {"BULLISH": "▲", "BEARISH": "▼"}.get(item.sentiment, "→")
+    pred_word = labels["up"] if item.sentiment == "BULLISH" else (
+        labels["down"] if item.sentiment == "BEARISH" else "—"
+    )
+    outcome = escape(item.outcome)
+    return f"""
+      <div class="pred">
+        <div><span class="tk">{escape(item.ticker)}</span>
+          <span class="arrow {arrow_cls}">{arrow}</span>
+          <span class="det">{escape(labels['predicted'])} {escape(pred_word)} · {escape(labels['actual'])} {escape(_signed(item.return_pct))} · {escape(item.horizon)}</span></div>
+        <span class="chip {outcome.lower()}">{outcome}</span>
+      </div>"""
+
+
+def render_evaluation_page(report: EvaluationReport, *, language: str = "English") -> str:
+    """Render the self-evaluation dashboard."""
+    labels = _EVAL_LABELS.get(language.strip().lower(), _EVAL_LABELS["english"])
+    generated = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
+
+    if report.total_evaluated == 0:
+        body = f'<p class="empty">{escape(labels["empty"])}<br><br>{report.pending} {escape(labels["pending"])}.</p>'
+    else:
+        bull, bear = report.bullish, report.bearish
+        imp_bars = "\n".join(
+            f'<div class="bar-row"><span class="name">{escape(s.importance)}</span>'
+            f'<span class="track"><span class="fill" style="width:{(s.accuracy_pct or 0):.0f}%;background:var(--accent)"></span></span>'
+            f'<span class="pct num">{_pct(s.accuracy_pct)}</span></div>'
+            for s in report.by_importance
+        )
+        recent_rows = "\n".join(_render_recent(r, labels) for r in report.recent)
+        body = f"""
+          <div class="hero">
+            <div class="big num">{_pct(report.accuracy_pct)}</div>
+            <div class="lbl">{escape(labels['accuracy'])}</div>
+            <div class="meta num">{report.hits + report.misses}/{report.total_evaluated} {escape(labels['evaluated'])} · {report.pending} {escape(labels['pending'])}</div>
+          </div>
+          <div class="tiles">
+            <div class="tile">
+              <div class="t-top"><span class="dot b"></span> {escape(labels['bullish'])}</div>
+              <div class="t-big b num">{_pct(bull.accuracy_pct)}</div>
+              <div class="t-sub num">{escape(labels['correct'])} {bull.hits}/{bull.hits + bull.misses} · {escape(labels['avg'])} {_signed(bull.avg_return_pct)}</div>
+            </div>
+            <div class="tile">
+              <div class="t-top"><span class="dot r"></span> {escape(labels['bearish'])}</div>
+              <div class="t-big r num">{_pct(bear.accuracy_pct)}</div>
+              <div class="t-sub num">{escape(labels['correct'])} {bear.hits}/{bear.hits + bear.misses} · {escape(labels['avg'])} {_signed(bear.avg_return_pct)}</div>
+            </div>
+          </div>
+          <div>
+            <p class="block-title">{escape(labels['by_importance'])}</p>
+            <div class="bars">{imp_bars}</div>
+          </div>
+          <div>
+            <p class="block-title">{escape(labels['recent'])}</p>
+            <div class="preds">{recent_rows}</div>
+          </div>
+          <div class="caveat">⚠️ {escape(labels['caveat'])}</div>"""
+
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StockPulse — {escape(labels['title'])}</title>
+<style>
+  :root {{
+    --bg: #f4f6fa; --panel: #ffffff; --border: #e2e6ee; --text: #1a1e27; --muted: #66707e;
+    --accent: #1a6dff; --bull: #12a150; --bear: #e07016; --flat: #8a93a3;
+  }}
+  @media (prefers-color-scheme: dark) {{
+    :root {{
+      --bg: #0f1115; --panel: #1a1e27; --border: #2a2f3a; --text: #e6e8ec; --muted: #9aa4b2;
+      --accent: #4c9aff; --bull: #35cf7e; --bear: #f0913f; --flat: #7c8698;
+    }}
+  }}
+  :root[data-theme="light"] {{
+    --bg: #f4f6fa; --panel: #ffffff; --border: #e2e6ee; --text: #1a1e27; --muted: #66707e;
+    --accent: #1a6dff; --bull: #12a150; --bear: #e07016; --flat: #8a93a3;
+  }}
+  :root[data-theme="dark"] {{
+    --bg: #0f1115; --panel: #1a1e27; --border: #2a2f3a; --text: #e6e8ec; --muted: #9aa4b2;
+    --accent: #4c9aff; --bull: #35cf7e; --bear: #f0913f; --flat: #7c8698;
+  }}
+  * {{ box-sizing: border-box; }}
+  body {{ margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }}
+  .num {{ font-variant-numeric: tabular-nums; }}
+  .wrap {{ max-width: 640px; margin: 0 auto; padding: 28px 18px 60px; }}
+  header {{ display: flex; align-items: baseline; justify-content: space-between; gap: 14px; flex-wrap: wrap; }}
+  h1 {{ font-size: 1.5rem; margin: 0; }}
+  h1 .pulse {{ color: var(--accent); }}
+  .sub {{ color: var(--muted); font-size: .88rem; margin: 4px 0 22px; }}
+  .refresh {{ color: var(--accent); text-decoration: none; border: 1px solid var(--border);
+    padding: 6px 13px; border-radius: 8px; font-size: .88rem; white-space: nowrap; }}
+  .hero {{ background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent); border-radius: 16px; padding: 16px 18px; margin-bottom: 16px; }}
+  .hero .big {{ font-size: 2.7rem; font-weight: 800; line-height: 1; color: var(--accent); }}
+  .hero .lbl {{ font-weight: 600; margin-top: 4px; }}
+  .hero .meta {{ font-size: .78rem; color: var(--muted); margin-top: 4px; }}
+  .tiles {{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }}
+  .tile {{ background: var(--panel); border: 1px solid var(--border); border-radius: 13px; padding: 12px 14px; }}
+  .t-top {{ display: flex; align-items: center; gap: 6px; font-size: .8rem; font-weight: 600; }}
+  .t-big {{ font-size: 1.6rem; font-weight: 800; margin-top: 3px; }}
+  .t-big.b {{ color: var(--bull); }} .t-big.r {{ color: var(--bear); }}
+  .t-sub {{ font-size: .74rem; color: var(--muted); }}
+  .dot {{ width: 9px; height: 9px; border-radius: 50%; display: inline-block; }}
+  .dot.b {{ background: var(--bull); }} .dot.r {{ background: var(--bear); }}
+  .block-title {{ font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; margin: 16px 0 8px; }}
+  .bars {{ display: flex; flex-direction: column; gap: 9px; }}
+  .bar-row {{ display: grid; grid-template-columns: 84px 1fr 42px; align-items: center; gap: 9px; font-size: .82rem; }}
+  .track {{ height: 9px; background: var(--border); border-radius: 999px; overflow: hidden; }}
+  .fill {{ height: 100%; border-radius: 999px; }}
+  .pct {{ text-align: right; font-weight: 700; color: var(--muted); }}
+  .preds {{ display: flex; flex-direction: column; }}
+  .pred {{ display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--border); }}
+  .pred:first-child {{ border-top: none; }}
+  .pred .tk {{ font-weight: 700; }}
+  .pred .det {{ font-size: .76rem; color: var(--muted); }}
+  .arrow.up {{ color: var(--bull); font-weight: 800; }}
+  .arrow.down {{ color: var(--bear); font-weight: 800; }}
+  .arrow.flat {{ color: var(--flat); }}
+  .chip {{ font-size: .72rem; font-weight: 800; padding: 2px 9px; border-radius: 999px; }}
+  .chip.hit {{ background: rgba(18,161,80,.16); color: var(--bull); }}
+  .chip.miss {{ background: rgba(224,112,22,.16); color: var(--bear); }}
+  .chip.flat {{ background: rgba(138,147,163,.16); color: var(--flat); }}
+  .caveat {{ font-size: .74rem; color: var(--muted); line-height: 1.45; background: var(--panel); border: 1px solid var(--border); border-radius: 11px; padding: 10px 12px; margin-top: 16px; }}
+  .empty {{ color: var(--muted); text-align: center; padding: 44px 12px; }}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Stock<span class="pulse">Pulse</span> · {escape(labels['title'])}</h1>
+      <a class="refresh" href="/">← News</a>
+    </header>
+    <p class="sub">{escape(labels['subtitle'])} &middot; {generated}</p>
+    {body}
+  </div>
 </body>
 </html>"""

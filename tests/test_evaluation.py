@@ -1,6 +1,7 @@
 """Tests for prediction recording (Eval plan, step C)."""
 
 from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import create_engine
@@ -13,6 +14,8 @@ from app.db.repository import (
     PredictionRepository,
 )
 from app.evaluation import (
+    build_evaluation_digest,
+    build_evaluation_report,
     evaluate_predictions,
     parse_horizon,
     record_predictions,
@@ -71,13 +74,14 @@ def _classification(tickers: list[str]) -> ClassificationResult:
 
 
 def _seed_classification(session, tickers: list[str]) -> tuple[int, int]:
+    uid = uuid4().hex
     article = ArticleRepository(session).add(
         NewsArticle(
             source="Test",
             title="t",
-            url="https://e.com/a",
+            url=f"https://e.com/{uid}",
             collected_at=datetime.now(tz=UTC),
-            content_hash="h",
+            content_hash=uid,
         )
     )
     session.flush()
@@ -206,3 +210,46 @@ async def test_evaluate_skips_implausible_move(session) -> None:
     assert summary.skipped == 1
     assert summary.evaluated == 0
     assert PredictionRepository(session).count_by_status(PRED_SKIPPED) == 1
+
+
+# --- report + digest (step E) ----------------------------------------------
+
+
+async def _seed_and_evaluate(session, ticker: str, baseline: float, current: float, sentiment: str):
+    class_id, article_id = _seed_classification(session, [ticker])
+    result = ClassificationResult(
+        is_market_relevant=True, importance="HIGH", category="TICKER", sentiment=sentiment,
+        related_tickers=[ticker], summary="s", why_it_matters="w", should_alert=True,
+    )
+    await record_predictions(
+        session, classification_id=class_id, article_id=article_id, result=result,
+        price_client=_FakePriceClient({ticker: baseline}), horizons=["1d"],
+    )
+    session.commit()
+    from datetime import timedelta
+
+    await evaluate_predictions(
+        session, price_client=_FakePriceClient({ticker: current}),
+        threshold_pct=0.5, max_move_pct=40.0,
+        now=datetime.now(tz=UTC) + timedelta(days=2),
+    )
+
+
+async def test_report_computes_accuracy(session) -> None:
+    await _seed_and_evaluate(session, "NVDA", 100.0, 105.0, "BULLISH")  # +5% -> HIT
+    await _seed_and_evaluate(session, "MSFT", 100.0, 95.0, "BULLISH")   # -5% -> MISS
+
+    report = build_evaluation_report(session)
+    assert report.total_evaluated == 2
+    assert report.hits == 1 and report.misses == 1
+    assert report.accuracy_pct == 50.0
+    assert report.bullish.total == 2
+
+
+def test_digest_empty_state() -> None:
+    from app.evaluation import EvaluationReport, SentimentStat
+
+    empty_stat = SentimentStat("x", 0, 0, 0, 0, None, None)
+    report = EvaluationReport(0, 0, 0, 0, None, empty_stat, empty_stat, [], [], 3)
+    assert "not enough" in build_evaluation_digest(report).lower()
+    assert "chưa đủ" in build_evaluation_digest(report, "Vietnamese")

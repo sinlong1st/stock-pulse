@@ -244,15 +244,20 @@ EVALUATION_DIGEST_ENABLED=false    # daily Telegram summary
 
 ---
 
-## 7. Suggested build order
+## 7. Suggested build order — ✅ all shipped
 
-| Step | Feature | Depends on | Effort | Why this order |
-|---|---|---|---|---|
-| A | Quiet hours | — | small | Independent, immediate quality-of-life win |
-| B | Alpaca price client + (optional) price-in-alerts | — | medium | Foundation for evaluation; useful on its own |
-| C | Prediction recording + baseline capture | B | medium | Start collecting data ASAP (accuracy needs history) |
-| D | Evaluation job + scoring | C | medium | Turns predictions into outcomes |
-| E | Summary page + Telegram digest | D | small–med | The "are we doing it right?" payoff |
+| Step | Feature | Status |
+|---|---|---|
+| A | Quiet hours | ✅ done |
+| B | Alpaca price client + (optional) price-in-alerts | ✅ done |
+| C | Prediction recording + baseline capture | ✅ done |
+| D | Evaluation job + scoring (tolerance band + bad-data guard) | ✅ done |
+| E | `/evaluation` dashboard + daily Telegram digest | ✅ done |
+
+Decisions made along the way: tolerance band default **±0.5%**; horizons via
+`EVALUATION_HORIZONS` (default `1d`); implausible moves (> `EVALUATION_MAX_MOVE_PCT`,
+default 40%) are skipped as bad free-feed data; the dashboard and digest are
+localized by `OUTPUT_LANGUAGE`.
 
 Note: start **C** as early as possible even before the report exists —
 accuracy stats are only meaningful after days/weeks of collected data, so the

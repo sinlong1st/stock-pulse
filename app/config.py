@@ -91,6 +91,9 @@ class Settings(BaseSettings):
     evaluation_max_move_pct: float = 40.0  # bigger => treat as bad data, skip
     evaluation_check_interval_minutes: int = 15
     evaluation_market_timezone: str = "America/New_York"
+    # Daily self-evaluation digest to Telegram (uses quiet-hours timezone).
+    evaluation_digest_enabled: bool = False
+    evaluation_digest_hour: int = 8
 
     # Watchlist config file (tickers + company aliases), loaded by
     # app.watchlist. Edit watchlist.json rather than code; see
