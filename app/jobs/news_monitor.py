@@ -37,10 +37,11 @@ from app.collectors import (
 from app.collectors.base import NewsCollector
 from app.config import Settings, get_settings
 from app.db import AlertRepository, ArticleRepository, ClassificationRepository, SessionLocal
+from app.evaluation import horizons_from_settings, record_predictions
 from app.pipeline.classifier import ClassificationError, Classifier, build_classifier
 from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
-from app.prices import maybe_price_client
+from app.prices import PriceClient, maybe_eval_price_client, maybe_price_client
 
 logger = logging.getLogger("stockpulse.jobs.news_monitor")
 
@@ -56,6 +57,7 @@ class AnalyzeSummary:
     classified: int = 0
     errors: int = 0
     alerts_created: int = 0
+    predictions_created: int = 0
 
 
 @dataclass
@@ -70,6 +72,7 @@ class MonitorSummary:
     alerts_sent: int = 0
     alerts_failed: int = 0
     alerts_held: int = 0
+    predictions_created: int = 0
 
 
 async def analyze_relevant_articles(
@@ -80,13 +83,17 @@ async def analyze_relevant_articles(
     model: str | None,
     limit: int,
     article_ids: list[int] | None = None,
+    prediction_price_client: PriceClient | None = None,
+    horizons: list[str] | None = None,
 ) -> AnalyzeSummary:
     """Classify relevant, not-yet-classified articles and create alerts.
 
     With `article_ids`, only those articles are considered (scheduled jobs
     pass the batch they just fetched, so each source alerts on its own
     cadence). Without it, the newest stored articles are used (manual
-    /classify). One bad article is logged and skipped without aborting.
+    /classify). When `prediction_price_client` and `horizons` are given,
+    also records self-evaluation predictions with a baseline price. One bad
+    article is logged and skipped without aborting.
     """
     rule_filter = get_rule_filter()
     article_repo = ArticleRepository(session)
@@ -117,7 +124,7 @@ async def analyze_relevant_articles(
             continue
 
         article_id = int(article.id)
-        classification_repo.add(article_id, result, model=model)
+        classification_row = classification_repo.add(article_id, result, model=model)
         summary.classified += 1
 
         decision = policy.decide(result)
@@ -126,6 +133,18 @@ async def analyze_relevant_articles(
                 if not alert_repo.exists(article_id, channel):
                     alert_repo.create(article_id, decision.importance, channel)
                     summary.alerts_created += 1
+
+        # Record self-evaluation predictions (needs the classification id).
+        if prediction_price_client is not None and horizons:
+            session.flush()  # assign classification_row.id
+            summary.predictions_created += await record_predictions(
+                session,
+                classification_id=classification_row.id,
+                article_id=article_id,
+                result=result,
+                price_client=prediction_price_client,
+                horizons=horizons,
+            )
 
     session.commit()
     return summary
@@ -189,10 +208,13 @@ async def run_news_monitor(
                     model=settings.openai_model,
                     limit=settings.max_classifications_per_run,
                     article_ids=store.new_ids,  # only this source's fresh batch
+                    prediction_price_client=maybe_eval_price_client(settings),
+                    horizons=horizons_from_settings(settings),
                 )
             summary.classified = analyzed.classified
             summary.errors = analyzed.errors
             summary.alerts_created = analyzed.alerts_created
+            summary.predictions_created = analyzed.predictions_created
 
         if notifier is not None:
             with session_factory() as session:
@@ -212,7 +234,7 @@ async def run_news_monitor(
 
     logger.info(
         "News monitor [%s] -- collected=%d new=%d duplicates=%d relevant=%d "
-        "classified=%d errors=%d alerts_created=%d sent=%d failed=%d held=%d",
+        "classified=%d errors=%d alerts_created=%d sent=%d failed=%d held=%d predictions=%d",
         label,
         summary.collected,
         summary.new,
@@ -224,6 +246,7 @@ async def run_news_monitor(
         summary.alerts_sent,
         summary.alerts_failed,
         summary.alerts_held,
+        summary.predictions_created,
     )
     return summary
 

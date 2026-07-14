@@ -10,8 +10,8 @@ from datetime import UTC, datetime
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.db.models import AlertRow, ArticleRow, ClassificationRow
-from app.status import STATUS_FAILED, STATUS_PENDING, STATUS_SENT
+from app.db.models import AlertRow, ArticleRow, ClassificationRow, PredictionRow
+from app.status import PRED_PENDING, STATUS_FAILED, STATUS_PENDING, STATUS_SENT
 from app.models.article import NewsArticle
 from app.models.classification import ClassificationResult
 
@@ -275,3 +275,48 @@ class AlertRepository:
     def mark_failed(self, alert: AlertRow, error: str) -> None:
         alert.status = STATUS_FAILED
         alert.error_message = error
+
+
+class PredictionRepository:
+    """Read/write self-evaluation predictions for a given session."""
+
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def create(
+        self,
+        *,
+        classification_id: int,
+        article_id: int,
+        ticker: str,
+        sentiment: str,
+        importance: str,
+        horizon: str,
+        created_at: datetime,
+        evaluate_after: datetime,
+        baseline_price: float,
+        baseline_at: datetime,
+    ) -> PredictionRow:
+        """Record a prediction with its baseline price (does not commit)."""
+        row = PredictionRow(
+            classification_id=classification_id,
+            article_id=article_id,
+            ticker=ticker,
+            sentiment=sentiment,
+            importance=importance,
+            horizon=horizon,
+            created_at=created_at,
+            evaluate_after=evaluate_after,
+            baseline_price=baseline_price,
+            baseline_at=baseline_at,
+            status=PRED_PENDING,
+        )
+        self.session.add(row)
+        return row
+
+    def count(self) -> int:
+        return self.session.scalar(select(func.count()).select_from(PredictionRow)) or 0
+
+    def count_by_status(self, status: str) -> int:
+        stmt = select(func.count()).select_from(PredictionRow).where(PredictionRow.status == status)
+        return self.session.scalar(stmt) or 0

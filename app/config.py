@@ -84,6 +84,12 @@ class Settings(BaseSettings):
     price_features_enabled: bool = False
     price_context_in_alerts: bool = False  # add a "MU +3.4% today" line to alerts
 
+    # Self-evaluation: record AI predictions and later score them vs price.
+    evaluation_enabled: bool = False
+    evaluation_horizons: str = "1d"  # comma-separated, e.g. "1h,1d"
+    evaluation_move_threshold_pct: float = 0.3  # ±band that counts as "flat"
+    evaluation_market_timezone: str = "America/New_York"
+
     # Watchlist config file (tickers + company aliases), loaded by
     # app.watchlist. Edit watchlist.json rather than code; see
     # watchlist.example.json for the format.

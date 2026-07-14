@@ -77,3 +77,33 @@ class AlertRow(Base):
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class PredictionRow(Base):
+    """The `predictions` table: one row per (classification, ticker, horizon).
+
+    Records the AI's directional call with a baseline price at classify
+    time, then (in the evaluation step) the price at the horizon and the
+    scored outcome.
+    """
+
+    __tablename__ = "predictions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    classification_id: Mapped[int] = mapped_column(
+        ForeignKey("classifications.id", ondelete="CASCADE"), index=True
+    )
+    article_id: Mapped[int] = mapped_column(index=True)
+    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    sentiment: Mapped[str] = mapped_column(String(16))
+    importance: Mapped[str] = mapped_column(String(16))
+    horizon: Mapped[str] = mapped_column(String(8))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    evaluate_after: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    baseline_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    baseline_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="PENDING_EVAL", index=True)
+    price_at_horizon: Mapped[float | None] = mapped_column(Float, nullable=True)
+    return_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    outcome: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    evaluated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -31,9 +31,10 @@ from app.jobs import (
 )
 from app.logging_config import configure_logging
 from app.pipeline.classifier import ClassificationError, build_classifier
+from app.evaluation import horizons_from_settings
 from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
-from app.prices import maybe_price_client
+from app.prices import maybe_eval_price_client, maybe_price_client
 from app.web import render_alerts_page, render_news_page
 
 logger = logging.getLogger("stockpulse")
@@ -173,12 +174,15 @@ async def classify(limit: int = 5) -> dict:
             policy=policy,
             model=settings.openai_model,
             limit=limit,
+            prediction_price_client=maybe_eval_price_client(settings),
+            horizons=horizons_from_settings(settings),
         )
 
     return {
         "classified": summary.classified,
         "errors": summary.errors,
         "alerts_created": summary.alerts_created,
+        "predictions_created": summary.predictions_created,
     }
 
 
@@ -201,6 +205,7 @@ async def run_pipeline() -> dict:
         "alerts_sent": summary.alerts_sent,
         "alerts_failed": summary.alerts_failed,
         "alerts_held": summary.alerts_held,
+        "predictions_created": summary.predictions_created,
     }
 
 

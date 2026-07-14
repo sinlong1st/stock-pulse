@@ -140,3 +140,15 @@ def maybe_price_client(settings: Settings | None = None) -> PriceClient | None:
     except PriceError:
         logger.warning("Price context enabled but Alpaca keys missing; skipping.")
         return None
+
+
+def maybe_eval_price_client(settings: Settings | None = None) -> PriceClient | None:
+    """Build a price client only if self-evaluation is enabled and configured."""
+    settings = settings or get_settings()
+    if not (settings.price_features_enabled and settings.evaluation_enabled):
+        return None
+    try:
+        return build_price_client(settings)
+    except PriceError:
+        logger.warning("Evaluation enabled but Alpaca keys missing; skipping predictions.")
+        return None
