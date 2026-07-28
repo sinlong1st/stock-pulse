@@ -90,6 +90,9 @@ def _seed_classification(session, tickers: list[str]) -> tuple[int, int]:
     return row.id, article.id
 
 
+WATCHLIST = {"NVDA", "MU", "MSFT", "SPCX"}
+
+
 async def test_records_one_prediction_per_ticker_and_horizon(session) -> None:
     class_id, article_id = _seed_classification(session, ["NVDA", "MU"])
     client = _FakePriceClient({"NVDA": 200.0, "MU": 100.0})
@@ -101,6 +104,7 @@ async def test_records_one_prediction_per_ticker_and_horizon(session) -> None:
         result=_classification(["NVDA", "MU"]),
         price_client=client,
         horizons=["1h", "1d"],
+        watchlist=WATCHLIST,
     )
     session.commit()
 
@@ -108,6 +112,26 @@ async def test_records_one_prediction_per_ticker_and_horizon(session) -> None:
     repo = PredictionRepository(session)
     assert repo.count() == 4
     assert repo.count_by_status(PRED_PENDING) == 4
+
+
+async def test_only_watchlist_tickers_are_recorded(session) -> None:
+    # The AI named NVDA (watchlist) and VZ (not) — only NVDA should count.
+    class_id, article_id = _seed_classification(session, ["NVDA", "VZ"])
+    client = _FakePriceClient({"NVDA": 200.0, "VZ": 40.0})
+
+    created = await record_predictions(
+        session,
+        classification_id=class_id,
+        article_id=article_id,
+        result=_classification(["NVDA", "VZ"]),
+        price_client=client,
+        horizons=["1d"],
+        watchlist=WATCHLIST,
+    )
+    session.commit()
+
+    assert created == 1  # VZ dropped (off-watchlist)
+    assert PredictionRepository(session).count() == 1
 
 
 async def test_skips_ticker_without_valid_price(session) -> None:
@@ -121,6 +145,7 @@ async def test_skips_ticker_without_valid_price(session) -> None:
         result=_classification(["NVDA", "SPCX"]),
         price_client=client,
         horizons=["1d"],
+        watchlist=WATCHLIST,
     )
     session.commit()
 
@@ -137,6 +162,7 @@ async def test_no_tickers_records_nothing(session) -> None:
         result=_classification([]),
         price_client=_FakePriceClient({}),
         horizons=["1d"],
+        watchlist=WATCHLIST,
     )
     assert created == 0
 
@@ -169,6 +195,7 @@ async def test_evaluate_scores_due_prediction(session) -> None:
         result=_classification(["NVDA"]),
         price_client=_FakePriceClient({"NVDA": 100.0}),  # baseline 100
         horizons=["1d"],
+        watchlist={"NVDA"},
     )
     session.commit()
 
@@ -196,6 +223,7 @@ async def test_evaluate_skips_implausible_move(session) -> None:
         result=_classification(["MU"]),
         price_client=_FakePriceClient({"MU": 942.0}),  # bad baseline
         horizons=["1d"],
+        watchlist={"MU"},
     )
     session.commit()
 
@@ -223,7 +251,7 @@ async def _seed_and_evaluate(session, ticker: str, baseline: float, current: flo
     )
     await record_predictions(
         session, classification_id=class_id, article_id=article_id, result=result,
-        price_client=_FakePriceClient({ticker: baseline}), horizons=["1d"],
+        price_client=_FakePriceClient({ticker: baseline}), horizons=["1d"], watchlist={ticker},
     )
     session.commit()
     from datetime import timedelta

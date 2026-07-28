@@ -308,19 +308,24 @@ async def record_predictions(
     result: ClassificationResult,
     price_client: PriceClient,
     horizons: list[str],
+    watchlist: set[str],
 ) -> int:
     """Record predictions (one per ticker × horizon) with baseline prices.
 
-    Skips tickers with no/invalid price data. Returns the number created.
+    Only tickers in `watchlist` are recorded — the AI often names extra,
+    off-watchlist tickers, and evaluating those would waste price lookups
+    and pollute the accuracy stats. Tickers with no/invalid price data are
+    skipped. Returns the number created.
     """
-    if not result.related_tickers or not horizons:
+    tickers = [t for t in result.related_tickers if t in watchlist]
+    if not tickers or not horizons:
         return 0
 
     repo = PredictionRepository(session)
     now = datetime.now(tz=UTC)
     created = 0
 
-    for ticker in result.related_tickers:
+    for ticker in tickers:
         try:
             baseline = await price_client.latest_price(ticker)
         except Exception:
