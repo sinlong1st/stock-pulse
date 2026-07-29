@@ -1,0 +1,7 @@
+# Shell scripts and container files MUST use LF, or they break inside Linux
+# containers (a CRLF "#!/bin/sh" line is not a valid interpreter path).
+*.sh            text eol=lf
+docker/entrypoint.sh text eol=lf
+Dockerfile      text eol=lf
+docker-compose.yml text eol=lf
+.dockerignore   text eol=lf
