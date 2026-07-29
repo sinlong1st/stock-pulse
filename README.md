@@ -125,6 +125,10 @@ Three ways to get a briefing:
   (or `POST /report`). Always answers, even on a quiet market.
 - **On demand — Telegram:** send **`/report`** to your bot. Set
   `BRIEFING_COMMAND_ENABLED=true` (needs the server running to listen).
+- **On demand — one stock:** send **`/report WDC`** (or a company name — even a
+  typo, like `/report micosoft` or `/report spacex`). It narrows the news to
+  that name and the AI resolves the ticker with common sense. Also
+  `POST /report?q=WDC`.
 - **Scheduled:** set `BRIEFING_ENABLED=true` (and `SCHEDULER_ENABLED=true`). On
   US-market/Pacific time, Mon–Fri: a full **08:30** morning brief, short
   **every-2h** updates (10:30–16:30), and an **18:00** end-of-day wrap.

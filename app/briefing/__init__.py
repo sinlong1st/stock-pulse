@@ -14,6 +14,12 @@ from app.briefing.analyst import (
     build_system_prompt,
     build_user_message,
 )
+from app.briefing.focus import (
+    FocusTarget,
+    build_focus_collectors,
+    parse_focus,
+    resolve_focus,
+)
 from app.briefing.memory import ThemeMemory
 from app.briefing.models import (
     BriefingResult,
@@ -43,4 +49,8 @@ __all__ = [
     "BriefingTheme",
     "WatchlistNote",
     "ThemeMemory",
+    "FocusTarget",
+    "parse_focus",
+    "resolve_focus",
+    "build_focus_collectors",
 ]

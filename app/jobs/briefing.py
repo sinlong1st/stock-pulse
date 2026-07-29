@@ -17,10 +17,12 @@ from dataclasses import dataclass
 
 from app.alerts import NotifierError, build_telegram_notifier
 from app.briefing.analyst import AnalystError, MarketAnalyst, build_analyst
+from app.briefing.focus import build_focus_collectors, resolve_focus
 from app.briefing.memory import ThemeMemory
 from app.briefing.models import BriefingResult
 from app.briefing.render import render_briefing
 from app.briefing.retrieval import RetrievalResult, retrieve_fresh_news
+from app.collectors.base import NewsCollector
 from app.config import Settings, get_settings
 
 logger = logging.getLogger("stockpulse.jobs.briefing")
@@ -68,6 +70,9 @@ async def run_briefing(
     notifier: object = _UNSET,
     retrieval: RetrievalResult | None = None,
     memory: object = _UNSET,
+    focus: str | None = None,
+    subject: str | None = None,
+    collectors: list[NewsCollector] | None = None,
 ) -> BriefingRun:
     """Run a briefing once and (optionally) deliver it to Telegram.
 
@@ -82,8 +87,14 @@ async def run_briefing(
     run = BriefingRun(trigger=trigger)
 
     if memory is _UNSET:
-        memory = ThemeMemory(
-            settings.briefing_memory_file, memory_hours=settings.briefing_memory_hours
+        # Focused single-stock reports are one-offs — they don't feed or pollute
+        # the watchlist trend memory.
+        memory = (
+            None
+            if focus is not None
+            else ThemeMemory(
+                settings.briefing_memory_file, memory_hours=settings.briefing_memory_hours
+            )
         )
 
     # 1. Analyst (needs an OpenAI key). Missing key => nothing to do.
@@ -96,9 +107,12 @@ async def run_briefing(
             return run
     assert isinstance(analyst, MarketAnalyst) or analyst is not None
 
-    # 2. Retrieve fresh news (unless injected).
+    # 2. Retrieve fresh news (unless injected). `collectors` narrows the sources
+    # for a focused single-stock report.
     if retrieval is None:
-        retrieval = await retrieve_fresh_news(window_hours=win, settings=settings)
+        retrieval = await retrieve_fresh_news(
+            window_hours=win, settings=settings, collectors=collectors
+        )
     run.collected = retrieval.collected
     run.fresh = len(retrieval.fresh)
     run.unverified = len(retrieval.unverified)
@@ -109,7 +123,7 @@ async def run_briefing(
 
     # 3. Analyze.
     try:
-        result = await analyst.analyze(retrieval, prior_themes=prior_themes)
+        result = await analyst.analyze(retrieval, prior_themes=prior_themes, focus=focus)
     except AnalystError as exc:
         logger.warning("Briefing analysis failed: %s", exc)
         run.skipped_reason = f"analysis failed: {exc}"
@@ -130,7 +144,9 @@ async def run_briefing(
         logger.info("Briefing [%s] -- quiet window, nothing sent.", trigger)
         return run
 
-    run.text = render_briefing(result, language=settings.output_language, trigger=trigger)
+    run.text = render_briefing(
+        result, language=settings.output_language, trigger=trigger, subject=subject
+    )
 
     # 5. Deliver.
     if not deliver:
@@ -160,6 +176,26 @@ async def run_briefing(
         run.sent,
     )
     return run
+
+
+async def run_report(query: str | None = None, *, settings: Settings | None = None, **kwargs) -> BriefingRun:
+    """On-demand report. No query -> full watchlist briefing; a query ->
+    a focused single-stock report (resolving names/typos to a ticker)."""
+    settings = settings or get_settings()
+    if not query or not query.strip():
+        return await run_briefing(trigger="report", always_send=True, settings=settings, **kwargs)
+
+    target = resolve_focus(query)
+    return await run_briefing(
+        trigger="report",
+        always_send=True,
+        settings=settings,
+        focus=target.describe,
+        subject=target.subject_label,
+        collectors=build_focus_collectors(target, settings),
+        window_hours=settings.briefing_focus_window_hours,
+        **kwargs,
+    )
 
 
 # --- scheduled triggers -----------------------------------------------------

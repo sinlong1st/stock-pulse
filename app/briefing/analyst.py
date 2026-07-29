@@ -92,15 +92,35 @@ Return JSON ONLY with this shape:
 }}"""
 
 
+_FOCUS_BLOCK = """
+
+FOCUS MODE — the user asked specifically about: {focus}
+Interpret it with common sense: fix obvious typos and map names to tickers
+(e.g. "micosoft" -> Microsoft (MSFT), "wdcc" -> Western Digital (WDC), "spacex"
+-> SpaceX). Report ONLY on that one company/stock: the latest news and what it
+means for it — ignore unrelated market news. Name the company you settled on in
+the headline so the user can confirm you understood. If you genuinely cannot
+tell what company they mean, say so in the headline and set
+has_material_update=false."""
+
+
 def build_system_prompt(
-    *, watchlist: list[str], now: datetime, window_hours: float, language: str
+    *,
+    watchlist: list[str],
+    now: datetime,
+    window_hours: float,
+    language: str,
+    focus: str | None = None,
 ) -> str:
-    return _SYSTEM_PROMPT.format(
+    prompt = _SYSTEM_PROMPT.format(
         watchlist=", ".join(watchlist) if watchlist else "(none configured)",
         now=now.isoformat(timespec="minutes"),
         window_hours=window_hours,
         language=language or "English",
     )
+    if focus:
+        prompt += _FOCUS_BLOCK.format(focus=focus)
+    return prompt
 
 
 def _format_item(item: RetrievedItem) -> str:
@@ -121,6 +141,7 @@ def build_user_message(
     *,
     prior_themes: list[str] | None = None,
     max_items: int = 40,
+    focus: str | None = None,
 ) -> str:
     items = retrieval.usable[:max_items]
     if items:
@@ -131,7 +152,9 @@ def build_user_message(
     prior = prior_themes or []
     prior_block = "\n".join(f"- {t}" for t in prior) if prior else "(none)"
 
+    focus_line = f"FOCUS REQUEST: {focus}\n" if focus else ""
     return (
+        f"{focus_line}"
         f"NOW: {retrieval.now.isoformat(timespec='minutes')}\n"
         f"FRESHNESS WINDOW: {retrieval.window_hours:.0f}h\n\n"
         f"LATEST_NEWS ({len(items)} items):\n{news_block}\n\n"
@@ -166,16 +189,21 @@ class MarketAnalyst:
         self._transport = transport
 
     async def analyze(
-        self, retrieval: RetrievalResult, *, prior_themes: list[str] | None = None
+        self,
+        retrieval: RetrievalResult,
+        *,
+        prior_themes: list[str] | None = None,
+        focus: str | None = None,
     ) -> BriefingResult:
         system = build_system_prompt(
             watchlist=self.watchlist,
             now=retrieval.now,
             window_hours=retrieval.window_hours,
             language=self.language,
+            focus=focus,
         )
         user = build_user_message(
-            retrieval, prior_themes=prior_themes, max_items=self.max_items
+            retrieval, prior_themes=prior_themes, max_items=self.max_items, focus=focus
         )
         payload = {
             "model": self.model,

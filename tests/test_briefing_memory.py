@@ -67,7 +67,7 @@ class _CapturingAnalyst:
         self.result = result
         self.prior_themes_seen: list[str] | None = None
 
-    async def analyze(self, retrieval, *, prior_themes=None):
+    async def analyze(self, retrieval, *, prior_themes=None, focus=None):
         self.prior_themes_seen = prior_themes
         return self.result
 

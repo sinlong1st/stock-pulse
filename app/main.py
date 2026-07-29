@@ -30,7 +30,6 @@ from app.jobs import (
     analyze_relevant_articles,
     intraday_hours,
     parse_hhmm,
-    run_briefing,
     run_daily_digest,
     run_end_of_day_wrap,
     run_evaluation,
@@ -38,9 +37,11 @@ from app.jobs import (
     run_macro_monitor,
     run_morning_brief,
     run_news_monitor,
+    run_report,
     run_watchlist_monitor,
 )
 from app.alerts.telegram_listener import build_report_listener
+from app.briefing.focus import parse_focus
 from app.logging_config import configure_logging
 from app.pipeline.classifier import ClassificationError, build_classifier
 from app.evaluation import build_evaluation_report, horizons_from_settings
@@ -175,14 +176,18 @@ async def lifespan(app: FastAPI):
             )
         if report_notifier is not None:
             vi = settings.output_language.strip().lower() == "vietnamese"
-            ack = "⏳ Đang tổng hợp báo cáo…" if vi else "⏳ Generating your report…"
 
             async def _on_report(chat_id: str, text: str) -> None:
+                query = parse_focus(text, settings.briefing_command)
+                if vi:
+                    ack = f"⏳ Đang tổng hợp báo cáo về {query}…" if query else "⏳ Đang tổng hợp báo cáo…"
+                else:
+                    ack = f"⏳ Generating your report on {query}…" if query else "⏳ Generating your report…"
                 try:
                     await report_notifier.send(ack)
                 except NotifierError:
                     pass
-                await run_briefing(trigger="report", always_send=True)
+                await run_report(query)
 
             listener = build_report_listener(settings, on_command=_on_report)
             listener_stop = asyncio.Event()
@@ -301,20 +306,22 @@ async def send_alerts(limit: int = 20) -> dict:
 
 
 @app.post("/report")
-async def report() -> dict:
+async def report(q: str | None = None) -> dict:
     """Generate a market briefing right now and send it to Telegram (on-demand).
 
     The "secretary" trigger: pulls the latest news, has the AI synthesize what
-    matters for the watchlist, and delivers it. Always answers (bypasses the
-    materiality gate) — a quiet window just gets a short "backdrop holds" note.
-    Costs a small amount of OpenAI credit.
+    matters, and delivers it. Always answers (bypasses the materiality gate) —
+    a quiet window just gets a short "backdrop holds" note. With `?q=WDC` (or a
+    company name, even a typo) it's a focused single-stock report instead of the
+    full watchlist. Costs a small amount of OpenAI credit.
     """
     settings = get_settings()
     if not settings.openai_api_key:
         return {"error": "OPENAI_API_KEY is not set.", "hint": "Set OPENAI_API_KEY in .env."}
-    run = await run_briefing(trigger="report", always_send=True)
+    run = await run_report(q)
     return {
         "trigger": run.trigger,
+        "focus": q or None,
         "collected": run.collected,
         "fresh": run.fresh,
         "unverified": run.unverified,

@@ -8,6 +8,7 @@ from app.jobs.briefing import (
     run_end_of_day_wrap,
     run_intraday_update,
     run_morning_brief,
+    run_report,
 )
 from app.jobs.evaluator import run_daily_digest, run_evaluation
 from app.jobs.news_monitor import (
@@ -30,6 +31,7 @@ __all__ = [
     "run_daily_digest",
     "BriefingRun",
     "run_briefing",
+    "run_report",
     "run_morning_brief",
     "run_intraday_update",
     "run_end_of_day_wrap",

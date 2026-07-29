@@ -115,6 +115,9 @@ class Settings(BaseSettings):
     briefing_morning_window_hours: float = 16.0  # overnight catch-up
     briefing_intraday_window_hours: float = 2.0
     briefing_ondemand_window_hours: float = 2.0
+    # Focused single-stock report (/report WDC): wider, since one name may have
+    # no news in the last couple hours.
+    briefing_focus_window_hours: float = 48.0
     # Analyst model + retrieval. Web search (model pulls news itself) is the
     # last build step; when enabled, point briefing_model at a tool-capable model.
     briefing_model: str = "gpt-4o-mini"

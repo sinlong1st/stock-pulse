@@ -74,8 +74,9 @@ class _FakeAnalyst:
         self.result = result
         self.calls = 0
 
-    async def analyze(self, retrieval, *, prior_themes=None):
+    async def analyze(self, retrieval, *, prior_themes=None, focus=None):
         self.calls += 1
+        self.focus_seen = focus
         return self.result
 
 

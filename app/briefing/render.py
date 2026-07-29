@@ -56,12 +56,18 @@ def _theme_line(theme: BriefingTheme, vi: bool) -> str:
 
 
 def render_briefing(
-    result: BriefingResult, *, language: str = "English", trigger: str = "report"
+    result: BriefingResult,
+    *,
+    language: str = "English",
+    trigger: str = "report",
+    subject: str | None = None,
 ) -> str:
     vi = _is_vi(language)
     lang = "vi" if vi else "en"
     label = _TRIGGER_LABELS[lang].get(trigger, _TRIGGER_LABELS[lang]["report"])
     title = f"📊 StockPulse — {label}"
+    if subject:
+        title += f": {subject}"
 
     if not result.has_material_update:
         backdrop = (
