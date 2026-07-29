@@ -108,6 +108,35 @@ curl http://127.0.0.1:8000/health
 Open http://127.0.0.1:8000/ for the news page and http://127.0.0.1:8000/alerts
 for alert history.
 
+> On Windows PowerShell, activate the venv first with
+> `.\.venv\Scripts\Activate.ps1`, then the same `uvicorn` command. `Ctrl+C`
+> stops the server. Use `--reload` only in development.
+
+## Market Briefing ("the secretary")
+
+A proactive analyst that pulls the **latest** news, decides what matters for
+your watchlist (AI, semis, macro/Fed, geopolitics/war, energy), and reports it
+— separate from the per-article alert flow. See
+[specs/STOCKPULSE_BRIEFING_PLAN.md](specs/STOCKPULSE_BRIEFING_PLAN.md).
+
+Three ways to get a briefing:
+
+- **On demand — dashboard:** the **🗞️ Report now** button on the news page
+  (or `POST /report`). Always answers, even on a quiet market.
+- **On demand — Telegram:** send **`/report`** to your bot. Set
+  `BRIEFING_COMMAND_ENABLED=true` (needs the server running to listen).
+- **Scheduled:** set `BRIEFING_ENABLED=true` (and `SCHEDULER_ENABLED=true`). On
+  US-market/Pacific time, Mon–Fri: a full **08:30** morning brief, short
+  **every-2h** updates (10:30–16:30), and an **18:00** end-of-day wrap.
+
+Key settings (all in `.env`, see `.env.example`): `BRIEFING_TIMEZONE`
+(defaults to `America/Los_Angeles`, independent of `TIMEZONE`),
+`BRIEFING_MORNING_AT` / `BRIEFING_INTRADAY_UNTIL` / `BRIEFING_WRAP_AT`, the
+look-back windows, and `BRIEFING_MODEL`.
+
+> ⚠️ Each briefing is one OpenAI call. Retrieval is the two RSS feeds only for
+> now (web search — `BRIEFING_WEB_SEARCH_ENABLED` — is not wired yet).
+
 ## Running the pipeline
 
 The full pipeline is **collect → dedupe → filter → classify → decide → alert**.
@@ -135,6 +164,25 @@ How to run it:
 pytest
 ```
 
+## Deploy (24/7)
+
+StockPulse is a single always-on process (scheduler + Telegram listener + web),
+so it wants a small always-on host, not serverless. A `Dockerfile` +
+`docker-compose.yml` are included:
+
+```bash
+cp .env.example .env            # fill in keys + toggles
+cp watchlist.example.json watchlist.json
+cp keywords.example.json  keywords.json
+docker compose up -d --build
+docker compose logs -f
+```
+
+Full step-by-step for a cheap VPS (Docker install, SSH-tunnel to the dashboard,
+updates, backups) is in **[DEPLOY.md](DEPLOY.md)**. Never bought a server
+before? **[BUYING_A_SERVER.md](BUYING_A_SERVER.md)** walks you through choosing a
+provider, SSH keys, and first login.
+
 ## Roadmap
 
 Development proceeds one phase at a time (see the technical plan):
@@ -147,4 +195,6 @@ Development proceeds one phase at a time (see the technical plan):
 5. Alert decision engine ✅
 6. Telegram notifications ✅
 7. Scheduled end-to-end pipeline ✅
-8. Docker & CI
+8. Quiet hours, price confirmation & self-evaluation ✅
+9. Market briefing + on-demand /report ✅ (web search deferred)
+10. Docker deploy ✅ · CI

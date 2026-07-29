@@ -1,0 +1,19 @@
+# Keep the build context small and never bake local state/secrets into the image.
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.git/
+.gitignore
+
+# Local state + secrets (provided at runtime via volume / env_file).
+.env
+data/
+stockpulse.db
+*.sqlite
+*.sqlite3
+briefing_memory.json
+
+# Docs/specs aren't needed in the image.
+specs/
