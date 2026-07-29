@@ -21,7 +21,7 @@ This is a different pipeline from alerts:
 
 | | Alerts (existing) | Briefing (new) |
 |---|---|---|
-| Trigger | per important article | on a clock (hourly) |
+| Trigger | per important article | scheduled (weekday mornings) + on-demand |
 | Output | one message per event | one synthesized brief |
 | Source | our fetched + stored feed | **live pull** (our feed + web search) |
 | Question | "is this article important?" | "what should I know right now, and is it trending?" |
@@ -40,9 +40,11 @@ They complement each other — keep both.
 3. **Timestamp-aware.** A recent *publish date* is not proof of recent *news*.
    We separate genuinely-new events from recaps/roundups, mechanically and in
    the prompt (see §4).
-4. **Quiet by default.** Hourly cadence means most runs have nothing material.
-   The model is allowed — expected — to say "nothing new," and we only ping on
-   a material update. Respects the existing quiet-hours settings.
+4. **The morning brief always sends; extra pushes stay quiet.** The scheduled
+   run is a once-a-weekday **morning read** — you want it even on a slow day, so
+   it always delivers (a quiet day just gets a shorter "here's the backdrop"
+   brief). The materiality gate — "say nothing when nothing's new" — is reserved
+   for any *optional intraday/hourly* pushes added later, so those don't spam.
 5. **Trend-aware with a thin memory.** The news source is always live, but we
    keep the last few hours' briefing themes as a small rolling state so the
    model can say "strengthening / fading / new" instead of starting blind.
@@ -56,8 +58,15 @@ Two sources feed each run:
 **A. Our fetch (grounded spine).**
 Reuse the existing collectors (Yahoo per-ticker + Google macro search). Filter
 to items whose **`published_at`** — not `collected_at` — falls within a
-freshness window (default **2h**). Items with a missing/older publish time are
-**flagged as unverified**, never silently trusted as fresh.
+freshness window, and **flag** items with a missing/older publish time as
+unverified rather than silently trusting them. The window depends on the
+trigger:
+
+- **Scheduled morning brief:** wide — back to roughly **yesterday's US close**
+  (~16h), so overnight earnings and Asia/Europe moves are caught.
+- **On-demand `/report`:** narrow — the last **~2h** "what's fresh right now."
+
+(`BRIEFING_MORNING_WINDOW_HOURS` / `BRIEFING_ONDEMAND_WINDOW_HOURS`.)
 
 - `published_at` = when the world got the news.
 - `collected_at` = when we happened to poll. Never use this for freshness.
@@ -169,6 +178,17 @@ Return JSON only:
 
 ## 6. Delivery
 
+### Scheduled morning brief
+- **When:** **08:30 `America/Los_Angeles`, Monday–Friday** (US-market time), via a
+  cron trigger — the same `CronTrigger` pattern the daily eval digest uses.
+- **Timezone note:** this deliberately runs on US-market time, *separate* from the
+  app-wide `TIMEZONE` (Vietnam, which still drives quiet hours). A dedicated
+  `BRIEFING_TIMEZONE` keeps that explicit.
+- **Always delivers** (see principle 4) — no materiality gate on the morning read.
+  Because you scheduled it, it also **ignores quiet hours** (8:30 PT is your
+  evening anyway).
+
+### Optional intraday / on-demand pushes
 - `has_material_update == false` → **stay silent** (log it; roll context to next run).
 - `true` → format the JSON into a clean Telegram brief in `OUTPUT_LANGUAGE`
   (Vietnamese), leading with `freshness: new` themes; background/trend shown as
@@ -188,7 +208,55 @@ Example (Vietnamese):
 
 ---
 
-## 7. Where it lives
+## 7. On-demand trigger — the `/report` command
+
+You don't just want the hourly push — you want to **ask for it whenever**, from
+your phone. Same core job (`run_briefing()`); on-demand is just another caller.
+
+### UX
+Text **`/report`** to the StockPulse Telegram bot → it runs a briefing *right
+now* against the latest news and replies in the chat, in `OUTPUT_LANGUAGE`.
+
+### The one new piece: the bot must *receive* messages
+Today the bot only **sends**. To react to `/report` it needs an inbound
+listener. Two ways:
+- **Long-polling (`getUpdates`)** — a small always-on loop asking Telegram "any
+  new messages?" Works from a local machine, **no public URL / webhook needed**.
+  Recommended for how you run today.
+- **Webhook** — Telegram pushes updates to a public HTTPS URL. Lower latency,
+  but needs a reachable server (later, if you ever deploy).
+
+The listener runs alongside the scheduler in the app lifespan. It parses
+incoming updates, and on `/report` calls the briefing job.
+
+### Rules specific to on-demand
+- **Always answers.** Unlike the hourly run, `/report` **bypasses the
+  materiality gate and quiet hours** — you explicitly asked, so it always
+  replies. If nothing's material it says so and gives the current backdrop
+  ("Thị trường yên ắng — bối cảnh hiện tại: …") instead of staying silent.
+- **Authorized chat only.** Only respond to your own `TELEGRAM_CHAT_ID`; ignore
+  messages from any other chat, so a stray `/report` from elsewhere can't spend
+  your OpenAI budget.
+- **One at a time.** If a report is already running (or one just ran seconds
+  ago), reply "đang xử lý…" and reuse/debounce rather than firing duplicate
+  OpenAI calls.
+- **Ack fast.** Send a quick "⏳ Đang tổng hợp…" immediately, then the full brief
+  when ready, since retrieval + analysis takes a few seconds.
+
+### Also exposed as (free, same job)
+- `POST /report` (a.k.a. `/briefing`) HTTP endpoint — like your `POST /evaluate`.
+- A **"Report now" button** on the dashboard, like the existing "Analyze" button.
+
+### Extra config
+```
+BRIEFING_TELEGRAM_COMMAND_ENABLED=true   # run the /report listener
+BRIEFING_COMMAND=/report                  # the trigger word
+BRIEFING_COMMAND_MODE=polling             # polling | webhook
+```
+
+---
+
+## 8. Where it lives
 
 - `app/briefing/` — new self-contained package:
   - `retrieval.py` — fetch fresh (reuse collectors) + window/dedupe by `published_at`.
@@ -196,44 +264,58 @@ Example (Vietnamese):
   - `render.py` — JSON → localized Telegram text.
   - `state.py` — thin rolling store of recent themes (for trend + dedupe).
 - `app/jobs/briefing_monitor.py` — `run_briefing()` orchestrating retrieve → analyze → deliver.
+- `app/alerts/telegram_listener.py` — inbound `getUpdates` loop that handles the
+  `/report` command (the only part that *receives*, not just sends).
 - Scheduled in `app/main.py` via an interval trigger (like the existing jobs),
-  reusing the Telegram notifier and quiet-hours check.
+  reusing the Telegram notifier and quiet-hours check; the listener starts in
+  the same lifespan.
+- Routes: `POST /report` and a dashboard "Report now" button.
 - Rolling state: a small table or a JSON file — TBD in build.
 
 ---
 
-## 8. Config (proposed)
+## 9. Config (proposed)
 ```
 BRIEFING_ENABLED=true
-BRIEFING_INTERVAL_MINUTES=60
-BRIEFING_FRESHNESS_WINDOW_HOURS=2
-BRIEFING_WEB_SEARCH_ENABLED=true       # let the model pull news itself
+# Scheduled morning brief — US-market time, weekdays.
+BRIEFING_TIMEZONE=America/Los_Angeles   # separate from app TIMEZONE (Vietnam)
+BRIEFING_SCHEDULE_HOUR=8
+BRIEFING_SCHEDULE_MINUTE=30
+BRIEFING_SCHEDULE_DAYS=mon-fri          # cron day-of-week
+# Look-back windows (see §3).
+BRIEFING_MORNING_WINDOW_HOURS=16        # overnight catch-up for the 08:30 brief
+BRIEFING_ONDEMAND_WINDOW_HOURS=2        # "what's fresh now" for /report
+# Retrieval + model.
+BRIEFING_WEB_SEARCH_ENABLED=true        # let the model pull news itself
 BRIEFING_MODEL=gpt-4o                   # web-search-capable; separate from classifier
 BRIEFING_MEMORY_HOURS=3                 # how far back trend context reaches
-BRIEFING_MIN_URGENCY_BYPASS=urgent      # which level ignores quiet hours
-# reuses: TIMEZONE, OUTPUT_LANGUAGE, quiet-hours settings, Telegram creds,
-#         the existing watchlist + macro collectors.
+# reuses: OUTPUT_LANGUAGE, Telegram creds, the existing watchlist + macro collectors.
+# NOTE: the morning brief ignores quiet hours; only optional intraday pushes honor them.
 ```
 
 ---
 
-## 9. Suggested build order
+## 10. Suggested build order
 
 | Step | Piece | Notes |
 |---|---|---|
 | A | Retrieval + freshness window (our feeds, `published_at` filter, dedupe) | no AI yet; log what passes |
 | B | Analyst call (prompt + JSON parse), web search **off** first | prove synthesis on our feed |
 | C | Timestamp/recency guard end-to-end (recap detection) | the "week-in-review" fix |
-| D | Delivery + materiality gate + quiet-hours integration | when it actually pings you |
-| E | Rolling theme memory (trend continuity + cross-hour dedupe) | "strengthening/fading" |
-| F | Turn on web-search tool | model pulls its own news; watch cost |
+| D | `POST /report` + dashboard button → **on-demand works first** | test the whole job by hand |
+| E | Delivery + materiality gate + quiet-hours integration | when the hourly run pings you |
+| F | Telegram `/report` listener (getUpdates, auth to your chat) | the phone-native trigger |
+| G | Rolling theme memory (trend continuity + cross-hour dedupe) | "strengthening/fading" |
+| H | Turn on web-search tool | model pulls its own news; watch cost |
 
-Start with our feeds (A–E) so it's cheap and deterministic; add web search (F)
-once the shape feels right.
+On-demand (D + F) lands **before** the hourly push (E): once `/report` works you
+can pull a briefing whenever, and the scheduled version is the same job on a
+timer. Start with our feeds (A–G) so it's cheap and deterministic; add web
+search (H) once the shape feels right.
 
 ---
 
-## 10. Honest caveats
+## 11. Honest caveats
 - **Cost & noise of web search.** Live retrieval is less repeatable and costs
   more; the materiality gate is what keeps hourly from becoming a firehose.
 - **Timestamps are messy.** Some feeds give no/garbage publish times; those are
@@ -241,11 +323,15 @@ once the shape feels right.
 - **Not advice.** This is intelligence, not recommendations — no targets, no orders.
 - **Correlation, not causation** — same caveat as the evaluation loop.
 - **Free data limits.** Same as elsewhere; treat everything as approximate.
+- **Inbound Telegram = new surface.** The `/report` listener is the first part
+  that *receives* messages. It must be locked to your chat id and rate-limited,
+  or a stray/abusive message could spend OpenAI budget.
 
-## 11. Open questions
-1. **Cadence:** hourly, or only during market-relevant hours (e.g. pre-market +
-   US session in your timezone)? Hourly overnight may rarely be material.
-2. **Web search:** on from the start, or ship A–E first and add it after?
+## 12. Open questions
+1. ~~**Cadence.**~~ **Decided:** scheduled morning brief at **08:30 America/
+   Los_Angeles, Mon–Fri**; plus on-demand `/report` anytime. Optional intraday
+   pushes can be added later behind the materiality gate.
+2. **Web search:** on from the start, or ship A–G first and add it after?
 3. **Quiet hours:** should routine briefings be *held and flushed* (like alerts)
    or simply *skipped* overnight? (A held brief may be stale by morning.)
 4. **Memory store:** small DB table vs a JSON file for rolling themes?
