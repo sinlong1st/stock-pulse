@@ -21,7 +21,7 @@ This is a different pipeline from alerts:
 
 | | Alerts (existing) | Briefing (new) |
 |---|---|---|
-| Trigger | per important article | scheduled (weekday mornings) + on-demand |
+| Trigger | per important article | scheduled (weekday 08:30→18:00, every 2h) + on-demand |
 | Output | one message per event | one synthesized brief |
 | Source | our fetched + stored feed | **live pull** (our feed + web search) |
 | Question | "is this article important?" | "what should I know right now, and is it trending?" |
@@ -40,11 +40,11 @@ They complement each other — keep both.
 3. **Timestamp-aware.** A recent *publish date* is not proof of recent *news*.
    We separate genuinely-new events from recaps/roundups, mechanically and in
    the prompt (see §4).
-4. **The morning brief always sends; extra pushes stay quiet.** The scheduled
-   run is a once-a-weekday **morning read** — you want it even on a slow day, so
-   it always delivers (a quiet day just gets a shorter "here's the backdrop"
-   brief). The materiality gate — "say nothing when nothing's new" — is reserved
-   for any *optional intraday/hourly* pushes added later, so those don't spam.
+4. **Scheduled briefs always send; length scales with what's happening.** You
+   asked for a steady pulse (morning → every 2h → close), so each scheduled run
+   delivers. On a busy stretch it's a full brief; on a quiet one it's a short
+   "nothing major, backdrop holds" line. The materiality signal controls
+   **verbosity, not whether it fires.**
 5. **Trend-aware with a thin memory.** The news source is always live, but we
    keep the last few hours' briefing themes as a small rolling state so the
    model can say "strengthening / fading / new" instead of starting blind.
@@ -62,11 +62,14 @@ freshness window, and **flag** items with a missing/older publish time as
 unverified rather than silently trusting them. The window depends on the
 trigger:
 
-- **Scheduled morning brief:** wide — back to roughly **yesterday's US close**
-  (~16h), so overnight earnings and Asia/Europe moves are caught.
-- **On-demand `/report`:** narrow — the last **~2h** "what's fresh right now."
+- **Morning brief (08:30):** wide — back to ~yesterday's US close (~16h): overnight
+  earnings and Asia/Europe moves.
+- **Intraday updates (every 2h):** narrow — since the last brief (~2h): just what's new.
+- **End-of-day wrap (18:00):** the day — since the open: how it landed.
+- **On-demand `/report`:** narrow — the last **~2h**, "what's fresh right now."
 
-(`BRIEFING_MORNING_WINDOW_HOURS` / `BRIEFING_ONDEMAND_WINDOW_HOURS`.)
+(`BRIEFING_MORNING_WINDOW_HOURS` / `BRIEFING_INTRADAY_WINDOW_HOURS` /
+`BRIEFING_ONDEMAND_WINDOW_HOURS`.)
 
 - `published_at` = when the world got the news.
 - `collected_at` = when we happened to poll. Never use this for freshness.
@@ -178,23 +181,28 @@ Return JSON only:
 
 ## 6. Delivery
 
-### Scheduled morning brief
-- **When:** **08:30 `America/Los_Angeles`, Monday–Friday** (US-market time), via a
-  cron trigger — the same `CronTrigger` pattern the daily eval digest uses.
-- **Timezone note:** this deliberately runs on US-market time, *separate* from the
-  app-wide `TIMEZONE` (Vietnam, which still drives quiet hours). A dedicated
-  `BRIEFING_TIMEZONE` keeps that explicit.
-- **Always delivers** (see principle 4) — no materiality gate on the morning read.
-  Because you scheduled it, it also **ignores quiet hours** (8:30 PT is your
-  evening anyway).
+### Scheduled cadence — weekday, `America/Los_Angeles`
 
-### Optional intraday / on-demand pushes
-- `has_material_update == false` → **stay silent** (log it; roll context to next run).
-- `true` → format the JSON into a clean Telegram brief in `OUTPUT_LANGUAGE`
-  (Vietnamese), leading with `freshness: new` themes; background/trend shown as
-  context.
-- `urgency == "urgent"` bypasses quiet hours, mirroring how `CRITICAL` alerts do.
-- Otherwise the existing quiet-hours window is respected (held/skipped).
+| Tier | Fires (PT) | Look-back | Sends |
+|---|---|---|---|
+| **Morning brief** | 08:30 | ~16h overnight catch-up | always (full) |
+| **Intraday updates** | 10:30, 12:30, 14:30, 16:30 (every 2h) | ~2h since last brief | always (short) |
+| **End-of-day wrap** | 18:00 | the day, since the open | always (recap) |
+
+Mon–Fri, via `CronTrigger` (same pattern as the eval digest). You're in
+California, so this is simply your local time — no quiet-hours/night concern. A
+dedicated `BRIEFING_TIMEZONE` keeps it independent of the app-wide `TIMEZONE`.
+
+### What "materiality" controls now
+Because you asked for a steady every-2h pulse, scheduled briefs **always send** —
+materiality just controls **length**, not whether it fires:
+- Something new/trending → full brief in `OUTPUT_LANGUAGE`, `freshness: new`
+  themes first, background/trend as context.
+- Quiet stretch → a short "không có thay đổi lớn — bối cảnh giữ nguyên" line.
+- `urgency: urgent` (major war/Fed shock) gets a 🔴 flag at the top.
+
+(The silent "say nothing at all" gate is kept only for any future opt-in
+"only ping me if it matters" mode.)
 
 Example (Vietnamese):
 ```
@@ -277,20 +285,23 @@ BRIEFING_COMMAND_MODE=polling             # polling | webhook
 ## 9. Config (proposed)
 ```
 BRIEFING_ENABLED=true
-# Scheduled morning brief — US-market time, weekdays.
-BRIEFING_TIMEZONE=America/Los_Angeles   # separate from app TIMEZONE (Vietnam)
-BRIEFING_SCHEDULE_HOUR=8
-BRIEFING_SCHEDULE_MINUTE=30
-BRIEFING_SCHEDULE_DAYS=mon-fri          # cron day-of-week
+# Scheduled cadence — weekday, your local (Pacific) / US-market time.
+BRIEFING_TIMEZONE=America/Los_Angeles   # independent of app TIMEZONE
+BRIEFING_SCHEDULE_DAYS=mon-fri
+BRIEFING_MORNING_AT=08:30               # full morning brief
+BRIEFING_INTRADAY_EVERY_HOURS=2         # updates at 10:30, 12:30, 14:30, 16:30
+BRIEFING_INTRADAY_UNTIL=16:30           # last intraday check-in
+BRIEFING_WRAP_AT=18:00                  # end-of-day recap
 # Look-back windows (see §3).
-BRIEFING_MORNING_WINDOW_HOURS=16        # overnight catch-up for the 08:30 brief
-BRIEFING_ONDEMAND_WINDOW_HOURS=2        # "what's fresh now" for /report
+BRIEFING_MORNING_WINDOW_HOURS=16
+BRIEFING_INTRADAY_WINDOW_HOURS=2
+BRIEFING_ONDEMAND_WINDOW_HOURS=2
 # Retrieval + model.
 BRIEFING_WEB_SEARCH_ENABLED=true        # let the model pull news itself
 BRIEFING_MODEL=gpt-4o                   # web-search-capable; separate from classifier
-BRIEFING_MEMORY_HOURS=3                 # how far back trend context reaches
-# reuses: OUTPUT_LANGUAGE, Telegram creds, the existing watchlist + macro collectors.
-# NOTE: the morning brief ignores quiet hours; only optional intraday pushes honor them.
+BRIEFING_MEMORY_HOURS=3                 # trend-context reach
+# reuses: OUTPUT_LANGUAGE, Telegram creds, existing watchlist + macro collectors.
+# Scheduled briefs send regardless of quiet hours (you're on Pacific time).
 ```
 
 ---
@@ -303,15 +314,15 @@ BRIEFING_MEMORY_HOURS=3                 # how far back trend context reaches
 | B | Analyst call (prompt + JSON parse), web search **off** first | prove synthesis on our feed |
 | C | Timestamp/recency guard end-to-end (recap detection) | the "week-in-review" fix |
 | D | `POST /report` + dashboard button → **on-demand works first** | test the whole job by hand |
-| E | Delivery + materiality gate + quiet-hours integration | when the hourly run pings you |
+| E | Scheduled cadence (08:30 → every 2h → 18:00) + verbosity-by-materiality | the daily pulse |
 | F | Telegram `/report` listener (getUpdates, auth to your chat) | the phone-native trigger |
-| G | Rolling theme memory (trend continuity + cross-hour dedupe) | "strengthening/fading" |
+| G | Rolling theme memory (trend continuity + cross-brief dedupe) | "strengthening/fading" |
 | H | Turn on web-search tool | model pulls its own news; watch cost |
 
-On-demand (D + F) lands **before** the hourly push (E): once `/report` works you
-can pull a briefing whenever, and the scheduled version is the same job on a
-timer. Start with our feeds (A–G) so it's cheap and deterministic; add web
-search (H) once the shape feels right.
+On-demand (D + F) lands **before** the scheduled cadence (E): once `/report`
+works you can pull a briefing whenever, and the scheduled tiers are the same job
+on cron triggers. Start with our feeds (A–G) so it's cheap and deterministic;
+add web search (H) once the shape feels right.
 
 ---
 
@@ -328,9 +339,10 @@ search (H) once the shape feels right.
   or a stray/abusive message could spend OpenAI budget.
 
 ## 12. Open questions
-1. ~~**Cadence.**~~ **Decided:** scheduled morning brief at **08:30 America/
-   Los_Angeles, Mon–Fri**; plus on-demand `/report` anytime. Optional intraday
-   pushes can be added later behind the materiality gate.
+1. ~~**Cadence.**~~ **Decided:** weekday **08:30 PT morning brief → every-2h
+   intraday updates (10:30–16:30) → 18:00 PT end-of-day wrap**, all
+   `America/Los_Angeles`; plus on-demand `/report` anytime. Scheduled briefs
+   always send (short when quiet).
 2. **Web search:** on from the start, or ship A–G first and add it after?
 3. **Quiet hours:** should routine briefings be *held and flushed* (like alerts)
    or simply *skipped* overnight? (A held brief may be stale by morning.)
