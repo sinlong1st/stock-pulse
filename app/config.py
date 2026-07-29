@@ -120,6 +120,7 @@ class Settings(BaseSettings):
     briefing_model: str = "gpt-4o-mini"
     briefing_web_search_enabled: bool = False
     briefing_memory_hours: int = 3  # how far back trend context reaches
+    briefing_memory_file: str = "briefing_memory.json"  # rolling theme state
     briefing_max_items: int = 40  # cap news items sent to the model (cost)
     # On-demand /report Telegram command (getUpdates listener).
     briefing_command_enabled: bool = False
@@ -141,6 +142,18 @@ def get_settings() -> Settings:
     return Settings()
 
 
+def _resolve_tz(name: str, *, label: str) -> str:
+    """Validate a timezone name, falling back to UTC (with a warning)."""
+    name = (name or "").strip()
+    if name:
+        try:
+            ZoneInfo(name)
+            return name
+        except Exception:
+            logger.warning("Unknown %s %r; falling back to UTC.", label, name)
+    return "UTC"
+
+
 def resolve_timezone(settings: "Settings | None" = None) -> str:
     """The app's local timezone name, validated.
 
@@ -148,11 +161,14 @@ def resolve_timezone(settings: "Settings | None" = None) -> str:
     so a typo never crashes the scheduler at startup.
     """
     settings = settings or get_settings()
-    name = (settings.timezone or "").strip()
-    if name:
-        try:
-            ZoneInfo(name)
-            return name
-        except Exception:
-            logger.warning("Unknown TIMEZONE %r; falling back to UTC.", name)
-    return "UTC"
+    return _resolve_tz(settings.timezone, label="TIMEZONE")
+
+
+def resolve_briefing_timezone(settings: "Settings | None" = None) -> str:
+    """The briefing schedule's timezone (US-market / Pacific), validated.
+
+    Deliberately separate from the app-wide timezone: the briefing follows the
+    US market, not the user's quiet-hours locale.
+    """
+    settings = settings or get_settings()
+    return _resolve_tz(settings.briefing_timezone, label="BRIEFING_TIMEZONE")

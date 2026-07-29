@@ -1,5 +1,6 @@
 """StockPulse FastAPI application entrypoint."""
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -16,7 +17,7 @@ from app.alerts import (
     send_pending_alerts,
 )
 from app.collectors import build_all_collectors, collect_from
-from app.config import get_settings, resolve_timezone
+from app.config import get_settings, resolve_briefing_timezone, resolve_timezone
 from app.db import (
     AlertRepository,
     ArticleRepository,
@@ -27,13 +28,19 @@ from apscheduler.triggers.cron import CronTrigger
 
 from app.jobs import (
     analyze_relevant_articles,
+    intraday_hours,
+    parse_hhmm,
     run_briefing,
     run_daily_digest,
+    run_end_of_day_wrap,
     run_evaluation,
+    run_intraday_update,
     run_macro_monitor,
+    run_morning_brief,
     run_news_monitor,
     run_watchlist_monitor,
 )
+from app.alerts.telegram_listener import build_report_listener
 from app.logging_config import configure_logging
 from app.pipeline.classifier import ClassificationError, build_classifier
 from app.evaluation import build_evaluation_report, horizons_from_settings
@@ -97,6 +104,49 @@ async def lifespan(app: FastAPI):
                     settings.evaluation_digest_hour,
                     digest_tz,
                 )
+        if settings.briefing_enabled:
+            btz = resolve_briefing_timezone(settings)
+            days = settings.briefing_schedule_days
+            mh, mm = parse_hhmm(settings.briefing_morning_at)
+            scheduler.add_job(
+                run_morning_brief,
+                CronTrigger(day_of_week=days, hour=mh, minute=mm, timezone=btz),
+                id="briefing_morning",
+                max_instances=1,
+                coalesce=True,
+            )
+            hours = intraday_hours(settings)
+            if hours:
+                scheduler.add_job(
+                    run_intraday_update,
+                    CronTrigger(
+                        day_of_week=days,
+                        hour=",".join(str(h) for h in hours),
+                        minute=mm,
+                        timezone=btz,
+                    ),
+                    id="briefing_intraday",
+                    max_instances=1,
+                    coalesce=True,
+                )
+            wh, wm = parse_hhmm(settings.briefing_wrap_at)
+            scheduler.add_job(
+                run_end_of_day_wrap,
+                CronTrigger(day_of_week=days, hour=wh, minute=wm, timezone=btz),
+                id="briefing_wrap",
+                max_instances=1,
+                coalesce=True,
+            )
+            logger.info(
+                "Briefing scheduled (%s): morning %02d:%02d, intraday hours=%s, wrap %02d:%02d %s.",
+                days,
+                mh,
+                mm,
+                hours or "none",
+                wh,
+                wm,
+                btz,
+            )
         scheduler.start()
         logger.info(
             "Scheduler ENABLED — watchlist every %d min, macro every %d min%s.",
@@ -111,9 +161,48 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("Scheduler disabled (set SCHEDULER_ENABLED=true to automate).")
 
+    # On-demand /report Telegram command — independent of the scheduler, so it
+    # works even when automation is off. Locked to the owner chat.
+    listener_task: asyncio.Task | None = None
+    listener_stop: asyncio.Event | None = None
+    if settings.briefing_command_enabled:
+        try:
+            report_notifier = build_telegram_notifier(settings)
+        except NotifierError:
+            report_notifier = None
+            logger.warning(
+                "BRIEFING_COMMAND_ENABLED but Telegram not configured; /report listener off."
+            )
+        if report_notifier is not None:
+            vi = settings.output_language.strip().lower() == "vietnamese"
+            ack = "⏳ Đang tổng hợp báo cáo…" if vi else "⏳ Generating your report…"
+
+            async def _on_report(chat_id: str, text: str) -> None:
+                try:
+                    await report_notifier.send(ack)
+                except NotifierError:
+                    pass
+                await run_briefing(trigger="report", always_send=True)
+
+            listener = build_report_listener(settings, on_command=_on_report)
+            listener_stop = asyncio.Event()
+            listener_task = asyncio.create_task(listener.run_forever(listener_stop))
+            logger.info(
+                "On-demand %s Telegram command enabled.", settings.briefing_command
+            )
+
     app.state.scheduler = scheduler
+    app.state.listener_task = listener_task
     yield
 
+    if listener_stop is not None:
+        listener_stop.set()
+    if listener_task is not None:
+        listener_task.cancel()
+        try:
+            await listener_task
+        except (asyncio.CancelledError, Exception):
+            pass
     if scheduler is not None:
         scheduler.shutdown(wait=False)
     logger.info("StockPulse shutting down")

@@ -14,6 +14,7 @@ from app.briefing.analyst import (
     build_system_prompt,
     build_user_message,
 )
+from app.briefing.memory import ThemeMemory
 from app.briefing.models import (
     BriefingResult,
     BriefingTheme,
@@ -41,4 +42,5 @@ __all__ = [
     "BriefingResult",
     "BriefingTheme",
     "WatchlistNote",
+    "ThemeMemory",
 ]

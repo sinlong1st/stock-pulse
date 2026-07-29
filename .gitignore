@@ -24,6 +24,9 @@ stockpulse.db
 watchlist.json
 keywords.json
 
+# Briefing rolling theme memory (runtime state, not config)
+briefing_memory.json
+
 # Testing / tooling caches
 .pytest_cache/
 .ruff_cache/

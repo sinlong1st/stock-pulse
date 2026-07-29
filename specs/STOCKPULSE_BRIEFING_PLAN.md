@@ -306,23 +306,28 @@ BRIEFING_MEMORY_HOURS=3                 # trend-context reach
 
 ---
 
-## 10. Suggested build order
+## 10. Suggested build order — ✅ A–G shipped (feeds-only)
 
-| Step | Piece | Notes |
+| Step | Piece | Status |
 |---|---|---|
-| A | Retrieval + freshness window (our feeds, `published_at` filter, dedupe) | no AI yet; log what passes |
-| B | Analyst call (prompt + JSON parse), web search **off** first | prove synthesis on our feed |
-| C | Timestamp/recency guard end-to-end (recap detection) | the "week-in-review" fix |
-| D | `POST /report` + dashboard button → **on-demand works first** | test the whole job by hand |
-| E | Scheduled cadence (08:30 → every 2h → 18:00) + verbosity-by-materiality | the daily pulse |
-| F | Telegram `/report` listener (getUpdates, auth to your chat) | the phone-native trigger |
-| G | Rolling theme memory (trend continuity + cross-brief dedupe) | "strengthening/fading" |
-| H | Turn on web-search tool | model pulls its own news; watch cost |
+| A | Retrieval + freshness window (our feeds, `published_at` filter, dedupe) | ✅ done |
+| B | Analyst call (prompt + JSON parse), web search **off** first | ✅ done |
+| C | Timestamp/recency guard end-to-end (recap detection) | ✅ done |
+| D | `POST /report` + dashboard button → **on-demand works first** | ✅ done |
+| E | Scheduled cadence (08:30 → every 2h → 18:00) + verbosity-by-materiality | ✅ done |
+| F | Telegram `/report` listener (getUpdates, auth to your chat) | ✅ done |
+| G | Rolling theme memory (trend continuity + cross-brief dedupe) | ✅ done |
+| H | Turn on web-search tool | ⏳ deferred (open question #2) |
 
-On-demand (D + F) lands **before** the scheduled cadence (E): once `/report`
+On-demand (D + F) landed **before** the scheduled cadence (E): once `/report`
 works you can pull a briefing whenever, and the scheduled tiers are the same job
-on cron triggers. Start with our feeds (A–G) so it's cheap and deterministic;
-add web search (H) once the shape feels right.
+on cron triggers. Shipped A–G feeds-only (cheap, deterministic); web search (H)
+stays off until we decide to add it.
+
+Everything lives in `app/briefing/` (retrieval, models, analyst, render, memory)
++ `app/jobs/briefing.py` (the `run_briefing` job and scheduled wrappers) +
+`app/alerts/telegram_listener.py` (the `/report` listener). All triggers are
+off by default (`BRIEFING_ENABLED`, `BRIEFING_COMMAND_ENABLED`).
 
 ---
 

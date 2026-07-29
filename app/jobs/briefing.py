@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 from app.alerts import NotifierError, build_telegram_notifier
 from app.briefing.analyst import AnalystError, MarketAnalyst, build_analyst
+from app.briefing.memory import ThemeMemory
 from app.briefing.models import BriefingResult
 from app.briefing.render import render_briefing
 from app.briefing.retrieval import RetrievalResult, retrieve_fresh_news
@@ -66,17 +67,24 @@ async def run_briefing(
     analyst: object = _UNSET,
     notifier: object = _UNSET,
     retrieval: RetrievalResult | None = None,
+    memory: object = _UNSET,
 ) -> BriefingRun:
     """Run a briefing once and (optionally) deliver it to Telegram.
 
     ``always_send`` forces delivery even on a quiet window (on-demand and the
     anchor briefs); intraday callers pass ``always_send=False`` so an empty
-    check-in stays silent. ``analyst``/``notifier``/``retrieval`` can be
-    injected for tests.
+    check-in stays silent. Rolling ``memory`` supplies PRIOR_THEMES for trend
+    continuity and records this run's themes; pass ``None`` to disable it.
+    ``analyst``/``notifier``/``retrieval``/``memory`` can be injected for tests.
     """
     settings = settings or get_settings()
     win = window_hours if window_hours is not None else window_for(trigger, settings)
     run = BriefingRun(trigger=trigger)
+
+    if memory is _UNSET:
+        memory = ThemeMemory(
+            settings.briefing_memory_file, memory_hours=settings.briefing_memory_hours
+        )
 
     # 1. Analyst (needs an OpenAI key). Missing key => nothing to do.
     if analyst is _UNSET:
@@ -95,6 +103,10 @@ async def run_briefing(
     run.fresh = len(retrieval.fresh)
     run.unverified = len(retrieval.unverified)
 
+    # Trend continuity: feed recent themes unless the caller supplied their own.
+    if prior_themes is None and memory is not None:
+        prior_themes = memory.recent_theme_lines(retrieval.now)
+
     # 3. Analyze.
     try:
         result = await analyst.analyze(retrieval, prior_themes=prior_themes)
@@ -105,6 +117,11 @@ async def run_briefing(
     run.result = result
     run.has_material_update = result.has_material_update
     run.urgency = result.urgency
+
+    # Remember material themes so the next run can judge trend and avoid
+    # re-announcing the same storyline as brand new.
+    if memory is not None and result.has_material_update:
+        memory.record(result, retrieval.now)
 
     # 4. Decide whether to send.
     should_send = always_send or result.has_material_update
@@ -143,3 +160,38 @@ async def run_briefing(
         run.sent,
     )
     return run
+
+
+# --- scheduled triggers -----------------------------------------------------
+
+
+async def run_morning_brief() -> BriefingRun:
+    """08:30 PT: the full morning read. Always sends."""
+    return await run_briefing(trigger="morning", always_send=True)
+
+
+async def run_intraday_update() -> BriefingRun:
+    """Every 2h 10:30–16:30 PT: a short check-in, gated on materiality."""
+    return await run_briefing(trigger="intraday", always_send=False)
+
+
+async def run_end_of_day_wrap() -> BriefingRun:
+    """18:00 PT: how the day landed. Always sends."""
+    return await run_briefing(trigger="wrap", always_send=True)
+
+
+def parse_hhmm(value: str) -> tuple[int, int]:
+    """Parse "HH:MM" into (hour, minute)."""
+    hour, minute = value.strip().split(":")
+    return int(hour), int(minute)
+
+
+def intraday_hours(settings: Settings) -> list[int]:
+    """Hours the intraday updates fire at (anchored after the morning brief).
+
+    e.g. morning 08:30, every 2h, until 16:30 -> [10, 12, 14, 16].
+    """
+    start_h, _ = parse_hhmm(settings.briefing_morning_at)
+    until_h, _ = parse_hhmm(settings.briefing_intraday_until)
+    every = max(1, settings.briefing_intraday_every_hours)
+    return list(range(start_h + every, until_h + 1, every))
