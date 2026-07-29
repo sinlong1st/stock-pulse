@@ -99,6 +99,32 @@ class Settings(BaseSettings):
     evaluation_digest_enabled: bool = False
     evaluation_digest_hour: int = 8
 
+    # Market Briefing ("the secretary"): a proactive analyst that pulls the
+    # latest news on a schedule (and on demand) and reports what matters for
+    # the watchlist. Separate pipeline from alerts. See
+    # specs/STOCKPULSE_BRIEFING_PLAN.md.
+    briefing_enabled: bool = False
+    # Runs on US-market / your local (Pacific) time, independent of TIMEZONE.
+    briefing_timezone: str = "America/Los_Angeles"
+    briefing_schedule_days: str = "mon-fri"  # cron day-of-week for scheduled briefs
+    briefing_morning_at: str = "08:30"  # full morning brief
+    briefing_intraday_every_hours: int = 2  # 10:30, 12:30, 14:30, 16:30
+    briefing_intraday_until: str = "16:30"  # last intraday check-in
+    briefing_wrap_at: str = "18:00"  # end-of-day recap
+    # Look-back windows (hours) per trigger — see plan §3.
+    briefing_morning_window_hours: float = 16.0  # overnight catch-up
+    briefing_intraday_window_hours: float = 2.0
+    briefing_ondemand_window_hours: float = 2.0
+    # Analyst model + retrieval. Web search (model pulls news itself) is the
+    # last build step; when enabled, point briefing_model at a tool-capable model.
+    briefing_model: str = "gpt-4o-mini"
+    briefing_web_search_enabled: bool = False
+    briefing_memory_hours: int = 3  # how far back trend context reaches
+    briefing_max_items: int = 40  # cap news items sent to the model (cost)
+    # On-demand /report Telegram command (getUpdates listener).
+    briefing_command_enabled: bool = False
+    briefing_command: str = "/report"
+
     # Watchlist config file (tickers + company aliases), loaded by
     # app.watchlist. Edit watchlist.json rather than code; see
     # watchlist.example.json for the format.

@@ -1,5 +1,6 @@
 """Background jobs."""
 
+from app.jobs.briefing import BriefingRun, run_briefing
 from app.jobs.evaluator import run_daily_digest, run_evaluation
 from app.jobs.news_monitor import (
     AnalyzeSummary,
@@ -19,4 +20,6 @@ __all__ = [
     "run_macro_monitor",
     "run_evaluation",
     "run_daily_digest",
+    "BriefingRun",
+    "run_briefing",
 ]

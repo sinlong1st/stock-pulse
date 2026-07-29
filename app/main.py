@@ -27,6 +27,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from app.jobs import (
     analyze_relevant_articles,
+    run_briefing,
     run_daily_digest,
     run_evaluation,
     run_macro_monitor,
@@ -208,6 +209,31 @@ async def send_alerts(limit: int = 20) -> dict:
             price_client=maybe_price_client(settings),
         )
     return {"processed": result.processed, "sent": result.sent, "failed": result.failed}
+
+
+@app.post("/report")
+async def report() -> dict:
+    """Generate a market briefing right now and send it to Telegram (on-demand).
+
+    The "secretary" trigger: pulls the latest news, has the AI synthesize what
+    matters for the watchlist, and delivers it. Always answers (bypasses the
+    materiality gate) — a quiet window just gets a short "backdrop holds" note.
+    Costs a small amount of OpenAI credit.
+    """
+    settings = get_settings()
+    if not settings.openai_api_key:
+        return {"error": "OPENAI_API_KEY is not set.", "hint": "Set OPENAI_API_KEY in .env."}
+    run = await run_briefing(trigger="report", always_send=True)
+    return {
+        "trigger": run.trigger,
+        "collected": run.collected,
+        "fresh": run.fresh,
+        "unverified": run.unverified,
+        "has_material_update": run.has_material_update,
+        "urgency": run.urgency,
+        "sent": run.sent,
+        "skipped_reason": run.skipped_reason,
+    }
 
 
 @app.get("/health")

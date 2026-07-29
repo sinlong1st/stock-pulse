@@ -273,6 +273,7 @@ def render_news_page(
       <div class="actions">
         <button id="fetch" class="refresh" type="button">↻ Fetch latest news</button>
         <button id="analyze" class="refresh accent" type="button">✨ Analyze with AI</button>
+        <button id="report" class="refresh accent" type="button">🗞️ Report now</button>
         <a class="refresh" href="/alerts">🔔 Alerts</a>
         <a class="refresh" href="/evaluation">📊 Evaluation</a>
       </div>
@@ -320,6 +321,27 @@ def render_news_page(
         analyze.textContent = '✨ Analyze with AI';
         status.textContent = 'Analyze failed — is the server running?';
       }}
+    }});
+    const report = document.getElementById('report');
+    report.addEventListener('click', async () => {{
+      if (!confirm('Generate a market briefing now? This pulls the latest news and uses a small amount of OpenAI credit.')) return;
+      report.disabled = true;
+      report.textContent = 'Briefing…';
+      try {{
+        const res = await fetch('/report', {{ method: 'POST' }});
+        const data = await res.json();
+        if (data.error) {{
+          status.textContent = data.error + (data.hint ? ' — ' + data.hint : '');
+        }} else if (data.sent) {{
+          status.textContent = `Briefing sent to Telegram — ${{data.fresh}} fresh item(s), material=${{data.has_material_update}}.`;
+        }} else {{
+          status.textContent = `Briefing ready but not sent: ${{data.skipped_reason || 'see logs'}}.`;
+        }}
+      }} catch (err) {{
+        status.textContent = 'Report failed — is the server running?';
+      }}
+      report.disabled = false;
+      report.textContent = '🗞️ Report now';
     }});
     btn.addEventListener('click', async () => {{
       btn.disabled = true;
