@@ -23,7 +23,9 @@ logger = logging.getLogger("stockpulse.briefing.memory")
 class ThemeMemory:
     """A rolling window of recent briefing themes, persisted to a JSON file."""
 
-    def __init__(self, path: str | Path, *, memory_hours: float = 3.0, max_entries: int = 50) -> None:
+    def __init__(
+        self, path: str | Path, *, memory_hours: float = 3.0, max_entries: int = 50
+    ) -> None:
         self.path = Path(path)
         self.memory_hours = memory_hours
         self.max_entries = max_entries
@@ -40,7 +42,8 @@ class ThemeMemory:
 
     def _save(self, entries: list[dict]) -> None:
         try:
-            self.path.write_text(json.dumps(entries, ensure_ascii=False, indent=2), encoding="utf-8")
+            payload = json.dumps(entries, ensure_ascii=False, indent=2)
+            self.path.write_text(payload, encoding="utf-8")
         except OSError:
             logger.warning("Could not write briefing memory file: %s", self.path)
 
@@ -91,7 +94,12 @@ class ThemeMemory:
                 "at": now.isoformat(timespec="minutes"),
                 "headline": result.headline,
                 "themes": [
-                    {"theme": t.theme, "direction": t.direction, "trend": t.trend, "freshness": t.freshness}
+                    {
+                        "theme": t.theme,
+                        "direction": t.direction,
+                        "trend": t.trend,
+                        "freshness": t.freshness,
+                    }
                     for t in result.themes
                 ],
             }

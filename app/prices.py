@@ -11,9 +11,11 @@ that need to know.
 """
 
 import logging
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -35,6 +37,99 @@ class PriceMove:
 
 
 @dataclass
+class PriceSnapshot:
+    """A fuller point-in-time price read for a ticker.
+
+    ``price_time`` is when the last trade actually happened — the honest answer
+    to "is this current?". Outside market hours it will be stale (the last
+    print), because the stock simply isn't trading.
+    """
+
+    ticker: str
+    price: float
+    price_time: datetime | None  # timestamp of the last trade (UTC)
+    open: float | None  # today's regular-session open
+    prev_close: float | None
+
+    @property
+    def change_from_open_pct(self) -> float | None:
+        if self.open:
+            return (self.price - self.open) / self.open * 100
+        return None
+
+    @property
+    def change_from_prev_pct(self) -> float | None:
+        if self.prev_close:
+            return (self.price - self.prev_close) / self.prev_close * 100
+        return None
+
+
+def _parse_ts(value: str | None) -> datetime | None:
+    """Parse an Alpaca RFC3339 timestamp (nanosecond precision, trailing Z)."""
+    if not value:
+        return None
+    v = value.strip().replace("Z", "+00:00")
+    m = re.match(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d+))?(.*)$", v)
+    if m:
+        base, frac, tz = m.groups()
+        v = base + (f".{frac[:6]}" if frac else "") + (tz or "")
+    try:
+        return datetime.fromisoformat(v)
+    except ValueError:
+        return None
+
+
+def price_freshness(
+    price_time: datetime | None,
+    *,
+    now: datetime | None = None,
+    tz_name: str = "UTC",
+    language: str = "English",
+    live_within_min: float = 15.0,
+) -> str:
+    """Honest freshness label: 'live' if very recent, else the last-trade time.
+
+    Avoids pretending a stale overnight/weekend print is a current price.
+    """
+    vi = language.strip().lower() == "vietnamese"
+    if price_time is None:
+        return "mới nhất" if vi else "latest"
+    now = now or datetime.now(tz=UTC)
+    age_min = (now - price_time).total_seconds() / 60.0
+    if age_min <= live_within_min:
+        return "trực tiếp" if vi else "live"
+    try:
+        local = price_time.astimezone(ZoneInfo(tz_name))
+    except Exception:
+        local = price_time
+    stamp = local.strftime("%a %H:%M")
+    abbr = local.tzname() or ""
+    return (f"lúc {stamp} {abbr}".strip() if vi else f"as of {stamp} {abbr}".strip())
+
+
+def price_snapshot_line(
+    snap: PriceSnapshot,
+    *,
+    now: datetime | None = None,
+    tz_name: str = "UTC",
+    language: str = "English",
+) -> str:
+    """One line: current price (+freshness) and today's open (+change).
+
+    e.g. 'WDC: $65.20 (live) · open $64.10 (+1.7%)'.
+    """
+    vi = language.strip().lower() == "vietnamese"
+    fresh = price_freshness(snap.price_time, now=now, tz_name=tz_name, language=language)
+    parts = [f"{snap.ticker}: ${snap.price:,.2f} ({fresh})"]
+    if snap.open is not None:
+        chg = snap.change_from_open_pct
+        chg_str = f" ({chg:+.1f}%)" if chg is not None else ""
+        open_word = "mở cửa" if vi else "open"
+        parts.append(f"{open_word} ${snap.open:,.2f}{chg_str}")
+    return " · ".join(parts)
+
+
+@dataclass
 class Bar:
     t: datetime
     open: float
@@ -50,6 +145,10 @@ class PriceClient(ABC):
 
     @abstractmethod
     async def change_today(self, ticker: str) -> PriceMove | None: ...
+
+    async def snapshot(self, ticker: str) -> PriceSnapshot | None:
+        """Fuller price read (price + time + open). Default: unsupported."""
+        return None
 
 
 class AlpacaPriceClient(PriceClient):
@@ -112,6 +211,22 @@ class AlpacaPriceClient(PriceClient):
         change_pct = (price - prev_close) / prev_close * 100
         return PriceMove(ticker=ticker, price=price, prev_close=prev_close, change_pct=change_pct)
 
+    async def snapshot(self, ticker: str) -> PriceSnapshot | None:
+        snap = await self._snapshot(ticker)
+        if not snap:
+            return None
+        trade = snap.get("latestTrade") or {}
+        price = trade.get("p")
+        if price is None:
+            return None
+        return PriceSnapshot(
+            ticker=ticker,
+            price=price,
+            price_time=_parse_ts(trade.get("t")),
+            open=(snap.get("dailyBar") or {}).get("o"),
+            prev_close=(snap.get("prevDailyBar") or {}).get("c"),
+        )
+
 
 def price_context_line(move: PriceMove, language: str = "English") -> str:
     """One-line price context for an alert, e.g. '📈 MU +3.4% today'."""
@@ -139,6 +254,18 @@ def maybe_price_client(settings: Settings | None = None) -> PriceClient | None:
         return build_price_client(settings)
     except PriceError:
         logger.warning("Price context enabled but Alpaca keys missing; skipping.")
+        return None
+
+
+def maybe_briefing_price_client(settings: Settings | None = None) -> PriceClient | None:
+    """Build a price client for briefings (gated on price features only)."""
+    settings = settings or get_settings()
+    if not settings.price_features_enabled:
+        return None
+    try:
+        return build_price_client(settings)
+    except PriceError:
+        logger.warning("Briefing prices enabled but Alpaca keys missing; skipping.")
         return None
 
 

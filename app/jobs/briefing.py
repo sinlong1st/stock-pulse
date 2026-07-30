@@ -23,7 +23,9 @@ from app.briefing.models import BriefingResult
 from app.briefing.render import render_briefing
 from app.briefing.retrieval import RetrievalResult, retrieve_fresh_news
 from app.collectors.base import NewsCollector
-from app.config import Settings, get_settings
+from app.config import Settings, get_settings, resolve_briefing_timezone
+from app.prices import PriceSnapshot, maybe_briefing_price_client
+from app.watchlist import get_watchlist_config
 
 logger = logging.getLogger("stockpulse.jobs.briefing")
 
@@ -44,6 +46,59 @@ class BriefingRun:
     skipped_reason: str | None = None
     text: str | None = None
     result: BriefingResult | None = None
+
+
+def _tickers_to_price(
+    result: BriefingResult, price_tickers: list[str] | None, max_n: int
+) -> list[str]:
+    """Which tickers to show prices for: explicit list (focused report) or the
+    watchlist tickers the AI actually mentioned (full briefing), capped."""
+    if price_tickers is not None:
+        picked = price_tickers
+    else:
+        watchlist = set(get_watchlist_config().tickers)
+        picked = []
+        for note in result.watchlist_notes:
+            picked.append(note.ticker)
+        for theme in result.themes:
+            picked.extend(theme.tickers)
+        picked = [t for t in picked if t in watchlist]
+    # De-dupe preserving order, then cap.
+    seen: set[str] = set()
+    out: list[str] = []
+    for t in picked:
+        if t and t not in seen:
+            seen.add(t)
+            out.append(t)
+    return out[:max_n]
+
+
+async def _fetch_prices(
+    settings: Settings,
+    result: BriefingResult,
+    *,
+    price_tickers: list[str] | None,
+    price_client: object,
+) -> list[PriceSnapshot]:
+    """Fetch snapshots for the relevant tickers; best-effort, never fatal."""
+    if not settings.briefing_prices_in_report:
+        return []
+    client = (
+        maybe_briefing_price_client(settings) if price_client is _UNSET else price_client
+    )
+    if client is None:
+        return []
+    tickers = _tickers_to_price(result, price_tickers, settings.briefing_price_max_tickers)
+    snapshots: list[PriceSnapshot] = []
+    for ticker in tickers:
+        try:
+            snap = await client.snapshot(ticker)
+        except Exception:
+            logger.debug("Snapshot failed for %s", ticker, exc_info=True)
+            snap = None
+        if snap is not None:
+            snapshots.append(snap)
+    return snapshots
 
 
 def window_for(trigger: str, settings: Settings) -> float:
@@ -73,6 +128,8 @@ async def run_briefing(
     focus: str | None = None,
     subject: str | None = None,
     collectors: list[NewsCollector] | None = None,
+    price_tickers: list[str] | None = None,
+    price_client: object = _UNSET,
 ) -> BriefingRun:
     """Run a briefing once and (optionally) deliver it to Telegram.
 
@@ -144,8 +201,19 @@ async def run_briefing(
         logger.info("Briefing [%s] -- quiet window, nothing sent.", trigger)
         return run
 
+    # Prices: show open + current (with freshness) for the relevant tickers.
+    prices = await _fetch_prices(
+        settings, result, price_tickers=price_tickers, price_client=price_client
+    )
+
     run.text = render_briefing(
-        result, language=settings.output_language, trigger=trigger, subject=subject
+        result,
+        language=settings.output_language,
+        trigger=trigger,
+        subject=subject,
+        generated_at=retrieval.now,
+        timezone=resolve_briefing_timezone(settings),
+        prices=prices,
     )
 
     # 5. Deliver.
@@ -178,7 +246,9 @@ async def run_briefing(
     return run
 
 
-async def run_report(query: str | None = None, *, settings: Settings | None = None, **kwargs) -> BriefingRun:
+async def run_report(
+    query: str | None = None, *, settings: Settings | None = None, **kwargs
+) -> BriefingRun:
     """On-demand report. No query -> full watchlist briefing; a query ->
     a focused single-stock report (resolving names/typos to a ticker)."""
     settings = settings or get_settings()
@@ -194,6 +264,7 @@ async def run_report(query: str | None = None, *, settings: Settings | None = No
         subject=target.subject_label,
         collectors=build_focus_collectors(target, settings),
         window_hours=settings.briefing_focus_window_hours,
+        price_tickers=[target.ticker] if target.ticker else [],
         **kwargs,
     )
 

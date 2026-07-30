@@ -5,7 +5,11 @@ evaluation digest. A quiet window still produces a short "backdrop holds"
 message rather than nothing, because on-demand and anchor briefs always send.
 """
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from app.briefing.models import BriefingResult, BriefingTheme
+from app.prices import PriceSnapshot, price_snapshot_line
 
 _DIRECTION_EMOJI = {"bullish": "🟢", "bearish": "🟠", "mixed": "⚪"}
 
@@ -55,12 +59,41 @@ def _theme_line(theme: BriefingTheme, vi: bool) -> str:
     return f"{head}\n   {theme.insight}"
 
 
+def _time_line(generated_at: datetime, tz_name: str, vi: bool) -> str:
+    try:
+        local = generated_at.astimezone(ZoneInfo(tz_name))
+    except Exception:
+        local = generated_at
+    stamp = local.strftime("%a %d %b %H:%M")
+    abbr = local.tzname() or ""
+    return f"🕒 {stamp} {abbr}".strip()
+
+
+def _price_block(
+    prices: list[PriceSnapshot],
+    generated_at: datetime | None,
+    tz_name: str,
+    vi: bool,
+) -> list[str]:
+    if not prices:
+        return []
+    lang = "Vietnamese" if vi else "English"
+    out = ["", "💵 " + ("Giá:" if vi else "Prices:")]
+    for snap in prices:
+        line = price_snapshot_line(snap, now=generated_at, tz_name=tz_name, language=lang)
+        out.append(f"  {line}")
+    return out
+
+
 def render_briefing(
     result: BriefingResult,
     *,
     language: str = "English",
     trigger: str = "report",
     subject: str | None = None,
+    generated_at: datetime | None = None,
+    timezone: str = "UTC",
+    prices: list[PriceSnapshot] | None = None,
 ) -> str:
     vi = _is_vi(language)
     lang = "vi" if vi else "en"
@@ -69,19 +102,26 @@ def render_briefing(
     if subject:
         title += f": {subject}"
 
+    header = [title]
+    if generated_at is not None:
+        header.append(_time_line(generated_at, timezone, vi))
+
+    price_lines = _price_block(prices or [], generated_at, timezone, vi)
+
     if not result.has_material_update:
         backdrop = (
             "Không có thay đổi lớn — bối cảnh giữ nguyên."
             if vi
             else "No major change — backdrop holds."
         )
-        lines = [title, "", backdrop]
+        lines = [*header, "", backdrop, *price_lines]
         if result.risk_flags:
+            watch = "Theo dõi: " if vi else "Watching: "
             lines.append("")
-            lines.append("⚠️ " + ("Theo dõi: " if vi else "Watching: ") + "; ".join(result.risk_flags))
+            lines.append("⚠️ " + watch + "; ".join(result.risk_flags))
         return "\n".join(lines)
 
-    lines = [title]
+    lines = [*header]
     if result.urgency == "urgent":
         prefix = "🔴 Khẩn: " if vi else "🔴 Urgent: "
         lines.append(prefix + (result.headline or ""))
@@ -98,6 +138,8 @@ def render_briefing(
         for note in result.watchlist_notes:
             emoji = _DIRECTION_EMOJI.get(note.direction, "⚪")
             lines.append(f"{emoji} {note.ticker}: {note.note}")
+
+    lines.extend(price_lines)
 
     if result.risk_flags:
         lines.append("")

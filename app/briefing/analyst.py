@@ -182,7 +182,9 @@ class MarketAnalyst:
         self.api_key = api_key
         self.model = model
         self.base_url = base_url.rstrip("/")
-        self.watchlist = watchlist if watchlist is not None else list(get_watchlist_config().tickers)
+        self.watchlist = (
+            watchlist if watchlist is not None else list(get_watchlist_config().tickers)
+        )
         self.language = language
         self.max_items = max_items
         self.timeout = timeout

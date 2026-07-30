@@ -125,6 +125,10 @@ class Settings(BaseSettings):
     briefing_memory_hours: int = 3  # how far back trend context reaches
     briefing_memory_file: str = "briefing_memory.json"  # rolling theme state
     briefing_max_items: int = 40  # cap news items sent to the model (cost)
+    # Show open + current price (with freshness) in briefings. Needs
+    # PRICE_FEATURES_ENABLED + Alpaca keys. Capped to limit price lookups.
+    briefing_prices_in_report: bool = True
+    briefing_price_max_tickers: int = 6
     # On-demand /report Telegram command (getUpdates listener).
     briefing_command_enabled: bool = False
     briefing_command: str = "/report"
