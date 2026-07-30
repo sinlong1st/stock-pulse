@@ -1,15 +1,15 @@
-"""Tests for the inbound Telegram /report listener (Briefing plan, step F).
+"""Tests for the inbound Telegram command router.
 
 The Telegram API is never called for real: a httpx MockTransport serves canned
-getUpdates responses, and process_updates is exercised directly with update
-dicts.
+getUpdates/sendMessage responses, and process_updates is exercised directly with
+update dicts.
 """
 
 import httpx
 import pytest
 
 from app.alerts.telegram import NotifierError
-from app.alerts.telegram_listener import TelegramListener, _command_token
+from app.alerts.telegram_listener import TelegramListener, _command_token, _split_command
 
 OWNER = "12345"
 OTHER = "99999"
@@ -22,11 +22,8 @@ def _update(update_id: int, chat_id: str, text: str) -> dict:
     }
 
 
-def _listener(handler=None, *, on_command=None, command="/report") -> TelegramListener:
-    transport = httpx.MockTransport(handler) if handler else None
-    return TelegramListener(
-        "bot-token", OWNER, command=command, on_command=on_command, transport=transport
-    )
+def _listener(handlers, handler_fn=None, *, transport=None) -> TelegramListener:
+    return TelegramListener("bot-token", OWNER, handlers=handlers, transport=transport)
 
 
 def test_command_token_strips_bot_suffix_and_args() -> None:
@@ -36,65 +33,78 @@ def test_command_token_strips_bot_suffix_and_args() -> None:
     assert _command_token("") == ""
 
 
-async def test_only_owner_command_triggers_handler() -> None:
+def test_split_command() -> None:
+    assert _split_command("/watch tesla") == ("/watch", "tesla")
+    assert _split_command("/report@Bot wdc now") == ("/report", "wdc now")
+    assert _split_command("/watchlist") == ("/watchlist", "")
+
+
+async def test_routes_to_the_right_handler() -> None:
     seen: list[str] = []
 
-    async def on_command(chat_id, text):
-        seen.append(text)
+    async def report(args):
+        seen.append(f"report:{args}")
+        return None
 
-    listener = _listener(on_command=on_command)
+    async def watchlist(args):
+        seen.append("watchlist")
+        return None
+
+    listener = _listener({"/report": report, "/watchlist": watchlist})
     handled = await listener.process_updates(
         [
-            _update(1, OWNER, "/report"),  # owner -> handled
-            _update(2, OTHER, "/report"),  # different chat -> ignored
-            _update(3, OWNER, "hello"),  # not the command -> ignored
-            _update(4, OWNER, "/report@StockPulseBot"),  # bot suffix -> handled
+            _update(1, OWNER, "/report wdc"),  # -> report handler with args
+            _update(2, OWNER, "/watchlist"),  # -> watchlist handler
+            _update(3, OTHER, "/watchlist"),  # different chat -> ignored
+            _update(4, OWNER, "/unknown"),  # no handler -> ignored
         ]
     )
     assert handled == 2
-    assert seen == ["/report", "/report@StockPulseBot"]
+    assert seen == ["report:wdc", "watchlist"]
     assert listener._offset == 5  # advanced past every update
 
 
+async def test_reply_text_is_sent_back() -> None:
+    calls = {"sent": None}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/getUpdates"):
+            updates = [_update(7, OWNER, "/watchlist")]
+            return httpx.Response(200, json={"ok": True, "result": updates})
+        # sendMessage
+        import json
+
+        calls["sent"] = json.loads(request.content)["text"]
+        return httpx.Response(200, json={"ok": True})
+
+    async def watchlist(args):
+        return "📋 Watchlist (1): NVDA"
+
+    listener = _listener({"/watchlist": watchlist}, transport=httpx.MockTransport(handler))
+    handled = await listener.poll_once()
+    assert handled == 1
+    assert calls["sent"] == "📋 Watchlist (1): NVDA"
+
+
 async def test_handler_error_does_not_break_loop() -> None:
-    async def boom(chat_id, text):
+    async def boom(args):
         raise RuntimeError("handler failed")
 
-    listener = _listener(on_command=boom)
+    listener = _listener({"/report": boom})
     handled = await listener.process_updates([_update(1, OWNER, "/report")])
     assert handled == 0
     assert listener._offset == 2  # still advanced
 
 
-async def test_poll_once_fetches_and_handles() -> None:
-    calls = {"n": 0}
-
-    async def on_command(chat_id, text):
-        calls["n"] += 1
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            200, json={"ok": True, "result": [_update(7, OWNER, "/report")]}
-        )
-
-    listener = _listener(handler, on_command=on_command)
-    handled = await listener.poll_once()
-    assert handled == 1
-    assert calls["n"] == 1
-    assert listener._offset == 8
-
-
 async def test_prime_skips_backlog_without_handling() -> None:
-    async def on_command(chat_id, text):
+    async def report(args):
         raise AssertionError("prime must not handle commands")
 
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            200,
-            json={"ok": True, "result": [_update(10, OWNER, "/report"), _update(11, OWNER, "/report")]},
-        )
+        backlog = [_update(10, OWNER, "/report"), _update(11, OWNER, "/report")]
+        return httpx.Response(200, json={"ok": True, "result": backlog})
 
-    listener = _listener(handler, on_command=on_command)
+    listener = _listener({"/report": report}, transport=httpx.MockTransport(handler))
     await listener.prime()
     assert listener._offset == 12  # advanced past backlog, nothing handled
 
@@ -103,11 +113,19 @@ async def test_get_updates_raises_on_api_error() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"ok": False, "description": "boom"})
 
-    listener = _listener(handler)
+    listener = _listener({"/report": lambda a: None}, transport=httpx.MockTransport(handler))
     with pytest.raises(NotifierError):
         await listener.poll_once()
 
 
 def test_missing_credentials_raise() -> None:
     with pytest.raises(NotifierError):
-        TelegramListener("", OWNER)
+        TelegramListener("", OWNER, handlers={})
+
+
+def test_handler_keys_are_normalized() -> None:
+    async def h(args):
+        return None
+
+    listener = TelegramListener("t", OWNER, handlers={"watch": h, "/REPORT": h})
+    assert set(listener.handlers) == {"/watch", "/report"}

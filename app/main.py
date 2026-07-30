@@ -5,6 +5,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
@@ -16,7 +17,9 @@ from app.alerts import (
     get_alert_policy,
     send_pending_alerts,
 )
+from app.alerts.telegram_listener import build_command_listener
 from app.collectors import build_all_collectors, collect_from
+from app.commands import build_command_handlers
 from app.config import get_settings, resolve_briefing_timezone, resolve_timezone
 from app.db import (
     AlertRepository,
@@ -24,8 +27,7 @@ from app.db import (
     ClassificationRepository,
     SessionLocal,
 )
-from apscheduler.triggers.cron import CronTrigger
-
+from app.evaluation import build_evaluation_report, horizons_from_settings
 from app.jobs import (
     analyze_relevant_articles,
     intraday_hours,
@@ -40,11 +42,8 @@ from app.jobs import (
     run_report,
     run_watchlist_monitor,
 )
-from app.alerts.telegram_listener import build_report_listener
-from app.briefing.focus import parse_focus
 from app.logging_config import configure_logging
 from app.pipeline.classifier import ClassificationError, build_classifier
-from app.evaluation import build_evaluation_report, horizons_from_settings
 from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
 from app.prices import maybe_eval_price_client, maybe_price_client
@@ -177,23 +176,28 @@ async def lifespan(app: FastAPI):
         if report_notifier is not None:
             vi = settings.output_language.strip().lower() == "vietnamese"
 
-            async def _on_report(chat_id: str, text: str) -> None:
-                query = parse_focus(text, settings.briefing_command)
-                if vi:
-                    ack = f"⏳ Đang tổng hợp báo cáo về {query}…" if query else "⏳ Đang tổng hợp báo cáo…"
+            async def _on_report(args: str) -> None:
+                query = args.strip() or None
+                if query:
+                    ack = (
+                        f"⏳ Đang tổng hợp báo cáo về {query}…"
+                        if vi
+                        else f"⏳ Generating your report on {query}…"
+                    )
                 else:
-                    ack = f"⏳ Generating your report on {query}…" if query else "⏳ Generating your report…"
+                    ack = "⏳ Đang tổng hợp báo cáo…" if vi else "⏳ Generating your report…"
                 try:
                     await report_notifier.send(ack)
                 except NotifierError:
                     pass
                 await run_report(query)
 
-            listener = build_report_listener(settings, on_command=_on_report)
+            handlers = build_command_handlers(settings, report_handler=_on_report)
+            listener = build_command_listener(settings, handlers=handlers)
             listener_stop = asyncio.Event()
             listener_task = asyncio.create_task(listener.run_forever(listener_stop))
             logger.info(
-                "On-demand %s Telegram command enabled.", settings.briefing_command
+                "Telegram commands enabled: %s.", ", ".join(sorted(handlers))
             )
 
     app.state.scheduler = scheduler
