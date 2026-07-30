@@ -10,8 +10,8 @@ from app.briefing.focus import (
 )
 from app.briefing.models import BriefingResult, BriefingTheme
 from app.briefing.retrieval import RetrievalResult, assess_freshness
-from app.jobs.briefing import run_report
 from app.config import Settings
+from app.jobs.briefing import run_report
 from app.models.article import NewsArticle
 from app.watchlist import WatchlistConfig
 

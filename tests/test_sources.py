@@ -1,7 +1,6 @@
 """Tests for multi-feed collection and the source builders."""
 
 import httpx
-import pytest
 
 from app.collectors.multi import MultiRSSCollector
 from app.collectors.sources import _macro_query, collect_from

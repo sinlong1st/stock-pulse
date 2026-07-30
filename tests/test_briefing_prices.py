@@ -2,11 +2,11 @@
 
 from datetime import UTC, datetime, timedelta
 
-from app.briefing.models import BriefingResult, BriefingTheme, WatchlistNote
+from app.briefing.models import BriefingResult, BriefingTheme
 from app.briefing.render import render_briefing
 from app.briefing.retrieval import RetrievalResult, assess_freshness
-from app.jobs.briefing import run_report
 from app.config import Settings
+from app.jobs.briefing import run_report
 from app.models.article import NewsArticle
 from app.prices import PriceClient, PriceSnapshot
 

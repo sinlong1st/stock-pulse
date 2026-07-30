@@ -1,36 +1,81 @@
-# StockPulse
+<h1 align="center">📈 StockPulse</h1>
 
-A lightweight, single-user market intelligence service. It monitors financial
-news and macroeconomic events on a schedule, classifies what matters, and sends
-alerts (Telegram for the MVP) — so you don't have to watch the news all day.
+<p align="center">
+  <b>Your personal market analyst, right inside Telegram.</b><br>
+  It watches the financial news around the clock, works out what actually
+  matters for <i>your</i> stocks, and pings your phone — so you don't have to
+  stare at headlines all day.
+</p>
 
-Design goals: simple, low-maintenance, and under **$10/month**.
+<p align="center">
+  🤖 AI-graded alerts&nbsp; · &nbsp;🗞️ on-demand briefings&nbsp; · &nbsp;💵 live prices&nbsp; · &nbsp;🌐 English / Tiếng Việt&nbsp; · &nbsp;☁️ runs 24/7 for under <b>$10/month</b>
+</p>
 
-See [`specs/STOCKPULSE_PROJECT_SPEC.md`](specs/STOCKPULSE_PROJECT_SPEC.md) and
-[`specs/STOCKPULSE_TECHNICAL_PLAN.md`](specs/STOCKPULSE_TECHNICAL_PLAN.md) for the
-full product and technical plans.
+---
 
-## Status
+## ✨ See it in action
 
-**Live in production** — deployed 24/7 on a DigitalOcean droplet via Docker.
-What it does today:
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="public/images/report.jpg" width="300" alt="On-demand /report briefing"><br>
+      <b>A briefing whenever you want one</b><br>
+      <sub><code>/report</code> → an AI analyst reads the latest news and tells you
+      what matters, with live watchlist prices attached.</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="public/images/alert-ticker.jpg" width="300" alt="Live news alert with sentiment"><br>
+      <b>Real-time news alerts</b><br>
+      <sub>Each alert is graded by importance and sentiment
+      (🟢 bullish / 🟠 bearish / ⚪ neutral) with a plain-English "why it matters".</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="public/images/watchlist.jpg" width="300" alt="Managing the watchlist from Telegram"><br>
+      <b>Manage everything by chat</b><br>
+      <sub>Add or drop stocks on the fly — <code>/watch tesla</code>,
+      <code>/unwatch stx</code> — no config files, no restart.</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="public/images/help.jpg" width="300" alt="Command list via /help"><br>
+      <b>Simple commands</b><br>
+      <sub><code>/help</code>, <code>/watchlist</code>, <code>/language</code> …
+      everything is one tap away.</sub>
+    </td>
+  </tr>
+</table>
 
-- **News → alerts:** collects RSS (watchlist + macro), dedupes, rule-filters,
-  AI-classifies (importance/category/sentiment/tickers), and sends Telegram
-  alerts on a schedule. Quiet hours hold non-urgent alerts overnight.
-- **Self-evaluation:** scores the AI's bullish/bearish calls against real price
-  moves (`/evaluation`, optional daily digest).
-- **Market Briefing "the secretary":** pulls the *latest* news and an AI analyst
-  reports what matters for your watchlist — scheduled (08:30 → every 2h → 18:00
-  PT weekdays) and on demand via `/report` (whole watchlist or a single stock),
-  with open/current prices + honest freshness labels and price-mover flags.
-- **Manage from Telegram:** `/watchlist`, `/watch <name>`, `/unwatch`, `/help`.
+<p align="center">
+  <img src="public/images/alert-macro.jpg" width="300" alt="Macro and Fed alerts with sentiment"><br>
+  <sub>Macro &amp; Fed news too — not just your tickers.</sub>
+</p>
 
-Feature designs live in `specs/` (evaluation, briefing, watchlist-commands
-plans, all marked shipped); progress overview in
-[`specs/STOCKPULSE_PHASE_GUIDE.md`](specs/STOCKPULSE_PHASE_GUIDE.md). Deploy:
-[`DEPLOY.md`](DEPLOY.md) (+ [`BUYING_A_SERVER.md`](BUYING_A_SERVER.md) for a
-first server).
+---
+
+## Why StockPulse?
+
+- **It reads for you.** An AI model judges every headline for importance,
+  category, sentiment, and which of your tickers it touches — so you only hear
+  about what moves the needle.
+- **A secretary that briefs you.** Scheduled morning / intraday / end-of-day
+  briefings, plus `/report` any time (the whole watchlist, or one stock like
+  `/report wdc`), each with open + current prices and honest freshness labels.
+- **Respects your sleep.** Quiet hours hold non-urgent alerts overnight; only
+  the truly critical breaks through.
+- **Keeps itself honest.** A self-evaluation loop scores the AI's
+  bullish/bearish calls against real price moves.
+- **Runs from your pocket.** Manage the watchlist and switch language
+  (English / Tiếng Việt) straight from Telegram — changes take effect live.
+- **Cheap and low-maintenance.** A single always-on container on a small VPS,
+  designed to run for under **$10/month**.
+
+> **Status — live in production**, deployed 24/7 on a DigitalOcean droplet via
+> Docker. Full product & technical plans are in
+> [`specs/`](specs/) (all phases shipped) — start with the
+> [Phase Guide](specs/STOCKPULSE_PHASE_GUIDE.md). To run your own, see
+> [`DEPLOY.md`](DEPLOY.md) (+ [`BUYING_A_SERVER.md`](BUYING_A_SERVER.md) if it's
+> your first server).
 
 ## Requirements
 

@@ -11,6 +11,8 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.models import AlertRow, ArticleRow, ClassificationRow, PredictionRow
+from app.models.article import NewsArticle
+from app.models.classification import ClassificationResult
 from app.status import (
     PRED_EVALUATED,
     PRED_PENDING,
@@ -19,8 +21,6 @@ from app.status import (
     STATUS_PENDING,
     STATUS_SENT,
 )
-from app.models.article import NewsArticle
-from app.models.classification import ClassificationResult
 
 
 def _as_utc(value: datetime | None) -> datetime | None:

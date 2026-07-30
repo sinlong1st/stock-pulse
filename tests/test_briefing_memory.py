@@ -4,9 +4,9 @@ from datetime import UTC, datetime, timedelta
 
 from app.briefing.memory import ThemeMemory
 from app.briefing.models import BriefingResult, BriefingTheme
-from app.jobs.briefing import run_briefing
 from app.briefing.retrieval import RetrievalResult, assess_freshness
 from app.config import Settings
+from app.jobs.briefing import run_briefing
 from app.models.article import NewsArticle
 
 NOW = datetime(2026, 7, 28, 16, 0, tzinfo=UTC)
