@@ -114,18 +114,19 @@ def price_snapshot_line(
     tz_name: str = "UTC",
     language: str = "English",
 ) -> str:
-    """One line: current price (+freshness) and today's open (+change).
+    """One line: current price, % change vs today's open, and freshness.
 
-    e.g. 'WDC: $65.20 (live) · open $64.10 (+1.7%)'.
+    e.g. 'WDC: $65.20 · +1.7% vs open ($64.10) · live'.
     """
     vi = language.strip().lower() == "vietnamese"
     fresh = price_freshness(snap.price_time, now=now, tz_name=tz_name, language=language)
-    parts = [f"{snap.ticker}: ${snap.price:,.2f} ({fresh})"]
-    if snap.open is not None:
-        chg = snap.change_from_open_pct
-        chg_str = f" ({chg:+.1f}%)" if chg is not None else ""
-        open_word = "mở cửa" if vi else "open"
-        parts.append(f"{open_word} ${snap.open:,.2f}{chg_str}")
+    parts = [f"{snap.ticker}: ${snap.price:,.2f}"]
+    chg = snap.change_from_open_pct
+    if chg is not None:
+        vs = "so với mở cửa" if vi else "vs open"
+        open_str = f" (${snap.open:,.2f})" if snap.open is not None else ""
+        parts.append(f"{chg:+.1f}% {vs}{open_str}")
+    parts.append(fresh)
     return " · ".join(parts)
 
 
@@ -235,6 +236,21 @@ def _epoch_to_dt(value: object) -> datetime | None:
         return None
 
 
+def _regular_session_start(meta: dict) -> int | None:
+    """Epoch start of the regular session for the day the chart data covers.
+
+    Prefers ``tradingPeriods.regular`` (that day's session); falls back to
+    ``currentTradingPeriod`` — which points at the NEXT session once the market
+    has closed, so it must not be used alone.
+    """
+    reg = (meta.get("tradingPeriods") or {}).get("regular")
+    if isinstance(reg, list) and reg and isinstance(reg[0], list) and reg[0]:
+        start = reg[0][0].get("start")
+        if start is not None:
+            return start
+    return ((meta.get("currentTradingPeriod") or {}).get("regular") or {}).get("start")
+
+
 class YahooPriceClient(PriceClient):
     """Prices from Yahoo Finance's free v8 chart endpoint.
 
@@ -303,7 +319,9 @@ class YahooPriceClient(PriceClient):
             price_time = _epoch_to_dt(meta.get("regularMarketTime"))
 
         # Open = first bar of the regular session (skip pre-market bars).
-        reg_start = ((meta.get("currentTradingPeriod") or {}).get("regular") or {}).get("start")
+        # Use tradingPeriods.regular (the DATA day's session); currentTradingPeriod
+        # points at the NEXT session when the market is closed.
+        reg_start = _regular_session_start(meta)
         open_price: float | None = None
         for ts, open_val in zip(timestamps, opens, strict=False):
             if open_val is not None and (reg_start is None or ts >= reg_start):

@@ -41,8 +41,8 @@ def test_render_includes_price_block() -> None:
         result, generated_at=NOW, timezone="America/Los_Angeles", prices=[_snap("WDC")]
     )
     assert "💵" in text
-    assert "WDC: $65.20 (live)" in text
-    assert "open $64.10" in text
+    assert "WDC: $65.20" in text
+    assert "+1.7% vs open ($64.10)" in text
 
 
 def test_render_prices_show_even_on_quiet_report() -> None:
@@ -117,7 +117,8 @@ async def test_focused_report_prices_the_target_ticker() -> None:
     )
     assert run.sent
     assert prices.asked == ["WDC"]  # priced the focused ticker
-    assert "WDC: $65.20 (live)" in notifier.sent[0]
+    assert "WDC: $65.20" in notifier.sent[0]
+    assert "vs open" in notifier.sent[0]
     assert "🕒" in notifier.sent[0]  # timestamp present
 
 

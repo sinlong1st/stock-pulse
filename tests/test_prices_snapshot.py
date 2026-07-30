@@ -76,8 +76,9 @@ def test_snapshot_line_shows_current_and_open() -> None:
         ticker="WDC", price=65.2, price_time=NOW - timedelta(minutes=2), open=64.1, prev_close=63.5
     )
     line = price_snapshot_line(snap, now=NOW, tz_name="America/Los_Angeles")
-    assert "WDC: $65.20 (live)" in line
-    assert "open $64.10 (+1.7%)" in line
+    assert line.startswith("WDC: $65.20")
+    assert "+1.7% vs open ($64.10)" in line
+    assert "live" in line
 
 
 def test_snapshot_line_vietnamese() -> None:
