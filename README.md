@@ -133,12 +133,15 @@ Three ways to get a briefing:
   US-market/Pacific time, Mon–Fri: a full **08:30** morning brief, short
   **every-2h** updates (10:30–16:30), and an **18:00** end-of-day wrap.
 
-Every report carries a **timestamp** (in `BRIEFING_TIMEZONE`) and, when
-`PRICE_FEATURES_ENABLED=true` with Alpaca keys, an **open + current price** line
-per relevant ticker with an honest **freshness label** — `live` if the last
-trade is recent, otherwise the actual last-trade time (e.g. `as of Fri 13:00
-PDT`), since outside market hours a stock isn't trading and there is no live
-price. Toggle with `BRIEFING_PRICES_IN_REPORT`.
+Every report carries a **timestamp** (in `BRIEFING_TIMEZONE`) and an **open +
+current price** line per relevant ticker (a full `/report` prices your whole
+watchlist; a focused one prices that stock) with an honest **freshness label** —
+`live` if the last trade is recent, otherwise the actual last-trade time (e.g.
+`as of Fri 13:00 PDT`), since outside market hours a stock isn't trading and
+there is no live price. Prices default to **Yahoo** (`BRIEFING_PRICE_SOURCE`) —
+free, keyless, consolidated across venues and including pre/post-market, so it's
+close to a phone stocks app; set it to `alpaca` to use the IEX feed instead.
+Toggle the whole block with `BRIEFING_PRICES_IN_REPORT`.
 
 Key settings (all in `.env`, see `.env.example`): `BRIEFING_TIMEZONE`
 (defaults to `America/Los_Angeles`, independent of `TIMEZONE`),

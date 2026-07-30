@@ -86,6 +86,8 @@ class Settings(BaseSettings):
     alpaca_api_key: str = ""
     alpaca_secret_key: str = ""
     alpaca_data_url: str = "https://data.alpaca.markets/v2"
+    # Yahoo Finance chart endpoint (keyless, for the briefing price display).
+    yahoo_chart_url: str = "https://query1.finance.yahoo.com"
     price_features_enabled: bool = False
     price_context_in_alerts: bool = False  # add a "MU +3.4% today" line to alerts
 
@@ -129,6 +131,10 @@ class Settings(BaseSettings):
     # PRICE_FEATURES_ENABLED + Alpaca keys. Capped to limit price lookups.
     briefing_prices_in_report: bool = True
     briefing_price_max_tickers: int = 12  # full /report prices the whole watchlist
+    # Price source for the report display: "yahoo" (free, keyless, consolidated
+    # + pre/post market — closer to a phone stocks app) or "alpaca" (free IEX
+    # feed). Self-evaluation still uses Alpaca regardless.
+    briefing_price_source: str = "yahoo"
     # On-demand /report Telegram command (getUpdates listener).
     briefing_command_enabled: bool = False
     briefing_command: str = "/report"

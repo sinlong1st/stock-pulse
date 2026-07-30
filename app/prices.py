@@ -228,6 +228,112 @@ class AlpacaPriceClient(PriceClient):
         )
 
 
+def _epoch_to_dt(value: object) -> datetime | None:
+    try:
+        return datetime.fromtimestamp(int(value), tz=UTC)  # type: ignore[arg-type]
+    except (ValueError, OSError, TypeError):
+        return None
+
+
+class YahooPriceClient(PriceClient):
+    """Prices from Yahoo Finance's free v8 chart endpoint.
+
+    Unofficial but keyless, and — unlike the Alpaca free IEX feed (one small
+    exchange) — it returns the **consolidated** price and includes pre/post
+    market trades, so "current price" is much closer to what a phone stocks app
+    shows. It still cannot invent an overnight price (nothing trades then).
+    """
+
+    _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) StockPulse/1.0"
+
+    def __init__(
+        self,
+        *,
+        base_url: str = "https://query1.finance.yahoo.com",
+        timeout: float = 10.0,
+        transport: httpx.BaseTransport | None = None,
+    ) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.timeout = timeout
+        self._transport = transport
+
+    async def _chart(self, ticker: str) -> dict | None:
+        url = f"{self.base_url}/v8/finance/chart/{ticker}"
+        params = {"interval": "1m", "range": "1d", "includePrePost": "true"}
+        try:
+            async with httpx.AsyncClient(
+                timeout=self.timeout, transport=self._transport
+            ) as client:
+                resp = await client.get(url, params=params, headers={"User-Agent": self._UA})
+                resp.raise_for_status()
+                data = resp.json()
+        except httpx.HTTPError as exc:
+            logger.warning("Yahoo price fetch failed for %s: %s", ticker, exc)
+            return None
+        results = ((data or {}).get("chart") or {}).get("result") or []
+        return results[0] if results else None
+
+    async def snapshot(self, ticker: str) -> PriceSnapshot | None:
+        result = await self._chart(ticker)
+        if not result:
+            return None
+        meta = result.get("meta") or {}
+        timestamps = result.get("timestamp") or []
+        quote = ((result.get("indicators") or {}).get("quote") or [{}])[0]
+        closes = quote.get("close") or []
+        opens = quote.get("open") or []
+
+        # Current price = the most recent traded bar (includes pre/post market).
+        price: float | None = None
+        price_time: datetime | None = None
+        for ts, close in zip(reversed(timestamps), reversed(closes), strict=False):
+            if close is not None:
+                price, price_time = close, _epoch_to_dt(ts)
+                break
+        reg_price = meta.get("regularMarketPrice")
+        if price is None:
+            price = reg_price
+            price_time = _epoch_to_dt(meta.get("regularMarketTime"))
+        if price is None:
+            return None
+        # Guard against a wild thin pre/post-market print: if the latest bar is
+        # >15% off the official regular price, trust the official one instead.
+        if reg_price and abs(price - reg_price) / reg_price > 0.15:
+            price = reg_price
+            price_time = _epoch_to_dt(meta.get("regularMarketTime"))
+
+        # Open = first bar of the regular session (skip pre-market bars).
+        reg_start = ((meta.get("currentTradingPeriod") or {}).get("regular") or {}).get("start")
+        open_price: float | None = None
+        for ts, open_val in zip(timestamps, opens, strict=False):
+            if open_val is not None and (reg_start is None or ts >= reg_start):
+                open_price = open_val
+                break
+
+        return PriceSnapshot(
+            ticker=ticker,
+            price=price,
+            price_time=price_time,
+            open=open_price,
+            prev_close=meta.get("chartPreviousClose") or meta.get("previousClose"),
+        )
+
+    async def latest_price(self, ticker: str) -> float | None:
+        snap = await self.snapshot(ticker)
+        return snap.price if snap else None
+
+    async def change_today(self, ticker: str) -> PriceMove | None:
+        snap = await self.snapshot(ticker)
+        if not snap or not snap.prev_close:
+            return None
+        return PriceMove(
+            ticker=ticker,
+            price=snap.price,
+            prev_close=snap.prev_close,
+            change_pct=snap.change_from_prev_pct or 0.0,
+        )
+
+
 def price_context_line(move: PriceMove, language: str = "English") -> str:
     """One-line price context for an alert, e.g. '📈 MU +3.4% today'."""
     word = "hôm nay" if language.strip().lower() == "vietnamese" else "today"
@@ -258,14 +364,23 @@ def maybe_price_client(settings: Settings | None = None) -> PriceClient | None:
 
 
 def maybe_briefing_price_client(settings: Settings | None = None) -> PriceClient | None:
-    """Build a price client for briefings (gated on price features only)."""
+    """Build the price client used for the briefing's price display.
+
+    Source is configurable: "yahoo" needs no keys and gives consolidated +
+    pre/post-market prices; "alpaca" uses the free IEX feed (needs keys +
+    PRICE_FEATURES_ENABLED).
+    """
     settings = settings or get_settings()
+    if not settings.briefing_prices_in_report:
+        return None
+    if settings.briefing_price_source.strip().lower() == "yahoo":
+        return YahooPriceClient(base_url=settings.yahoo_chart_url)
     if not settings.price_features_enabled:
         return None
     try:
         return build_price_client(settings)
     except PriceError:
-        logger.warning("Briefing prices enabled but Alpaca keys missing; skipping.")
+        logger.warning("Briefing prices (alpaca) enabled but keys missing; skipping.")
         return None
 
 

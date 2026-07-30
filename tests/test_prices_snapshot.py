@@ -84,3 +84,75 @@ def test_snapshot_line_vietnamese() -> None:
     snap = PriceSnapshot(ticker="MU", price=100.0, price_time=NOW, open=98.0, prev_close=99.0)
     line = price_snapshot_line(snap, now=NOW, language="Vietnamese")
     assert "mở cửa" in line
+
+
+# --- Yahoo price source ----------------------------------------------------
+
+
+def _yahoo_chart_response() -> httpx.Response:
+    reg_start = 1_700_000_000
+    return httpx.Response(
+        200,
+        json={
+            "chart": {
+                "result": [
+                    {
+                        "meta": {
+                            "regularMarketPrice": 64.9,
+                            "regularMarketTime": reg_start + 60,
+                            "chartPreviousClose": 63.5,
+                            "currentTradingPeriod": {"regular": {"start": reg_start}},
+                        },
+                        "timestamp": [reg_start, reg_start + 60],
+                        "indicators": {
+                            "quote": [{"open": [64.1, 64.5], "close": [64.3, 65.2]}]
+                        },
+                    }
+                ]
+            }
+        },
+    )
+
+
+async def test_yahoo_snapshot_parses_current_open_prev() -> None:
+    from app.prices import YahooPriceClient
+
+    client = YahooPriceClient(transport=httpx.MockTransport(lambda r: _yahoo_chart_response()))
+    snap = await client.snapshot("WDC")
+    assert snap is not None
+    assert snap.price == 65.2  # last traded bar (incl. post-market)
+    assert snap.open == 64.1  # first regular-session open
+    assert snap.prev_close == 63.5
+    assert snap.price_time is not None
+
+
+async def test_yahoo_snapshot_none_on_empty() -> None:
+    from app.prices import YahooPriceClient
+
+    resp = httpx.Response(200, json={"chart": {"result": []}})
+    client = YahooPriceClient(transport=httpx.MockTransport(lambda r: resp))
+    assert await client.snapshot("X") is None
+
+
+def test_briefing_price_client_source_selection() -> None:
+    from app.config import Settings
+    from app.prices import AlpacaPriceClient, YahooPriceClient, maybe_briefing_price_client
+
+    yahoo = maybe_briefing_price_client(Settings(_env_file=None, briefing_price_source="yahoo"))
+    assert isinstance(yahoo, YahooPriceClient)  # no keys needed
+
+    alpaca = maybe_briefing_price_client(
+        Settings(
+            _env_file=None,
+            briefing_price_source="alpaca",
+            price_features_enabled=True,
+            alpaca_api_key="k",
+            alpaca_secret_key="s",
+        )
+    )
+    assert isinstance(alpaca, AlpacaPriceClient)
+
+    off = maybe_briefing_price_client(
+        Settings(_env_file=None, briefing_prices_in_report=False)
+    )
+    assert off is None
