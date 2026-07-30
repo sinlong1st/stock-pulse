@@ -86,8 +86,10 @@ class Settings(BaseSettings):
     alpaca_api_key: str = ""
     alpaca_secret_key: str = ""
     alpaca_data_url: str = "https://data.alpaca.markets/v2"
-    # Yahoo Finance chart endpoint (keyless, for the briefing price display).
+    # Yahoo Finance endpoints (keyless): chart = price display, search = resolve
+    # a company name to a ticker for /watch.
     yahoo_chart_url: str = "https://query1.finance.yahoo.com"
+    yahoo_search_url: str = "https://query1.finance.yahoo.com"
     price_features_enabled: bool = False
     price_context_in_alerts: bool = False  # add a "MU +3.4% today" line to alerts
 

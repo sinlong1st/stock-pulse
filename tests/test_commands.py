@@ -49,7 +49,7 @@ async def test_build_command_handlers_wires_report_and_readonly() -> None:
     settings = Settings(_env_file=None, briefing_command="/report", output_language="English")
     handlers = build_command_handlers(settings, report_handler=report_handler)
 
-    assert set(handlers) == {"/report", "/watchlist", "/help"}
+    assert {"/report", "/watchlist", "/help"} <= set(handlers)
     # /report is the passed-in handler
     await handlers["/report"]("wdc")
     assert called["report_args"] == "wdc"

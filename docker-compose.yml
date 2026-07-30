@@ -16,7 +16,8 @@ services:
       - BRIEFING_MEMORY_FILE=/app/data/briefing_memory.json
     volumes:
       - ./data:/app/data
-      - ./watchlist.json:/app/watchlist.json:ro
+      # Writable: the /watch and /unwatch commands edit this file in place.
+      - ./watchlist.json:/app/watchlist.json
       - ./keywords.json:/app/keywords.json:ro
     ports:
       # Bound to localhost only — reach the dashboard via an SSH tunnel:

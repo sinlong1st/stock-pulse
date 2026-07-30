@@ -151,6 +151,25 @@ look-back windows, `BRIEFING_MODEL`, and `BRIEFING_PRICES_IN_REPORT`.
 > ⚠️ Each briefing is one OpenAI call. Retrieval is the two RSS feeds only for
 > now (web search — `BRIEFING_WEB_SEARCH_ENABLED` — is not wired yet).
 
+## Telegram commands
+
+With the listener on (`BRIEFING_COMMAND_ENABLED=true`), text these to your bot:
+
+| Command | Does |
+|---|---|
+| `/report [ticker]` | Market briefing (add a ticker/name for one stock) |
+| `/watchlist` | Show your watched tickers |
+| `/watch tesla` | Add a stock (resolves the name → ticker via Yahoo) |
+| `/unwatch tsla` | Remove a stock |
+| `/help` | List the commands |
+
+`/watch` and `/unwatch` edit `watchlist.json` and take effect immediately (news
++ reports pick up the change, no restart). All commands are locked to your chat.
+
+> **Docker note:** `docker-compose.yml` mounts `watchlist.json` **writable** so
+> `/watch`/`/unwatch` can persist. (If you deployed before this, `git pull &&
+> docker compose up -d --build` recreates the container with the new mount.)
+
 ## Running the pipeline
 
 The full pipeline is **collect → dedupe → filter → classify → decide → alert**.

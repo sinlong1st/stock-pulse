@@ -138,16 +138,19 @@ All still gated by `BRIEFING_COMMAND_ENABLED` (the listener must be on).
 
 ---
 
-## 8. Suggested build order
-| Step | Piece | Notes |
+## 8. Suggested build order — ✅ all shipped
+| Step | Piece | Status |
 |---|---|---|
-| A | Command router (registry + dispatch), migrate `/report` onto it | no behavior change; tests |
-| B | `/watchlist` + `/help` (read-only) | safest first — proves routing end-to-end |
-| C | Symbol resolver (Yahoo search) + tests | keyless, mocked in tests |
-| D | `/watch` + `/unwatch` with atomic write + cache-clear | the mutating part |
-| E | Docker: make `watchlist.json` writable; docs | required to work in prod |
+| A | Command router (registry + dispatch), migrate `/report` onto it | ✅ done |
+| B | `/watchlist` + `/help` (read-only) | ✅ done |
+| C | Symbol resolver (Yahoo search) + tests | ✅ done |
+| D | `/watch` + `/unwatch` with atomic write + cache-clear | ✅ done |
+| E | Docker: make `watchlist.json` writable; docs | ✅ done |
 
-Ship A–B first (no writes) so the router is proven before anything edits config.
+Shipped A–B first (no writes) so the router was proven before anything edited
+config. Lives in `app/commands/` (`router` via `app/alerts/telegram_listener.py`,
+handlers in `watchlist_cmds.py` + `help.py`, resolver in `symbols.py`) and the
+mutation helpers in `app/watchlist.py` (`add_ticker`/`remove_ticker`).
 
 **Decisions (from review):** commands are `/watch` / `/unwatch` (+ `/watchlist`,
 `/help`); removing the last ticker is warned-but-allowed; ambiguous `/watch`
