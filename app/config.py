@@ -135,6 +135,9 @@ class Settings(BaseSettings):
     # + pre/post market — closer to a phone stocks app) or "alpaca" (free IEX
     # feed). Self-evaluation still uses Alpaca regardless.
     briefing_price_source: str = "yahoo"
+    # Flag a watchlist stock that moved at least this % today even if it has no
+    # news, so the report notes price-driven movers.
+    briefing_price_move_threshold_pct: float = 3.0
     # On-demand /report Telegram command (getUpdates listener).
     briefing_command_enabled: bool = False
     briefing_command: str = "/report"

@@ -48,52 +48,32 @@ class BriefingRun:
     result: BriefingResult | None = None
 
 
-def _tickers_to_price(
-    result: BriefingResult, price_tickers: list[str] | None, max_n: int
-) -> list[str]:
-    """Which tickers to show prices for.
-
-    Focused report: the explicit list. Full briefing: EVERY watchlist ticker
-    (so quiet stocks still show a price), leading with the ones the AI actually
-    mentioned in the news. Capped for cost.
-    """
-    if price_tickers is not None:
-        picked = price_tickers
-    else:
-        watchlist = list(get_watchlist_config().tickers)
-        watchset = set(watchlist)
-        mentioned = [n.ticker for n in result.watchlist_notes]
-        for theme in result.themes:
-            mentioned.extend(theme.tickers)
-        mentioned = [t for t in mentioned if t in watchset]
-        # News-makers first, then the rest of the watchlist.
-        picked = mentioned + watchlist
-    # De-dupe preserving order, then cap.
+def _price_tickers(settings: Settings, price_tickers: list[str] | None) -> list[str]:
+    """Tickers to price: the explicit list (focused report) or the whole
+    watchlist (full briefing). De-duped and capped."""
+    picked = list(price_tickers) if price_tickers is not None else list(
+        get_watchlist_config().tickers
+    )
     seen: set[str] = set()
     out: list[str] = []
     for t in picked:
         if t and t not in seen:
             seen.add(t)
             out.append(t)
-    return out[:max_n]
+    return out[: settings.briefing_price_max_tickers]
 
 
-async def _fetch_prices(
-    settings: Settings,
-    result: BriefingResult,
-    *,
-    price_tickers: list[str] | None,
-    price_client: object,
+async def _fetch_snapshots(
+    settings: Settings, tickers: list[str], price_client: object
 ) -> list[PriceSnapshot]:
-    """Fetch snapshots for the relevant tickers; best-effort, never fatal."""
-    if not settings.briefing_prices_in_report:
+    """Snapshot each ticker; best-effort, never fatal."""
+    if not settings.briefing_prices_in_report or not tickers:
         return []
     client = (
         maybe_briefing_price_client(settings) if price_client is _UNSET else price_client
     )
     if client is None:
         return []
-    tickers = _tickers_to_price(result, price_tickers, settings.briefing_price_max_tickers)
     snapshots: list[PriceSnapshot] = []
     for ticker in tickers:
         try:
@@ -104,6 +84,28 @@ async def _fetch_prices(
         if snap is not None:
             snapshots.append(snap)
     return snapshots
+
+
+def _format_price_moves(snapshots: list[PriceSnapshot], threshold_pct: float) -> str:
+    """Comma list of notable today-moves for the analyst, e.g. 'MU -10.1%, WDC +4.2%'."""
+    moves = []
+    for snap in snapshots:
+        chg = snap.change_from_prev_pct
+        if chg is not None and abs(chg) >= threshold_pct:
+            moves.append(f"{snap.ticker} {chg:+.1f}%")
+    return ", ".join(moves)
+
+
+def _order_for_display(
+    snapshots: list[PriceSnapshot], result: BriefingResult
+) -> list[PriceSnapshot]:
+    """Show the tickers the AI mentioned first, then the rest of the watchlist."""
+    mentioned: set[str] = {n.ticker for n in result.watchlist_notes}
+    for theme in result.themes:
+        mentioned.update(theme.tickers)
+    first = [s for s in snapshots if s.ticker in mentioned]
+    rest = [s for s in snapshots if s.ticker not in mentioned]
+    return first + rest
 
 
 def window_for(trigger: str, settings: Settings) -> float:
@@ -183,9 +185,18 @@ async def run_briefing(
     if prior_themes is None and memory is not None:
         prior_themes = memory.recent_theme_lines(retrieval.now)
 
+    # Prices fetched BEFORE analysis so notable movers can be fed to the AI
+    # (it flags a big move even when there is no news for it).
+    snapshots = await _fetch_snapshots(
+        settings, _price_tickers(settings, price_tickers), price_client
+    )
+    price_moves = _format_price_moves(snapshots, settings.briefing_price_move_threshold_pct)
+
     # 3. Analyze.
     try:
-        result = await analyst.analyze(retrieval, prior_themes=prior_themes, focus=focus)
+        result = await analyst.analyze(
+            retrieval, prior_themes=prior_themes, focus=focus, price_moves=price_moves
+        )
     except AnalystError as exc:
         logger.warning("Briefing analysis failed: %s", exc)
         run.skipped_reason = f"analysis failed: {exc}"
@@ -206,10 +217,7 @@ async def run_briefing(
         logger.info("Briefing [%s] -- quiet window, nothing sent.", trigger)
         return run
 
-    # Prices: show open + current (with freshness) for the relevant tickers.
-    prices = await _fetch_prices(
-        settings, result, price_tickers=price_tickers, price_client=price_client
-    )
+    prices = _order_for_display(snapshots, result)
 
     run.text = render_briefing(
         result,

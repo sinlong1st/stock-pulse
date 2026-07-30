@@ -130,7 +130,7 @@ class _FakeAnalyst:
         self.result = result
         self.focus_seen = None
 
-    async def analyze(self, retrieval, *, prior_themes=None, focus=None):
+    async def analyze(self, retrieval, *, prior_themes=None, focus=None, price_moves=None):
         self.focus_seen = focus
         return self.result
 

@@ -63,7 +63,7 @@ class _FakeAnalyst:
     def __init__(self, result: BriefingResult) -> None:
         self.result = result
 
-    async def analyze(self, retrieval, *, prior_themes=None, focus=None):
+    async def analyze(self, retrieval, *, prior_themes=None, focus=None, price_moves=None):
         return self.result
 
 
@@ -128,15 +128,60 @@ def test_full_report_prices_whole_watchlist(monkeypatch) -> None:
     wl = WatchlistConfig(tickers=("NVDA", "MSFT", "WDC"), aliases={})
     monkeypatch.setattr(bmod, "get_watchlist_config", lambda: wl)
 
-    # AI only mentioned MSFT (only it had news)...
+    tickers = bmod._price_tickers(Settings(_env_file=None), None)
+    assert set(tickers) == {"NVDA", "MSFT", "WDC"}  # whole watchlist priced
+
+    # Display order leads with the ticker the AI mentioned.
     result = BriefingResult(
         has_material_update=True,
         headline="MSFT",
         themes=[BriefingTheme(theme="MSFT", direction="bullish", insight="x", tickers=["MSFT"])],
     )
-    picked = bmod._tickers_to_price(result, None, 12)
-    assert picked[0] == "MSFT"  # news-maker leads
-    assert set(picked) == {"NVDA", "MSFT", "WDC"}  # ...but the whole watchlist is priced
+    snaps = [PriceSnapshot(t, 1.0, None, None, None) for t in ("NVDA", "MSFT", "WDC")]
+    ordered = bmod._order_for_display(snaps, result)
+    assert ordered[0].ticker == "MSFT"
+
+
+def test_format_price_moves_filters_by_threshold() -> None:
+    from app.jobs.briefing import _format_price_moves
+
+    snaps = [
+        PriceSnapshot("MU", 90.0, NOW, 100.0, 100.0),  # -10% -> included
+        PriceSnapshot("WDC", 104.0, NOW, 100.0, 100.0),  # +4% -> included
+        PriceSnapshot("NVDA", 101.0, NOW, 100.0, 100.0),  # +1% -> below 3% threshold
+    ]
+    moves = _format_price_moves(snaps, 3.0)
+    assert "MU -10.0%" in moves
+    assert "WDC +4.0%" in moves
+    assert "NVDA" not in moves
+
+
+class _MoverCapturingAnalyst:
+    def __init__(self) -> None:
+        self.price_moves_seen = None
+
+    async def analyze(self, retrieval, *, prior_themes=None, focus=None, price_moves=None):
+        self.price_moves_seen = price_moves
+        return BriefingResult(has_material_update=True, headline="x")
+
+
+async def test_movers_are_fed_to_the_analyst() -> None:
+    analyst = _MoverCapturingAnalyst()
+    mover = _FakePriceClient()
+    # WDC moves +2.7% from prev close (65.2 vs 63.5) -> below default 3% by a hair;
+    # use a lower threshold so it registers.
+    await run_report(
+        "wdc",
+        settings=Settings(
+            _env_file=None, price_features_enabled=True, briefing_price_move_threshold_pct=1.0
+        ),
+        analyst=analyst,
+        notifier=_FakeNotifier(),
+        retrieval=_retrieval(),
+        memory=None,
+        price_client=mover,
+    )
+    assert analyst.price_moves_seen and "WDC" in analyst.price_moves_seen
 
 
 async def test_prices_skipped_when_feature_disabled() -> None:

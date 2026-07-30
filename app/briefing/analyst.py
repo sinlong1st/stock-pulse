@@ -68,11 +68,20 @@ reversing? Trends matter more than one-off headlines.
 4. MATERIALITY - set has_material_update=false if this window brings nothing a \
 busy investor needs. Repetition of an already-reported story is NOT material \
 unless it escalated. Do not invent significance.
+5. PRICE ACTION - PRICE_MOVES lists notable market moves in the watchlist today. \
+If a stock moved notably but has NO news here explaining it, still surface it as a \
+short watchlist_note labeled price-driven (e.g. "down 10% today, no clear \
+catalyst"). Never invent a reason for the move.
 
 Rules:
   - Ground every claim in a provided headline. Never speculate beyond the news.
   - No investment advice, no price targets - analysis, not recommendations.
   - Be concise and skimmable; a tired human reads this on a phone.
+  - "theme" is a short natural label (e.g. "AI & semiconductors", "Fed & rates"), \
+NOT the raw focus-theme list.
+  - "risk_flags" lists only ACTUAL geopolitical/war/oil/macro risks live right \
+now, each a short phrase; use [] when there are none. NEVER copy the schema's \
+description text into the output.
   - Write all human-facing text (headline, insight, note, risk_flags) in {language}. \
 Keep JSON keys, enum values, and tickers exactly as specified in English.
 
@@ -88,7 +97,7 @@ Return JSON ONLY with this shape:
       "sources": ["source name(s)"]}}
   ],
   "watchlist_notes": [{{"ticker": "...", "note": "...", "direction": "bullish|bearish|mixed"}}],
-  "risk_flags": ["war/geopolitics/oil shocks worth watching, if any"]
+  "risk_flags": []
 }}"""
 
 
@@ -142,6 +151,7 @@ def build_user_message(
     prior_themes: list[str] | None = None,
     max_items: int = 40,
     focus: str | None = None,
+    price_moves: str | None = None,
 ) -> str:
     items = retrieval.usable[:max_items]
     if items:
@@ -153,10 +163,12 @@ def build_user_message(
     prior_block = "\n".join(f"- {t}" for t in prior) if prior else "(none)"
 
     focus_line = f"FOCUS REQUEST: {focus}\n" if focus else ""
+    moves_line = f"PRICE_MOVES (today): {price_moves}\n" if price_moves else ""
     return (
         f"{focus_line}"
         f"NOW: {retrieval.now.isoformat(timespec='minutes')}\n"
-        f"FRESHNESS WINDOW: {retrieval.window_hours:.0f}h\n\n"
+        f"FRESHNESS WINDOW: {retrieval.window_hours:.0f}h\n"
+        f"{moves_line}\n"
         f"LATEST_NEWS ({len(items)} items):\n{news_block}\n\n"
         f"PRIOR_THEMES (last few hours):\n{prior_block}"
     )
@@ -196,6 +208,7 @@ class MarketAnalyst:
         *,
         prior_themes: list[str] | None = None,
         focus: str | None = None,
+        price_moves: str | None = None,
     ) -> BriefingResult:
         system = build_system_prompt(
             watchlist=self.watchlist,
@@ -205,7 +218,11 @@ class MarketAnalyst:
             focus=focus,
         )
         user = build_user_message(
-            retrieval, prior_themes=prior_themes, max_items=self.max_items, focus=focus
+            retrieval,
+            prior_themes=prior_themes,
+            max_items=self.max_items,
+            focus=focus,
+            price_moves=price_moves,
         )
         payload = {
             "model": self.model,

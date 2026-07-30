@@ -120,5 +120,11 @@ class BriefingResult(BaseModel):
     @classmethod
     def _clean_flags(cls, v: object) -> object:
         if isinstance(v, list):
-            return [str(f).strip() for f in v if str(f).strip()]
+            out = []
+            for f in v:
+                s = str(f).strip()
+                # Drop empties and any echo of the schema's placeholder text.
+                if s and "worth watching, if any" not in s.lower():
+                    out.append(s)
+            return out
         return v or []
