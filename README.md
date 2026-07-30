@@ -12,8 +12,25 @@ full product and technical plans.
 
 ## Status
 
-**Phase 0 — Project Foundation** (current): runnable FastAPI skeleton with
-configuration, logging, and a health check. No news collection or AI yet.
+**Live in production** — deployed 24/7 on a DigitalOcean droplet via Docker.
+What it does today:
+
+- **News → alerts:** collects RSS (watchlist + macro), dedupes, rule-filters,
+  AI-classifies (importance/category/sentiment/tickers), and sends Telegram
+  alerts on a schedule. Quiet hours hold non-urgent alerts overnight.
+- **Self-evaluation:** scores the AI's bullish/bearish calls against real price
+  moves (`/evaluation`, optional daily digest).
+- **Market Briefing "the secretary":** pulls the *latest* news and an AI analyst
+  reports what matters for your watchlist — scheduled (08:30 → every 2h → 18:00
+  PT weekdays) and on demand via `/report` (whole watchlist or a single stock),
+  with open/current prices + honest freshness labels and price-mover flags.
+- **Manage from Telegram:** `/watchlist`, `/watch <name>`, `/unwatch`, `/help`.
+
+Feature designs live in `specs/` (evaluation, briefing, watchlist-commands
+plans, all marked shipped); progress overview in
+[`specs/STOCKPULSE_PHASE_GUIDE.md`](specs/STOCKPULSE_PHASE_GUIDE.md). Deploy:
+[`DEPLOY.md`](DEPLOY.md) (+ [`BUYING_A_SERVER.md`](BUYING_A_SERVER.md) for a
+first server).
 
 ## Requirements
 
@@ -230,4 +247,9 @@ Development proceeds one phase at a time (see the technical plan):
 7. Scheduled end-to-end pipeline ✅
 8. Quiet hours, price confirmation & self-evaluation ✅
 9. Market briefing + on-demand /report ✅ (web search deferred)
-10. Docker deploy ✅ · CI
+10. Manage watchlist from Telegram (/watch /unwatch) ✅
+11. Docker deploy ✅ · CI (todo)
+
+Deferred / ideas: briefing **web search** (let the model pull news itself,
+`BRIEFING_WEB_SEARCH_ENABLED`); AI-fallback name resolution for `/watch` typos;
+GitHub Actions CI.

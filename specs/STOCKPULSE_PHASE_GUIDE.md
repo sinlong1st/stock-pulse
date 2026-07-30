@@ -11,17 +11,27 @@ check it works.** Update the status column as we go.
 
 ## Where we are now
 
+**Live in production** — deployed 24/7 on a DigitalOcean droplet via Docker.
+
 ```
-✅ Phase 0  Foundation (web server + /health)
-✅ Phase 1  News collection (pull real headlines)
-✅ Phase 2  Remember what it's seen (database + dedup)
-✅ Phase 3  Filter out the noise (keywords/watchlist)
-✅ Phase 4  AI decides what matters
-✅ Phase 5  Alert rules (should we notify?)
-✅ Phase 6  Send Telegram alerts
-✅ Phase 7  Run automatically every few minutes   ← YOU ARE HERE
-⬜ Phase 8  Package it up (Docker + CI)
+✅ Phase 0   Foundation (web server + /health)
+✅ Phase 1   News collection (pull real headlines)
+✅ Phase 2   Remember what it's seen (database + dedup)
+✅ Phase 3   Filter out the noise (keywords/watchlist)
+✅ Phase 4   AI decides what matters (+ sentiment)
+✅ Phase 5   Alert rules (should we notify?)
+✅ Phase 6   Send Telegram alerts
+✅ Phase 7   Run automatically (per-source schedules)
+✅ Phase 8   Quiet hours + price context + self-evaluation   (see EVALUATION_PLAN)
+✅ Phase 9   Market Briefing "secretary" + on-demand /report   (see BRIEFING_PLAN)
+✅ Phase 10  Manage watchlist from Telegram (/watch /unwatch …) (see WATCHLIST_COMMANDS_PLAN)
+✅ Phase 11  Docker deploy (Dockerfile + compose + DEPLOY.md)   ← LIVE
+⬜ Later     CI; briefing web-search (step H); optional extras
 ```
+
+Each of the later phases has its own spec in `specs/` with full design + a
+build-order table marked shipped. This guide tracks the original MVP pipeline
+(phases 0–7); the newer capabilities are summarized in §"Beyond the MVP" below.
 
 ---
 
@@ -135,25 +145,50 @@ Each phase lights up one more box. Boxes with ✅ exist today.
 | **Configure** | `SCHEDULER_ENABLED` (default false); `WATCHLIST_FETCH_INTERVAL_MINUTES` (5) + `MACRO_FETCH_INTERVAL_MINUTES` (30) run as two independent jobs; `MAX_CLASSIFICATIONS_PER_RUN`, `MAX_ALERTS_PER_RUN`. |
 | **Cost** | Enabling the scheduler spends OpenAI credit and sends Telegram on its own; caps limit each run. |
 
-### ⬜ Phase 8 — Docker & CI
-| | |
-|---|---|
-| **Goal** | Make it easy to run anywhere and validate every change. |
-| **What you can do** | Clone → run with documented steps; tests run automatically on push. |
-| **What you'll see** | A `Dockerfile` and green GitHub Actions checks. |
-| **How to test** | `docker compose up`; CI passes on a pull request. |
+### ✅ Phase 8 — Quiet hours + price context + self-evaluation
+See **STOCKPULSE_EVALUATION_PLAN.md** (build order A–E all shipped). Adds a daily
+quiet window that holds non-urgent alerts, Alpaca price context, and a
+self-evaluation loop that scores the AI's bullish/bearish calls against real
+price moves (`/evaluation` page, `POST /evaluate`, optional daily digest).
+
+### ✅ Phase 9 — Market Briefing "the secretary" + on-demand /report
+See **STOCKPULSE_BRIEFING_PLAN.md** (A–G shipped; web search = deferred step H).
+A separate pipeline from alerts: pull the **latest** news → an AI analyst
+synthesizes what matters for the watchlist → deliver. Scheduled (08:30 → every
+2h → 18:00 PT weekdays) and on demand (`/report`, `/report wdc`, `POST /report`).
+Includes a timestamp/recap guard, rolling theme memory, notable price-mover
+flags, and open/current price lines with honest freshness labels (Yahoo source).
+
+### ✅ Phase 10 — Manage the watchlist from Telegram
+See **STOCKPULSE_WATCHLIST_COMMANDS_PLAN.md** (A–E shipped). A command router on
+the Telegram listener: `/watchlist`, `/watch <name>` (Yahoo name→ticker),
+`/unwatch <ticker>`, `/help`. Edits `watchlist.json` live (no restart).
+
+### ✅ Phase 11 — Docker deploy
+`Dockerfile` + `docker-compose.yml` (restart policy, data volume, writable
+watchlist mount) + `DEPLOY.md` + `BUYING_A_SERVER.md`. Running 24/7 on a
+DigitalOcean droplet. CI is still a "later".
 
 ---
 
 ## When is the MVP "done"?
 
-When StockPulse can, on its own: pull real news → skip duplicates → filter noise →
-AI-classify what's left → decide if it matters → send a Telegram alert → and store
-the history — all on a schedule, for **under $10/month**.
-
-That's the end of **Phase 7** (with Phase 8 making it easy to deploy).
+The MVP ended at **Phase 7**: on its own, pull real news → skip duplicates →
+filter noise → AI-classify → decide if it matters → send a Telegram alert →
+store history, on a schedule, for **under $10/month**. Everything since (8–11)
+is the "trust + control" layer on top, and it's all shipped and deployed.
 
 ---
+
+## Beyond the MVP — where things live
+
+- **Alerts pipeline:** `app/jobs/news_monitor.py`, `app/pipeline/`, `app/alerts/`.
+- **Self-evaluation:** `app/evaluation.py`, `app/jobs/evaluator.py`.
+- **Prices:** `app/prices.py` (Alpaca + Yahoo clients, freshness labels).
+- **Briefing ("secretary"):** `app/briefing/` (retrieval, analyst, render, memory,
+  focus) + `app/jobs/briefing.py` (the `run_briefing`/`run_report` job).
+- **Telegram commands:** `app/alerts/telegram_listener.py` (router) + `app/commands/`.
+- **Config:** everything is in `app/config.py` (typed) + `.env.example`.
 
 ## How to try whatever is built so far
 
@@ -161,14 +196,15 @@ That's the end of **Phase 7** (with Phase 8 making it easy to deploy).
 # 1. activate the environment
 .\.venv\Scripts\Activate.ps1
 
-# 2. start the app
-uvicorn app.main:app --reload
+# 2. start the app (add --reload for development)
+uvicorn app.main:app
 
-# 3. in a browser, see the latest headlines as a clean page
-#    http://127.0.0.1:8000/
-#    (or the interactive API page: http://127.0.0.1:8000/docs)
+# 3. dashboard + docs
+#    http://127.0.0.1:8000/       (news + Fetch/Analyze/Report buttons)
+#    http://127.0.0.1:8000/evaluation
+#    http://127.0.0.1:8000/docs   (interactive API)
 
-# run the tests any time
+# run the tests any time (all external services mocked)
 pytest
 ```
 
