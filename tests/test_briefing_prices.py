@@ -121,6 +121,24 @@ async def test_focused_report_prices_the_target_ticker() -> None:
     assert "🕒" in notifier.sent[0]  # timestamp present
 
 
+def test_full_report_prices_whole_watchlist(monkeypatch) -> None:
+    from app.jobs import briefing as bmod
+    from app.watchlist import WatchlistConfig
+
+    wl = WatchlistConfig(tickers=("NVDA", "MSFT", "WDC"), aliases={})
+    monkeypatch.setattr(bmod, "get_watchlist_config", lambda: wl)
+
+    # AI only mentioned MSFT (only it had news)...
+    result = BriefingResult(
+        has_material_update=True,
+        headline="MSFT",
+        themes=[BriefingTheme(theme="MSFT", direction="bullish", insight="x", tickers=["MSFT"])],
+    )
+    picked = bmod._tickers_to_price(result, None, 12)
+    assert picked[0] == "MSFT"  # news-maker leads
+    assert set(picked) == {"NVDA", "MSFT", "WDC"}  # ...but the whole watchlist is priced
+
+
 async def test_prices_skipped_when_feature_disabled() -> None:
     result = BriefingResult(has_material_update=True, headline="x",
                             themes=[BriefingTheme(theme="WDC", direction="bullish", insight="up")])

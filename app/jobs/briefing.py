@@ -51,18 +51,23 @@ class BriefingRun:
 def _tickers_to_price(
     result: BriefingResult, price_tickers: list[str] | None, max_n: int
 ) -> list[str]:
-    """Which tickers to show prices for: explicit list (focused report) or the
-    watchlist tickers the AI actually mentioned (full briefing), capped."""
+    """Which tickers to show prices for.
+
+    Focused report: the explicit list. Full briefing: EVERY watchlist ticker
+    (so quiet stocks still show a price), leading with the ones the AI actually
+    mentioned in the news. Capped for cost.
+    """
     if price_tickers is not None:
         picked = price_tickers
     else:
-        watchlist = set(get_watchlist_config().tickers)
-        picked = []
-        for note in result.watchlist_notes:
-            picked.append(note.ticker)
+        watchlist = list(get_watchlist_config().tickers)
+        watchset = set(watchlist)
+        mentioned = [n.ticker for n in result.watchlist_notes]
         for theme in result.themes:
-            picked.extend(theme.tickers)
-        picked = [t for t in picked if t in watchlist]
+            mentioned.extend(theme.tickers)
+        mentioned = [t for t in mentioned if t in watchset]
+        # News-makers first, then the rest of the watchlist.
+        picked = mentioned + watchlist
     # De-dupe preserving order, then cap.
     seen: set[str] = set()
     out: list[str] = []

@@ -128,7 +128,7 @@ class Settings(BaseSettings):
     # Show open + current price (with freshness) in briefings. Needs
     # PRICE_FEATURES_ENABLED + Alpaca keys. Capped to limit price lookups.
     briefing_prices_in_report: bool = True
-    briefing_price_max_tickers: int = 6
+    briefing_price_max_tickers: int = 12  # full /report prices the whole watchlist
     # On-demand /report Telegram command (getUpdates listener).
     briefing_command_enabled: bool = False
     briefing_command: str = "/report"
