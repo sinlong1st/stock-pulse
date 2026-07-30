@@ -27,6 +27,9 @@ keywords.json
 # Briefing rolling theme memory (runtime state, not config)
 briefing_memory.json
 
+# Runtime user prefs, e.g. the /language choice (runtime state, not config)
+runtime_prefs.json
+
 # Testing / tooling caches
 .pytest_cache/
 .ruff_cache/

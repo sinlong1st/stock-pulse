@@ -1,7 +1,8 @@
 # StockPulse — always-on deployment (single container).
 #
-# The DB and rolling theme memory are redirected into the ./data volume so they
-# survive rebuilds. watchlist.json / keywords.json are your local config (copy
+# The DB, rolling theme memory, and runtime prefs (the /language choice) are
+# redirected into the ./data volume so they survive rebuilds. watchlist.json /
+# keywords.json are your local config (copy
 # them from the .example.json files before first run). Secrets come from .env.
 services:
   stockpulse:
@@ -14,6 +15,7 @@ services:
       # Keep persistent state on the mounted volume (overrides .env defaults).
       - DATABASE_URL=sqlite:////app/data/stockpulse.db
       - BRIEFING_MEMORY_FILE=/app/data/briefing_memory.json
+      - PREFS_FILE=/app/data/runtime_prefs.json
     volumes:
       - ./data:/app/data
       # Writable: the /watch and /unwatch commands edit this file in place.

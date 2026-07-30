@@ -16,6 +16,7 @@ from pydantic import ValidationError
 from app.config import Settings, get_settings
 from app.models.article import NewsArticle
 from app.models.classification import ClassificationResult
+from app.prefs import resolve_language
 from app.watchlist import get_watchlist_config
 
 logger = logging.getLogger("stockpulse.classifier")
@@ -149,5 +150,5 @@ def build_classifier(settings: Settings | None = None) -> Classifier:
         settings.openai_api_key,
         model=settings.openai_model,
         base_url=settings.openai_base_url,
-        language=settings.output_language,
+        language=resolve_language(settings),
     )

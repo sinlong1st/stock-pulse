@@ -11,6 +11,7 @@ from app.evaluation import (
     build_evaluation_report,
     evaluate_predictions,
 )
+from app.prefs import resolve_language
 from app.prices import maybe_eval_price_client
 
 logger = logging.getLogger("stockpulse.jobs.evaluator")
@@ -66,7 +67,7 @@ async def run_daily_digest(
 
     with session_factory() as session:
         report = build_evaluation_report(session)
-    text = build_evaluation_digest(report, settings.output_language)
+    text = build_evaluation_digest(report, resolve_language(settings))
     try:
         await notifier.send(text)
     except NotifierError as exc:

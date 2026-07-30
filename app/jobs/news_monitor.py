@@ -27,7 +27,6 @@ from app.alerts import (
 )
 from app.alerts.policy import AlertPolicy
 from app.alerts.quiet_hours import is_quiet_now
-from app.alerts.telegram import Notifier
 from app.collectors import (
     build_all_collectors,
     build_macro_collector,
@@ -41,6 +40,7 @@ from app.evaluation import horizons_from_settings, record_predictions
 from app.pipeline.classifier import ClassificationError, Classifier, build_classifier
 from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
+from app.prefs import resolve_language
 from app.prices import PriceClient, maybe_eval_price_client, maybe_price_client
 from app.watchlist import get_watchlist_config
 
@@ -225,7 +225,7 @@ async def run_news_monitor(
                     {CHANNEL_TELEGRAM: notifier},
                     limit=settings.max_alerts_per_run,
                     include_link=settings.alert_include_link,
-                    language=settings.output_language,
+                    language=resolve_language(settings),
                     quiet_now=is_quiet_now(settings),
                     quiet_min_importance=settings.quiet_hours_min_importance,
                     price_client=maybe_price_client(settings),

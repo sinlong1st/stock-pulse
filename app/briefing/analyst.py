@@ -17,6 +17,7 @@ from pydantic import ValidationError
 from app.briefing.models import BriefingResult
 from app.briefing.retrieval import RetrievalResult, RetrievedItem
 from app.config import Settings, get_settings
+from app.prefs import resolve_language
 from app.watchlist import get_watchlist_config
 
 logger = logging.getLogger("stockpulse.briefing.analyst")
@@ -275,6 +276,6 @@ def build_analyst(settings: Settings | None = None) -> MarketAnalyst:
         settings.openai_api_key,
         model=settings.briefing_model,
         base_url=settings.openai_base_url,
-        language=settings.output_language,
+        language=resolve_language(settings),
         max_items=settings.briefing_max_items,
     )

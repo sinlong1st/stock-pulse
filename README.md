@@ -178,10 +178,15 @@ With the listener on (`BRIEFING_COMMAND_ENABLED=true`), text these to your bot:
 | `/watchlist` | Show your watched tickers |
 | `/watch tesla` | Add a stock (resolves the name → ticker via Yahoo) |
 | `/unwatch tsla` | Remove a stock |
+| `/language vi` | Switch AI output language — `en` or `vi` (others rejected) |
 | `/help` | List the commands |
 
 `/watch` and `/unwatch` edit `watchlist.json` and take effect immediately (news
-+ reports pick up the change, no restart). All commands are locked to your chat.
++ reports pick up the change, no restart). `/language` switches the AI output
+language between English (`en`) and Vietnamese (`vi`) live — the choice is saved
+to `runtime_prefs.json` (in the `./data` volume under Docker) and overrides
+`OUTPUT_LANGUAGE`; anything other than `en`/`vi` is politely rejected. All
+commands are locked to your chat.
 
 > **Docker note:** `docker-compose.yml` mounts `watchlist.json` **writable** so
 > `/watch`/`/unwatch` can persist. (If you deployed before this, `git pull &&

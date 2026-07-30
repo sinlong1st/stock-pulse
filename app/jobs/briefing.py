@@ -24,6 +24,7 @@ from app.briefing.render import render_briefing
 from app.briefing.retrieval import RetrievalResult, retrieve_fresh_news
 from app.collectors.base import NewsCollector
 from app.config import Settings, get_settings, resolve_briefing_timezone
+from app.prefs import resolve_language
 from app.prices import PriceSnapshot, maybe_briefing_price_client
 from app.watchlist import get_watchlist_config
 
@@ -221,7 +222,7 @@ async def run_briefing(
 
     run.text = render_briefing(
         result,
-        language=settings.output_language,
+        language=resolve_language(settings),
         trigger=trigger,
         subject=subject,
         generated_at=retrieval.now,

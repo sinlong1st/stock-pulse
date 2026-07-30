@@ -46,6 +46,7 @@ from app.logging_config import configure_logging
 from app.pipeline.classifier import ClassificationError, build_classifier
 from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
+from app.prefs import resolve_language
 from app.prices import maybe_eval_price_client, maybe_price_client
 from app.web import render_alerts_page, render_evaluation_page, render_news_page
 
@@ -174,9 +175,9 @@ async def lifespan(app: FastAPI):
                 "BRIEFING_COMMAND_ENABLED but Telegram not configured; /report listener off."
             )
         if report_notifier is not None:
-            vi = settings.output_language.strip().lower() == "vietnamese"
 
             async def _on_report(args: str) -> None:
+                vi = resolve_language(settings).strip().lower() == "vietnamese"
                 query = args.strip() or None
                 if query:
                     ack = (
@@ -254,7 +255,7 @@ def evaluation_page() -> HTMLResponse:
     settings = get_settings()
     with SessionLocal() as session:
         report = build_evaluation_report(session)
-    return HTMLResponse(render_evaluation_page(report, language=settings.output_language))
+    return HTMLResponse(render_evaluation_page(report, language=resolve_language(settings)))
 
 
 @app.post("/evaluate")
@@ -303,7 +304,7 @@ async def send_alerts(limit: int = 20) -> dict:
             {CHANNEL_TELEGRAM: notifier},
             limit=limit,
             include_link=settings.alert_include_link,
-            language=settings.output_language,
+            language=resolve_language(settings),
             price_client=maybe_price_client(settings),
         )
     return {"processed": result.processed, "sent": result.sent, "failed": result.failed}

@@ -9,6 +9,7 @@ _DESCRIPTIONS = {
     "/watchlist": ("Xem danh sách theo dõi", "Show your watchlist"),
     "/watch": ("Thêm cổ phiếu, vd /watch tesla", "Add a stock, e.g. /watch tesla"),
     "/unwatch": ("Bỏ theo dõi, vd /unwatch tsla", "Remove a stock, e.g. /unwatch tsla"),
+    "/language": ("Đổi ngôn ngữ (vi/en)", "Switch language (vi/en)"),
     "/help": ("Danh sách lệnh", "List commands"),
 }
 

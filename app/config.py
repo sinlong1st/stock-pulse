@@ -153,6 +153,11 @@ class Settings(BaseSettings):
     # app.keyword_config. See keywords.example.json for the format.
     keywords_file: str = "keywords.json"
 
+    # Runtime user preferences that commands can change live (e.g. the
+    # output language via /language). Overrides the env defaults above; in
+    # Docker this is redirected into the ./data volume so it survives rebuilds.
+    prefs_file: str = "runtime_prefs.json"
+
 
 @lru_cache
 def get_settings() -> Settings:
