@@ -91,12 +91,26 @@ def get_watchlist_config() -> WatchlistConfig:
 
 
 def _write_watchlist(config: WatchlistConfig, path: str | Path) -> None:
-    """Write the watchlist to ``path`` atomically (temp file then rename)."""
+    """Write the watchlist to ``path``.
+
+    Prefers an atomic temp-file-then-rename, but falls back to a direct write:
+    Docker bind-mounts ``watchlist.json`` as a single file, and you can't rename
+    over that (the temp file is on a different filesystem → cross-device error).
+    """
     path = Path(path)
     data = {ticker: config.aliases.get(ticker, []) for ticker in config.tickers}
+    content = json.dumps(data, ensure_ascii=False, indent=2)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.replace(tmp, path)
+    try:
+        tmp.write_text(content, encoding="utf-8")
+        os.replace(tmp, path)  # atomic on a normal filesystem
+    except OSError:
+        # Single-file bind mount (Docker): rename across filesystems fails.
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+        path.write_text(content, encoding="utf-8")
 
 
 def add_ticker(

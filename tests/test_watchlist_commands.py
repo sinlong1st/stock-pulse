@@ -37,6 +37,19 @@ def test_add_and_remove_roundtrip(tmp_path) -> None:
     assert remove_ticker("TSLA", path=wl) is False  # gone
 
 
+def test_write_falls_back_when_rename_fails(tmp_path, monkeypatch) -> None:
+    import app.watchlist as wl_mod
+
+    wl = _seed(tmp_path / "watchlist.json", {"NVDA": []})
+
+    def _cross_device(src, dst):  # simulate a single-file bind mount (Docker)
+        raise OSError("EXDEV: cross-device link")
+
+    monkeypatch.setattr(wl_mod.os, "replace", _cross_device)
+    assert add_ticker("TSLA", ["Tesla"], path=wl) is True
+    assert "TSLA" in load_watchlist(wl).tickers  # direct-write fallback worked
+
+
 def test_watchlist_file_is_empty(tmp_path) -> None:
     empty = _seed(tmp_path / "e.json", {})
     full = _seed(tmp_path / "f.json", {"NVDA": []})
