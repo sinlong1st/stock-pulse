@@ -65,7 +65,6 @@ export const mockWatchlist: WatchRow[] = [
 ];
 
 export const mockReport: Report = {
-  dateLabel: 'FRI 30 JUL',
   takeaway:
     "Rates are back in the driver's seat. AI hardware wobbles on China risk; software and storage hold up.",
   sections: [
@@ -86,6 +85,5 @@ export const mockReport: Report = {
     },
   ],
   watchlist: mockWatchlist,
-  freshness: 'AS OF FRI 13:00 PDT',
-  footnote: 'Generated 9:41 AM by StockPulse AI from 240 sources overnight. Not investment advice.',
+  note: null,
 };

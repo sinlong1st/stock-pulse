@@ -20,7 +20,7 @@ type Theme = {
 const ThemeCtx = createContext<Theme | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setMode] = useState<ThemeMode>('dark');
+  const [mode, setMode] = useState<ThemeMode>('light');
 
   const value = useMemo<Theme>(
     () => ({

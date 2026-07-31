@@ -21,6 +21,7 @@ from app.alerts import (
 )
 from app.alerts.telegram_listener import build_command_listener
 from app.api.feed import build_feed
+from app.api.report import build_report as build_mobile_report
 from app.api.watchlist import build_watchlist
 from app.collectors import build_all_collectors, collect_from
 from app.commands import build_command_handlers
@@ -263,6 +264,15 @@ async def api_watchlist(authorization: str | None = Header(default=None)) -> dic
     """Read-only watchlist for the mobile app: your tickers + best-effort prices."""
     settings = _require_mobile_api(authorization)
     return {"watchlist": await build_watchlist(settings)}
+
+
+@app.get("/api/report")
+async def api_report(
+    q: str | None = None, authorization: str | None = Header(default=None)
+) -> dict:
+    """Generate a briefing on-demand and return it as JSON (one OpenAI call)."""
+    settings = _require_mobile_api(authorization)
+    return await build_mobile_report(settings, query=q)
 
 
 @app.get("/", response_class=HTMLResponse)

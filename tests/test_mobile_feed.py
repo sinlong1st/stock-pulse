@@ -174,3 +174,55 @@ def test_watchlist_endpoint_200_with_token(monkeypatch) -> None:
         assert res.status_code == 200
         assert res.json()["watchlist"] == []
     config.get_settings.cache_clear()
+
+
+# --- report ----------------------------------------------------------------
+
+
+async def test_build_report_maps_themes(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    import app.api.report as report_api
+    from app.briefing.models import BriefingResult, BriefingTheme
+
+    result = BriefingResult(
+        has_material_update=True,
+        headline="Rates rule the tape",
+        themes=[BriefingTheme(theme="AI & semis", direction="bearish", insight="chips wobble")],
+    )
+
+    async def fake_run_report(query=None, *, deliver=True, settings=None):
+        return SimpleNamespace(result=result, skipped_reason=None)
+
+    async def fake_wl(settings):
+        return [{"ticker": "NVDA"}]
+
+    monkeypatch.setattr(report_api, "run_report", fake_run_report)
+    monkeypatch.setattr(report_api, "build_watchlist", fake_wl)
+
+    out = await report_api.build_report(Settings(_env_file=None))
+    assert out["takeaway"] == "Rates rule the tape"
+    assert out["sections"] == [
+        {"title": "AI & semis", "sentiment": "BEARISH", "body": "chips wobble"}
+    ]
+    assert out["watchlist"] == [{"ticker": "NVDA"}]
+    assert out["note"] is None
+
+
+async def test_build_report_handles_no_result(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    import app.api.report as report_api
+
+    async def fake_run_report(query=None, *, deliver=True, settings=None):
+        return SimpleNamespace(result=None, skipped_reason="no OpenAI key")
+
+    async def fake_wl(settings):
+        return []
+
+    monkeypatch.setattr(report_api, "run_report", fake_run_report)
+    monkeypatch.setattr(report_api, "build_watchlist", fake_wl)
+
+    out = await report_api.build_report(Settings(_env_file=None))
+    assert out["sections"] == []
+    assert out["note"] == "no OpenAI key"

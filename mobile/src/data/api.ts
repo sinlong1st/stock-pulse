@@ -3,8 +3,8 @@
  * config.ts; otherwise returns bundled mock data so the app always renders.
  */
 import { API_BASE_URL, API_TOKEN } from '../config';
-import { mockAlerts, mockWatchlist } from './mock';
-import { Alert, WatchRow } from './types';
+import { mockAlerts, mockReport, mockWatchlist } from './mock';
+import { Alert, Report, WatchRow } from './types';
 
 /** True when no backend is configured (the app is showing sample data). */
 export const usingMockData = !API_BASE_URL;
@@ -37,4 +37,10 @@ export async function fetchWatchlist(): Promise<WatchRow[]> {
   if (!API_BASE_URL) return mockWatchlist;
   const data = await getJson<{ watchlist?: WatchRow[] }>('/api/watchlist');
   return data.watchlist ?? [];
+}
+
+/** Generate a briefing on the server (one OpenAI call) — trigger on demand. */
+export async function fetchReport(): Promise<Report> {
+  if (!API_BASE_URL) return mockReport;
+  return getJson<Report>('/api/report');
 }

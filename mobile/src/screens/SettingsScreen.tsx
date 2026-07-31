@@ -1,24 +1,43 @@
 import { Feather } from '@expo/vector-icons';
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useTheme } from '../theme/ThemeContext';
+import { checkForUpdate, versionLabel } from '../updates';
 
 function SectionLabel({ children }: { children: string }) {
   const { colors } = useTheme();
   return <Text style={[styles.sectionLabel, { color: colors.muted }]}>{children}</Text>;
 }
 
-function Row({ label, value, danger }: { label: string; value?: string; danger?: boolean }) {
+function Row({
+  label,
+  value,
+  danger,
+  onPress,
+}: {
+  label: string;
+  value?: string;
+  danger?: boolean;
+  onPress?: () => void;
+}) {
   const { colors } = useTheme();
   return (
-    <Pressable style={[styles.row, { borderTopColor: colors.divider }]}>
+    <Pressable onPress={onPress} style={[styles.row, { borderTopColor: colors.divider }]}>
       <Text style={[styles.rowLabel, { color: danger ? colors.accent : colors.text }]}>{label}</Text>
       {value ? <Text style={[styles.rowValue, { color: colors.muted }]}>{value}</Text> : null}
       {!danger && <Feather name="chevron-right" size={16} color={colors.faint} />}
     </Pressable>
   );
+}
+
+async function onCheckUpdate() {
+  const r = await checkForUpdate();
+  if (r === 'current') Alert.alert('Up to date', 'You’re on the latest version.');
+  else if (r === 'dev') Alert.alert('Dev mode', 'OTA updates only apply in a real (EAS) build.');
+  else if (r === 'error') Alert.alert('Couldn’t check', 'Try again in a moment.');
+  // 'downloading' reloads the app automatically.
 }
 
 export function SettingsScreen() {
@@ -59,9 +78,11 @@ export function SettingsScreen() {
         <SectionLabel>INTEGRATIONS &amp; ACCOUNT</SectionLabel>
         <Row label="Link Telegram" value="✓ @jreyes" />
         <Row label="Manage subscription" />
+        <Row label="Check for updates" onPress={onCheckUpdate} />
         <Row label="Sign out" />
         <Row label="Delete account" danger />
 
+        <Text style={[styles.version, { color: colors.faint }]}>{versionLabel()}</Text>
         <Text style={[styles.disclaimer, { color: colors.faint }]}>
           AI-generated summaries. Not investment advice.
         </Text>
@@ -82,5 +103,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 13, borderTopWidth: 1 },
   rowLabel: { flex: 1, fontSize: 13.5, fontWeight: '700' },
   rowValue: { fontSize: 12 },
-  disclaimer: { fontSize: 10, fontWeight: '600', paddingHorizontal: 16, paddingVertical: 20 },
+  version: { fontSize: 10, fontWeight: '700', paddingHorizontal: 16, paddingTop: 20 },
+  disclaimer: { fontSize: 10, fontWeight: '600', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 20 },
 });

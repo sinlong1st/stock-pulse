@@ -41,10 +41,9 @@ export type ReportSection = {
 };
 
 export type Report = {
-  dateLabel: string; // "FRI 30 JUL"
   takeaway: string;
   sections: ReportSection[];
   watchlist: WatchRow[];
-  freshness: string;
-  footnote: string;
+  generatedAt?: string;
+  note?: string | null;
 };
