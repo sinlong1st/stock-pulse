@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<template id="__bundler_thumbnail" data-bg-color="#151312">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#151312"/>
+    <rect x="480" y="300" width="240" height="240" fill="#6495ED"/>
+    <polyline points="512,470 568,470 592,378 624,500 648,422 704,422" fill="none" stroke="#151312" stroke-width="24" stroke-linecap="square"/>
+  </svg>
+</template>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;background:#e7e5e4;}
+  *{box-sizing:border-box;}
+  [data-sp="dark"]{
+    --sp-bg:#151312; --sp-surface:#201e1d; --sp-surface-2:#2b2827; --sp-elevated:#2b2827;
+    --sp-text:#f3f2f2; --sp-muted:#9b9797; --sp-faint:#726f6e;
+    --sp-divider:rgba(243,242,242,0.13); --sp-divider-strong:rgba(243,242,242,0.34);
+    --sp-accent:#6495ED; --sp-accent-ink:#a9c6f5; --sp-accent-bg:rgba(100,149,237,0.18); --sp-on-accent:#0f1b2e;
+    --sp-bull:#3fbf6a; --sp-bull-ink:#7ad598; --sp-bull-bg:rgba(63,191,106,0.16);
+    --sp-bear:#e5942f; --sp-bear-ink:#f0b25e; --sp-bear-bg:rgba(229,148,47,0.16);
+    --sp-neutral:#9b9797; --sp-neutral-ink:#b6b3b3; --sp-neutral-bg:rgba(155,151,151,0.16);
+    --sp-shimmer:rgba(243,242,242,0.07); --sp-shimmer-2:rgba(243,242,242,0.14);
+  }
+  [data-sp="light"]{
+    --sp-bg:#f3f2f2; --sp-surface:#eae9e9; --sp-surface-2:#e0dedd; --sp-elevated:#ffffff;
+    --sp-text:#201e1d; --sp-muted:#726f6e; --sp-faint:#9b9797;
+    --sp-divider:rgba(32,30,29,0.15); --sp-divider-strong:rgba(32,30,29,0.4);
+    --sp-accent:#6495ED; --sp-accent-ink:#2f5aa8; --sp-accent-bg:#dde8fb; --sp-on-accent:#0f1b2e;
+    --sp-bull:#1a7d3c; --sp-bull-ink:#155f2e; --sp-bull-bg:#e0efe4;
+    --sp-bear:#b3590f; --sp-bear-ink:#8a440b; --sp-bear-bg:#f4e6d7;
+    --sp-neutral:#605d5d; --sp-neutral-ink:#444141; --sp-neutral-bg:#e2dfde;
+    --sp-shimmer:rgba(32,30,29,0.055); --sp-shimmer-2:rgba(32,30,29,0.11);
+  }
+  @keyframes sp-pulse { 0%,100%{opacity:0.45} 50%{opacity:0.9} }
+  @keyframes sp-spin { to { transform:rotate(360deg) } }
+</style>
+</helmet>
+<div style="min-height:100vh; background:#e7e5e4; color:#201e1d; font-family:Archivo,system-ui,sans-serif; padding:72px 72px 120px;">
+
+  <!-- COVER -->
+  <div style="max-width:1360px; margin:0 auto 96px;">
+    <div style="display:flex; align-items:flex-start; gap:28px; border-bottom:3px solid #201e1d; padding-bottom:28px;">
+      <div style="width:96px; height:96px; flex:none; background:#6495ED; display:flex; align-items:center; justify-content:center;">
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" stroke="#f3f2f2" stroke-width="6" stroke-linecap="square" stroke-linejoin="miter"><polyline points="6,38 20,38 26,16 34,46 40,30 54,30"/></svg>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:13px; font-weight:800; letter-spacing:0.22em; color:#2f5aa8;">MARKET INTELLIGENCE · MOBILE</div>
+        <h1 style="font-size:76px; font-weight:900; letter-spacing:-0.03em; line-height:0.94; margin:6px 0 0;">StockPulse</h1>
+        <p style="font-size:19px; line-height:1.5; max-width:720px; margin:16px 0 0; color:#413e3d;">A calm, trustworthy analyst in your pocket. Around-the-clock news, judged by AI for what actually matters to your stocks — pushed as plain-English alerts and briefings. React Native · iOS + Android · light &amp; dark.</p>
+      </div>
+      <div style="flex:none; width:230px; border-left:2px solid rgba(32,30,29,0.4); padding-left:22px; display:flex; flex-direction:column; gap:10px;">
+        <div style="font-size:11px; font-weight:800; letter-spacing:0.1em; color:#726f6e;">IN THIS FILE</div>
+        <a href="#sec-tokens" style="font-size:14px; font-weight:700; color:#201e1d; text-decoration:none;">01 &nbsp;Design tokens</a>
+        <a href="#sec-components" style="font-size:14px; font-weight:700; color:#201e1d; text-decoration:none;">02 &nbsp;Component set</a>
+        <a href="#sec-screens" style="font-size:14px; font-weight:700; color:#201e1d; text-decoration:none;">03 &nbsp;Screens · states</a>
+        <a href="#sec-brand" style="font-size:14px; font-weight:700; color:#201e1d; text-decoration:none;">04 &nbsp;Icon &amp; splash</a>
+        <a href="#sec-flow" style="font-size:14px; font-weight:700; color:#201e1d; text-decoration:none;">05 &nbsp;Navigation map</a>
+      </div>
+    </div>
+    <div style="display:flex; gap:0; margin-top:0; border-bottom:2px solid rgba(32,30,29,0.4);">
+      <div style="flex:1; padding:16px 20px 16px 0; border-right:2px solid rgba(32,30,29,0.4);"><div style="font-size:11px; font-weight:800; letter-spacing:0.08em; color:#726f6e;">PRIMARY</div><div style="font-size:15px; font-weight:700; margin-top:3px;">Serious individual investor</div></div>
+      <div style="flex:1; padding:16px 20px;"><div style="font-size:11px; font-weight:800; letter-spacing:0.08em; color:#726f6e;">TONE</div><div style="font-size:15px; font-weight:700; margin-top:3px;">Confident, quiet — never hype</div></div>
+      <div style="flex:1; padding:16px 20px; border-left:2px solid rgba(32,30,29,0.4);"><div style="font-size:11px; font-weight:800; letter-spacing:0.08em; color:#726f6e;">SYSTEM</div><div style="font-size:15px; font-weight:700; margin-top:3px;">Modernist · Archivo · 0px radius</div></div>
+      <div style="flex:1; padding:16px 0 16px 20px; border-left:2px solid rgba(32,30,29,0.4);"><div style="font-size:11px; font-weight:800; letter-spacing:0.08em; color:#726f6e;">A11Y</div><div style="font-size:15px; font-weight:700; margin-top:3px;">WCAG AA · icon+label, never color alone</div></div>
+    </div>
+  </div>
+
+  <!-- =============== 01 · TOKENS =============== -->
+  <div id="sec-tokens" style="max-width:1360px; margin:0 auto 40px;">
+    <div style="display:flex; align-items:baseline; gap:16px; border-bottom:2px solid #201e1d; padding-bottom:10px;">
+      <span style="font-size:13px; font-weight:900; letter-spacing:0.1em; color:#2f5aa8;">01</span>
+      <h2 style="font-size:36px; font-weight:900; letter-spacing:-0.025em; margin:0;">Design tokens</h2>
+      <span style="margin-left:auto; font-size:12px; font-weight:700; color:#726f6e;">Two themes · dark is default · sentiment &amp; importance carry shape + label, never hue alone</span>
+    </div>
+  </div>
+  <div style="max-width:1360px; margin:0 auto 30px; display:flex; gap:28px; flex-wrap:wrap;">
+    <!-- DARK panel -->
+    <div data-sp="dark" style="flex:1; min-width:560px; background:var(--sp-bg); color:var(--sp-text); border:2px solid #201e1d;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:2px solid var(--sp-divider-strong);">
+        <div style="font-size:15px; font-weight:900; letter-spacing:0.02em;">DARK THEME</div>
+        <div style="font-size:10px; font-weight:800; letter-spacing:0.1em; padding:3px 8px; background:var(--sp-accent); color:var(--sp-on-accent);">DEFAULT</div>
+      </div>
+      <div style="padding:18px; display:flex; flex-direction:column; gap:20px;">
+        <div>
+          <div style="font-size:10px; font-weight:800; letter-spacing:0.1em; color:var(--sp-muted); margin-bottom:10px;">SURFACES &amp; INK</div>
+          <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:10px;">
+            <div><div style="height:46px; background:var(--sp-bg); border:1px solid var(--sp-divider-strong);"></div><div style="font-size:10px; font-weight:800; margin-top:5px;">bg</div><div style="font-size:9px; font-family:monospace; color:var(--sp-muted);">#151312</div></div>
+            <div><div style="height:46px; background:var(--sp-surface); border:1px solid var(--sp-divider);"></div><div style="font-size:10px; font-weight:800; margin-top:5px;">surface</div><div style="font-size:9px; font-family:monospace; color:var(--sp-muted);">#201e1d</div></div>
+            <div><div style="height:46px; background:var(--sp-surface-2); border:1px solid var(--sp-divider);"></div><div style="font-size:10px; font-weight:800; margin-top:5px;">surface-2</div><div style="font-size:9px; font-family:monospace; color:var(--sp-muted);">#2b2827</div></div>
+            <div><div style="height:46px; background:var(--sp-text);"></div><div style="font-size:10px; font-weight:800; margin-top:5px;">text</div><div style="font-size:9px; font-family:monospace; color:var(--sp-muted);">#f3f2f2</div></div>
+            <div><div style="height:46px; background:var(--sp-muted);"></div><div style="font-size:10px; font-weight:800; margin-top:5px;">muted</div><div style="font-size:9px; font-family:monospace; color:var(--sp-muted);">#9b9797</div></div>
+            <div><div style="height:46px; background:var(--sp-divider-strong);"></div><div style="font-size:10px; font-weight:800; margin-top:5px;">divider</div><div style="font-size:9px; font-family:monospace; color:var(--sp-muted);">34%</div></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px; font-weight:800; letter-spacing:0.1em; color:var(--sp-muted); margin-bottom:10px;">BRAND · ACCENT</div>
+          <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:10px;">
+            <div><div style="height:46px; background:var(--sp-accent);"></div><div style="font-size:10px; font-weight:800; margin-top:5px;">accent</div><div style="font-size:9px; font-family:monospace; color:var(--sp-muted);">#6495ED</div></div>
+            <div><div style="height:46px; background:var(--sp-accent-ink);"></div><div style="font-size:10px; font-weight:800; margin-top:5px;">accent-ink</div><div style="font-size:9px; font-family:monospace; color:var(--sp-muted);">#a9c6f5</div></div>
+            <div><div style="height:46px; background:var(--sp-accent-bg); border:1px solid var(--sp-divider);"></div><div style="font-size:10px; font-weight:800; margin-top:5px;">accent-bg</div><div style="font-size:9px; font-family:monospace; color:var(--sp-muted);">16%</div></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px; font-weight:800; letter-spacing:0.1em; color:var(--sp-muted); margin-bottom:10px;">SENTIMENT</div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <sc-for list="{{ sentVariants }}" as="s">
+              <div style="display:inline-flex; align-items:center; gap:6px; padding:6px 12px; background:{{ s.bg }}; color:{{ s.fg }};">
+                <span style="font-size:13px; font-weight:900; line-height:1;">{{ s.glyph }}</span><span style="font-size:11px; font-weight:800; letter-spacing:0.05em;">{{ s.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px; font-weight:800; letter-spacing:0.1em; color:var(--sp-muted); margin-bottom:10px;">IMPORTANCE LADDER</div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <sc-for list="{{ impVariants }}" as="v">
+              <div style="display:inline-flex; align-items:center; gap:7px; padding:5px 10px; background:{{ v.bg }}; color:{{ v.fg }};">
+                <div style="display:flex; gap:2px;"><sc-for list="{{ v.cells }}" as="c"><div style="width:3px; height:12px; background:{{ c }};"></div></sc-for></div>
+                <span style="font-size:10px; font-weight:800; letter-spacing:0.06em;">{{ v.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- LIGHT panel -->
+    <div data-sp="light" style="flex:1; min-width:560px; background:var(--sp-bg); color:var(--sp-text); border:2px solid #201e1d;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:2px solid var(--sp-divider-strong);">
+        <div style="font-size:15px; font-weight:900; letter-spacing:0.02em;">LIGHT THEME</div>
+        <div style="font-size:10px; font-weight:800; letter-spacing:0.1em; padding:3px 8px; border:1px solid var(--sp-divider-strong); color:var(--sp-muted);">OPT-IN</div>
+      </div>
+      <div style="padding:18px; display:flex; flex-direction:column; gap:20px;">
+        <div>
+          <div style="font-size:10px; font-weight:800; letter-spacing:0.1em; color:var(--sp-muted); margin-bottom:10px;">SURFACES &amp; INK</div>
+          <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:10px;">
+            <div><div style="height:46px; background:var(--sp-bg); border:1px solid var(--sp-divider-strong);"></div><div style="font-size:10px; font-weight:800; margin-top:5px;">bg</div><div style="font-size:9px; font-family:monospace; color:var(--sp-muted);">#f3f2f2</div></div>
+            <div><div style="height:46px; background:var(--sp-surface); border:1px solid var(--sp-divider);"></div><div style="font-size:10px; font-weight:800; margin-top:5px;">surface</div><div style="font-size:9px; font-family:monospace; color:var(--sp-muted);">#eae9e9</div></div>
+            <div><div style="height:46px; background:var(--sp-surface-2); border:1px solid var(--sp-divider);"></div><div style="font-size:10px; font-weight:800; margin-top:5px;">surface-2</div><div style="font-size:9px; font-family:monospace; color:var(--sp-muted);">#e0dedd</div></div>
+            <div><div style="height:46px; background:var(--sp-text);"></div><div style="font-size:10px; font-weight:800; margin-top:5px;">text</div><div style="font-size:9px; font-family:monospace; color:var(--sp-muted);">#201e1d</div></div>
+            <div><div style="height:46px; background:var(--sp-muted);"></div><div style="font-size:10px; font-weight:800; margin-top:5px;">muted</div><div style="font-size:9px; font-family:monospace; color:var(--sp-muted);">#726f6e</div></div>
+            <div><div style="height:46px; background:var(--sp-divider-strong);"></div><div style="font-size:10px; font-weight:800; margin-top:5px;">divider</div><div style="font-size:9px; font-family:monospace; color:var(--sp-muted);">40%</div></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px; font-weight:800; letter-spacing:0.1em; color:var(--sp-muted); margin-bottom:10px;">BRAND · ACCENT</div>
+          <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:10px;">
+            <div><div style="height:46px; background:var(--sp-accent);"></div><div style="font-size:10px; font-weight:800; margin-top:5px;">accent</div><div style="font-size:9px; font-family:monospace; color:var(--sp-muted);">#6495ED</div></div>
+            <div><div style="height:46px; background:var(--sp-accent-ink);"></div><div style="font-size:10px; font-weight:800; margin-top:5px;">accent-ink</div><div style="font-size:9px; font-family:monospace; color:var(--sp-muted);">#2f5aa8</div></div>
+            <div><div style="height:46px; background:var(--sp-accent-bg); border:1px solid var(--sp-divider);"></div><div style="font-size:10px; font-weight:800; margin-top:5px;">accent-bg</div><div style="font-size:9px; font-family:monospace; color:var(--sp-muted);">#dde8fb</div></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px; font-weight:800; letter-spacing:0.1em; color:var(--sp-muted); margin-bottom:10px;">SENTIMENT</div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <sc-for list="{{ sentVariants }}" as="s">
+              <div style="display:inline-flex; align-items:center; gap:6px; padding:6px 12px; background:{{ s.bg }}; color:{{ s.fg }};">
+                <span style="font-size:13px; font-weight:900; line-height:1;">{{ s.glyph }}</span><span style="font-size:11px; font-weight:800; letter-spacing:0.05em;">{{ s.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px; font-weight:800; letter-spacing:0.1em; color:var(--sp-muted); margin-bottom:10px;">IMPORTANCE LADDER</div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <sc-for list="{{ impVariants }}" as="v">
+              <div style="display:inline-flex; align-items:center; gap:7px; padding:5px 10px; background:{{ v.bg }}; color:{{ v.fg }};">
+                <div style="display:flex; gap:2px;"><sc-for list="{{ v.cells }}" as="c"><div style="width:3px; height:12px; background:{{ c }};"></div></sc-for></div>
+                <span style="font-size:10px; font-weight:800; letter-spacing:0.06em;">{{ v.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- type / spacing / radius / elevation strip -->
+  <div style="max-width:1360px; margin:0 auto 96px; display:flex; gap:28px; flex-wrap:wrap;">
+    <div style="flex:2; min-width:520px; border:2px solid #201e1d; background:#f3f2f2; padding:20px;">
+      <div style="font-size:10px; font-weight:800; letter-spacing:0.1em; color:#726f6e; margin-bottom:14px;">TYPE SCALE · ARCHIVO</div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; align-items:baseline; gap:16px; border-bottom:1px solid rgba(32,30,29,0.15); padding-bottom:8px;"><span style="width:120px; font-size:10px; font-weight:700; color:#726f6e; font-family:monospace;">display / 900</span><span style="font-size:34px; font-weight:900; letter-spacing:-0.03em;">$512.30</span></div>
+        <div style="display:flex; align-items:baseline; gap:16px; border-bottom:1px solid rgba(32,30,29,0.15); padding-bottom:8px;"><span style="width:120px; font-size:10px; font-weight:700; color:#726f6e; font-family:monospace;">title / 800 · 24</span><span style="font-size:24px; font-weight:800; letter-spacing:-0.02em;">Alert detail</span></div>
+        <div style="display:flex; align-items:baseline; gap:16px; border-bottom:1px solid rgba(32,30,29,0.15); padding-bottom:8px;"><span style="width:120px; font-size:10px; font-weight:700; color:#726f6e; font-family:monospace;">headline / 700 · 15</span><span style="font-size:15px; font-weight:700;">Nvidia slips as U.S. weighs curbs</span></div>
+        <div style="display:flex; align-items:baseline; gap:16px; border-bottom:1px solid rgba(32,30,29,0.15); padding-bottom:8px;"><span style="width:120px; font-size:10px; font-weight:700; color:#726f6e; font-family:monospace;">body / 400 · 13</span><span style="font-size:13px; font-weight:400; color:#413e3d;">Plain-English reasoning, comfortably scannable.</span></div>
+        <div style="display:flex; align-items:baseline; gap:16px;"><span style="width:120px; font-size:10px; font-weight:700; color:#726f6e; font-family:monospace;">label / 800 · 10</span><span style="font-size:10px; font-weight:800; letter-spacing:0.08em;">CATEGORY · MACRO</span></div>
+      </div>
+    </div>
+    <div style="flex:1; min-width:340px; border:2px solid #201e1d; background:#f3f2f2; padding:20px; display:flex; flex-direction:column; gap:18px;">
+      <div>
+        <div style="font-size:10px; font-weight:800; letter-spacing:0.1em; color:#726f6e; margin-bottom:12px;">SPACING · 4PX BASE</div>
+        <div style="display:flex; align-items:flex-end; gap:8px;">
+          <div style="text-align:center;"><div style="width:4px; height:4px; background:#6495ED;"></div><div style="font-size:9px; margin-top:5px; font-family:monospace;">4</div></div>
+          <div style="text-align:center;"><div style="width:8px; height:8px; background:#6495ED;"></div><div style="font-size:9px; margin-top:5px; font-family:monospace;">8</div></div>
+          <div style="text-align:center;"><div style="width:12px; height:12px; background:#6495ED;"></div><div style="font-size:9px; margin-top:5px; font-family:monospace;">12</div></div>
+          <div style="text-align:center;"><div style="width:16px; height:16px; background:#6495ED;"></div><div style="font-size:9px; margin-top:5px; font-family:monospace;">16</div></div>
+          <div style="text-align:center;"><div style="width:24px; height:24px; background:#6495ED;"></div><div style="font-size:9px; margin-top:5px; font-family:monospace;">24</div></div>
+          <div style="text-align:center;"><div style="width:32px; height:32px; background:#6495ED;"></div><div style="font-size:9px; margin-top:5px; font-family:monospace;">32</div></div>
+        </div>
+      </div>
+      <div style="display:flex; gap:24px;">
+        <div>
+          <div style="font-size:10px; font-weight:800; letter-spacing:0.1em; color:#726f6e; margin-bottom:12px;">RADIUS</div>
+          <div style="width:52px; height:52px; border:2px solid #201e1d; border-radius:0;"></div>
+          <div style="font-size:9px; margin-top:6px; font-family:monospace; color:#726f6e;">0px · always</div>
+        </div>
+        <div>
+          <div style="font-size:10px; font-weight:800; letter-spacing:0.1em; color:#726f6e; margin-bottom:12px;">ELEVATION</div>
+          <div style="display:flex; gap:12px;">
+            <div style="width:34px; height:34px; background:#fff; box-shadow:0 1px 2px rgba(45,43,43,0.14);"></div>
+            <div style="width:34px; height:34px; background:#fff; box-shadow:0 3px 10px rgba(45,43,43,0.16);"></div>
+            <div style="width:34px; height:34px; background:#fff; box-shadow:0 12px 32px rgba(45,43,43,0.22);"></div>
+          </div>
+          <div style="font-size:9px; margin-top:6px; font-family:monospace; color:#726f6e;">sm · md · lg</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =============== 02 · COMPONENTS =============== -->
+  <div id="sec-components" style="max-width:1360px; margin:0 auto 40px;">
+    <div style="display:flex; align-items:baseline; gap:16px; border-bottom:2px solid #201e1d; padding-bottom:10px;">
+      <span style="font-size:13px; font-weight:900; letter-spacing:0.1em; color:#2f5aa8;">02</span>
+      <h2 style="font-size:36px; font-weight:900; letter-spacing:-0.025em; margin:0;">Component set</h2>
+      <span style="margin-left:auto; font-size:12px; font-weight:700; color:#726f6e;">Reusable, both themes · alert card is the workhorse</span>
+    </div>
+  </div>
+
+  <div style="max-width:1360px; margin:0 auto 28px; display:flex; gap:28px; flex-wrap:wrap; align-items:flex-start;">
+    <div style="flex:1; min-width:360px;">
+      <div style="font-size:11px; font-weight:800; letter-spacing:0.08em; color:#726f6e; margin-bottom:12px;">ALERT CARD — CRITICAL · BEARISH (DARK)</div>
+      <div data-sp="dark" style="background:var(--sp-surface); color:var(--sp-text); border:1px solid var(--sp-divider); padding:16px; display:flex; flex-direction:column; gap:10px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div style="display:inline-flex; align-items:center; gap:7px; padding:4px 9px; background:{{ detail.impBg }}; color:{{ detail.impFg }};"><div style="display:flex; gap:2px;"><sc-for list="{{ detail.cells }}" as="c"><div style="width:3px; height:12px; background:{{ c }};"></div></sc-for></div><span style="font-size:10px; font-weight:800; letter-spacing:0.06em;">{{ detail.imp }}</span></div>
+          <span style="font-size:10px; font-weight:800; letter-spacing:0.08em; padding:3px 8px; border:1px solid var(--sp-divider-strong); color:var(--sp-muted);">{{ detail.category }}</span>
+          <span style="margin-left:auto; font-size:11px; color:var(--sp-faint); font-weight:700;">{{ detail.time }}</span>
+        </div>
+        <div style="font-size:15.5px; font-weight:700; line-height:1.28; letter-spacing:-0.01em;">{{ detail.summary }}</div>
+        <div style="display:flex; gap:8px; font-size:12.5px; color:var(--sp-muted); line-height:1.42;"><span style="color:var(--sp-accent-ink); font-weight:900; flex:none;">WHY</span><span>{{ detail.why }}</span></div>
+        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><sc-for list="{{ detail.tickers }}" as="t"><span style="font-size:11px; font-weight:800; letter-spacing:0.03em; padding:3px 8px; background:var(--sp-surface-2);">{{ t }}</span></sc-for><div style="margin-left:auto; display:inline-flex; align-items:center; gap:5px; padding:4px 10px; background:{{ detail.sentBg }}; color:{{ detail.sentFg }};"><span style="font-size:12px; font-weight:900; line-height:1;">{{ detail.sentGlyph }}</span><span style="font-size:10px; font-weight:800; letter-spacing:0.05em;">{{ detail.sentLabel }}</span></div></div>
+        <div style="display:flex; align-items:center; gap:9px; border-top:1px solid var(--sp-divider); margin-top:2px; padding-top:10px;"><span style="font-size:13px; font-weight:800;">{{ detail.px.sym }}</span><span style="font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;">{{ detail.px.px }}</span><span style="font-size:12px; font-weight:800; color:{{ detail.px.color }}; font-variant-numeric:tabular-nums;">{{ detail.px.chg }}</span><span style="margin-left:auto; font-size:9px; font-weight:800; letter-spacing:0.06em; color:var(--sp-faint);">{{ detail.px.fresh }}</span></div>
+        <div style="font-size:11px; color:var(--sp-faint); font-weight:600;">{{ detail.source }}</div>
+      </div>
+    </div>
+    <div style="flex:none; width:210px; padding-top:32px;">
+      <div style="font-size:11px; font-weight:800; letter-spacing:0.08em; color:#726f6e; margin-bottom:12px;">ANATOMY</div>
+      <div style="display:flex; flex-direction:column; gap:0; font-size:12px;">
+        <div style="padding:8px 0; border-bottom:1px solid rgba(32,30,29,0.15);"><b>Importance</b> · notch meter + label</div>
+        <div style="padding:8px 0; border-bottom:1px solid rgba(32,30,29,0.15);"><b>Category</b> · outline tag</div>
+        <div style="padding:8px 0; border-bottom:1px solid rgba(32,30,29,0.15);"><b>Summary</b> · one line, 15px/700</div>
+        <div style="padding:8px 0; border-bottom:1px solid rgba(32,30,29,0.15);"><b>Why it matters</b> · plain English</div>
+        <div style="padding:8px 0; border-bottom:1px solid rgba(32,30,29,0.15);"><b>Ticker chips</b> + <b>sentiment</b></div>
+        <div style="padding:8px 0; border-bottom:1px solid rgba(32,30,29,0.15);"><b>Price line</b> + freshness</div>
+        <div style="padding:8px 0;"><b>Source</b> + relative time</div>
+      </div>
+    </div>
+    <div style="flex:1; min-width:360px;">
+      <div style="font-size:11px; font-weight:800; letter-spacing:0.08em; color:#726f6e; margin-bottom:12px;">ALERT CARD — MEDIUM · BULLISH (LIGHT)</div>
+      <div data-sp="light" style="background:var(--sp-surface); color:var(--sp-text); border:1px solid var(--sp-divider); padding:16px; display:flex; flex-direction:column; gap:10px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div style="display:inline-flex; align-items:center; gap:7px; padding:4px 9px; background:{{ compBull.impBg }}; color:{{ compBull.impFg }};"><div style="display:flex; gap:2px;"><sc-for list="{{ compBull.cells }}" as="c"><div style="width:3px; height:12px; background:{{ c }};"></div></sc-for></div><span style="font-size:10px; font-weight:800; letter-spacing:0.06em;">{{ compBull.imp }}</span></div>
+          <span style="font-size:10px; font-weight:800; letter-spacing:0.08em; padding:3px 8px; border:1px solid var(--sp-divider-strong); color:var(--sp-muted);">{{ compBull.category }}</span>
+          <span style="margin-left:auto; font-size:11px; color:var(--sp-faint); font-weight:700;">{{ compBull.time }}</span>
+        </div>
+        <div style="font-size:15.5px; font-weight:700; line-height:1.28; letter-spacing:-0.01em;">{{ compBull.summary }}</div>
+        <div style="display:flex; gap:8px; font-size:12.5px; color:var(--sp-muted); line-height:1.42;"><span style="color:var(--sp-accent-ink); font-weight:900; flex:none;">WHY</span><span>{{ compBull.why }}</span></div>
+        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><sc-for list="{{ compBull.tickers }}" as="t"><span style="font-size:11px; font-weight:800; letter-spacing:0.03em; padding:3px 8px; background:var(--sp-surface-2);">{{ t }}</span></sc-for><div style="margin-left:auto; display:inline-flex; align-items:center; gap:5px; padding:4px 10px; background:{{ compBull.sentBg }}; color:{{ compBull.sentFg }};"><span style="font-size:12px; font-weight:900; line-height:1;">{{ compBull.sentGlyph }}</span><span style="font-size:10px; font-weight:800; letter-spacing:0.05em;">{{ compBull.sentLabel }}</span></div></div>
+        <div style="display:flex; align-items:center; gap:9px; border-top:1px solid var(--sp-divider); margin-top:2px; padding-top:10px;"><span style="font-size:13px; font-weight:800;">{{ compBull.px.sym }}</span><span style="font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;">{{ compBull.px.px }}</span><span style="font-size:12px; font-weight:800; color:{{ compBull.px.color }}; font-variant-numeric:tabular-nums;">{{ compBull.px.chg }}</span><span style="margin-left:auto; font-size:9px; font-weight:800; letter-spacing:0.06em; color:var(--sp-faint);">{{ compBull.px.fresh }}</span></div>
+        <div style="font-size:11px; color:var(--sp-faint); font-weight:600;">{{ compBull.source }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width:1360px; margin:0 auto 28px; display:grid; grid-template-columns:repeat(3,1fr); gap:0; border:2px solid #201e1d;">
+    <div style="border-right:2px solid #201e1d; border-bottom:2px solid #201e1d; padding:18px;">
+      <div style="font-size:11px; font-weight:800; letter-spacing:0.08em; color:#726f6e; margin-bottom:14px;">PRICE LINE · FRESHNESS</div>
+      <div data-sp="dark" style="background:var(--sp-surface); padding:12px; display:flex; flex-direction:column; gap:12px;">
+        <sc-for list="{{ priceVariants }}" as="p">
+          <div style="display:flex; align-items:center; gap:9px; color:var(--sp-text);"><span style="font-size:13px; font-weight:800; width:44px;">{{ p.sym }}</span><span style="font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;">{{ p.px }}</span><span style="font-size:12px; font-weight:800; color:{{ p.color }}; font-variant-numeric:tabular-nums;">{{ p.chg }}</span><span style="margin-left:auto; font-size:8.5px; font-weight:800; letter-spacing:0.05em; color:var(--sp-faint);">{{ p.fresh }}</span></div>
+        </sc-for>
+      </div>
+      <div style="font-size:11px; color:#413e3d; margin-top:10px; line-height:1.4;"><b>Live</b> shows a dot; when markets are closed the honest <b>as-of</b> stamp replaces it.</div>
+    </div>
+    <div style="border-right:2px solid #201e1d; border-bottom:2px solid #201e1d; padding:18px;">
+      <div style="font-size:11px; font-weight:800; letter-spacing:0.08em; color:#726f6e; margin-bottom:14px;">CHIPS · TAGS</div>
+      <div data-sp="dark" style="background:var(--sp-surface); padding:14px; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; gap:6px; flex-wrap:wrap;"><span style="font-size:11px; font-weight:800; padding:3px 8px; background:var(--sp-surface-2); color:var(--sp-text);">NVDA</span><span style="font-size:11px; font-weight:800; padding:3px 8px; background:var(--sp-surface-2); color:var(--sp-text);">MSFT</span><span style="font-size:11px; font-weight:800; padding:3px 8px; background:var(--sp-surface-2); color:var(--sp-text);">WDC</span></div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;"><span style="font-size:10px; font-weight:800; letter-spacing:0.08em; padding:3px 8px; border:1px solid var(--sp-divider-strong); color:var(--sp-muted);">MACRO</span><span style="font-size:10px; font-weight:800; letter-spacing:0.08em; padding:3px 8px; border:1px solid var(--sp-divider-strong); color:var(--sp-muted);">TICKER</span><span style="font-size:10px; font-weight:800; letter-spacing:0.08em; padding:3px 8px; border:1px solid var(--sp-divider-strong); color:var(--sp-muted);">SECTOR</span></div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;"><span style="font-size:10px; font-weight:800; padding:3px 8px; background:var(--sp-accent); color:var(--sp-on-accent);">PRO</span><span style="font-size:10px; font-weight:800; padding:3px 8px; background:var(--sp-accent-bg); color:var(--sp-accent-ink);">NEW</span></div>
+      </div>
+    </div>
+    <div style="border-bottom:2px solid #201e1d; padding:18px;">
+      <div style="font-size:11px; font-weight:800; letter-spacing:0.08em; color:#726f6e; margin-bottom:14px;">BUTTONS</div>
+      <div data-sp="dark" style="background:var(--sp-surface); padding:14px; display:flex; flex-direction:column; gap:10px;">
+        <div style="display:flex; align-items:center; gap:8px; background:var(--sp-accent); color:var(--sp-on-accent); padding:11px 14px; font-size:14px; font-weight:800;"><span>Generate briefing</span><svg style="margin-left:auto;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
+        <div style="display:flex; align-items:center; gap:8px; border:1px solid var(--sp-divider-strong); color:var(--sp-text); padding:11px 14px; font-size:14px; font-weight:800;"><span>Add to watchlist</span></div>
+        <div style="display:flex; align-items:center; gap:6px; color:var(--sp-accent-ink); font-size:14px; font-weight:800;"><span>Read source</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/></svg></div>
+      </div>
+    </div>
+    <div style="border-right:2px solid #201e1d; padding:18px;">
+      <div style="font-size:11px; font-weight:800; letter-spacing:0.08em; color:#726f6e; margin-bottom:14px;">INPUT · SEARCH</div>
+      <div data-sp="dark" style="background:var(--sp-surface); padding:14px; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; align-items:center; gap:8px; background:var(--sp-bg); border:1px solid var(--sp-divider-strong); padding:10px 12px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--sp-muted)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span style="font-size:13px; color:var(--sp-text);">tesla</span><span style="width:1.5px; height:15px; background:var(--sp-accent);"></span><span style="margin-left:auto; font-size:11px; font-weight:800; color:var(--sp-muted);">TSLA</span></div>
+        <div style="display:flex; align-items:center; gap:8px; background:var(--sp-bg); border:1px solid var(--sp-divider); padding:10px 12px;"><span style="font-size:13px; color:var(--sp-faint);">Email address</span></div>
+      </div>
+    </div>
+    <div style="border-right:2px solid #201e1d; padding:18px;">
+      <div style="font-size:11px; font-weight:800; letter-spacing:0.08em; color:#726f6e; margin-bottom:14px;">SEGMENTED · TOGGLE</div>
+      <div data-sp="dark" style="background:var(--sp-surface); padding:14px; display:flex; flex-direction:column; gap:14px;">
+        <div style="display:inline-flex; border:1px solid var(--sp-divider-strong);"><div style="padding:8px 14px; font-size:12px; font-weight:800; background:var(--sp-accent); color:var(--sp-on-accent);">All</div><div style="padding:8px 14px; font-size:12px; font-weight:800; color:var(--sp-muted); border-left:1px solid var(--sp-divider-strong);">Watchlist</div><div style="padding:8px 14px; font-size:12px; font-weight:800; color:var(--sp-muted); border-left:1px solid var(--sp-divider-strong);">Macro</div></div>
+        <div style="display:flex; align-items:center; gap:10px;"><div style="width:40px; height:22px; background:var(--sp-accent); position:relative;"><div style="position:absolute; top:2px; right:2px; width:18px; height:18px; background:var(--sp-on-accent);"></div></div><span style="font-size:12px; font-weight:700; color:var(--sp-text);">Push notifications on</span></div>
+      </div>
+    </div>
+    <div style="padding:18px;">
+      <div style="font-size:11px; font-weight:800; letter-spacing:0.08em; color:#726f6e; margin-bottom:14px;">TOAST</div>
+      <div data-sp="dark" style="background:var(--sp-surface); padding:14px; display:flex; flex-direction:column; gap:10px;">
+        <div style="display:flex; align-items:center; gap:10px; background:var(--sp-text); color:var(--sp-bg); padding:11px 13px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--sp-bull)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span style="font-size:12px; font-weight:700;">NVDA added to watchlist</span><span style="margin-left:auto; font-size:11px; font-weight:800; color:var(--sp-accent-ink);">UNDO</span></div>
+        <div style="display:flex; align-items:center; gap:10px; border:1px solid var(--sp-accent); color:var(--sp-text); padding:11px 13px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--sp-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.5 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg><span style="font-size:12px; font-weight:700;">Couldn't refresh — tap to retry</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width:1360px; margin:0 auto 96px; display:flex; gap:28px; flex-wrap:wrap;">
+    <div style="flex:1; min-width:300px;">
+      <div style="font-size:11px; font-weight:800; letter-spacing:0.08em; color:#726f6e; margin-bottom:12px;">EMPTY STATE</div>
+      <div data-sp="dark" style="background:var(--sp-bg); border:1px solid var(--sp-divider); padding:40px 24px; display:flex; flex-direction:column; align-items:center; text-align:center; gap:14px;">
+        <div style="width:72px; height:72px; border:2px solid var(--sp-divider-strong); display:flex; align-items:center; justify-content:center;"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--sp-muted)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/><line x1="3" x2="21" y1="3" y2="21"/></svg></div>
+        <div style="font-size:17px; font-weight:800; color:var(--sp-text);">All caught up</div>
+        <div style="font-size:13px; color:var(--sp-muted); max-width:220px; line-height:1.45;">No alerts that matter right now. We'll ping you the moment something moves your stocks.</div>
+      </div>
+    </div>
+    <div style="flex:1; min-width:300px;">
+      <div style="font-size:11px; font-weight:800; letter-spacing:0.08em; color:#726f6e; margin-bottom:12px;">ERROR STATE</div>
+      <div data-sp="light" style="background:var(--sp-bg); border:1px solid var(--sp-divider); padding:40px 24px; display:flex; flex-direction:column; align-items:center; text-align:center; gap:14px;">
+        <div style="width:72px; height:72px; border:2px solid var(--sp-accent); display:flex; align-items:center; justify-content:center;"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--sp-accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.5 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg></div>
+        <div style="font-size:17px; font-weight:800; color:var(--sp-text);">Couldn't reach the market feed</div>
+        <div style="font-size:13px; color:var(--sp-muted); max-width:240px; line-height:1.45;">Check your connection. Your last briefing is still available offline.</div>
+        <div style="display:inline-flex; align-items:center; gap:8px; background:var(--sp-accent); color:var(--sp-on-accent); padding:9px 16px; font-size:13px; font-weight:800;">Retry</div>
+      </div>
+    </div>
+    <div style="flex:1; min-width:300px;">
+      <div style="font-size:11px; font-weight:800; letter-spacing:0.08em; color:#726f6e; margin-bottom:12px;">BOTTOM TAB BAR</div>
+      <div data-sp="dark" style="background:var(--sp-bg); border:1px solid var(--sp-divider); display:flex; border-top:2px solid var(--sp-divider); margin-top:130px;">
+        <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:12px 0; color:var(--sp-accent);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg><span style="font-size:10px; font-weight:800;">Feed</span></div>
+        <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:12px 0; color:var(--sp-muted);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" x2="6" y1="20" y2="14"/><line x1="12" x2="12" y1="20" y2="8"/><line x1="18" x2="18" y1="20" y2="4"/></svg><span style="font-size:10px; font-weight:800;">Report</span></div>
+        <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:12px 0; color:var(--sp-muted);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg><span style="font-size:10px; font-weight:800;">Watchlist</span></div>
+        <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:12px 0; color:var(--sp-muted);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg><span style="font-size:10px; font-weight:800;">Settings</span></div>
+      </div>
+    </div>
+  </div>
+  <!-- =============== 03 · SCREENS =============== -->
+  <div id="sec-screens" style="max-width:1360px; margin:0 auto 44px;">
+    <div style="display:flex; align-items:baseline; gap:16px; border-bottom:2px solid #201e1d; padding-bottom:10px;">
+      <span style="font-size:13px; font-weight:900; letter-spacing:0.1em; color:#2f5aa8;">03</span>
+      <h2 style="font-size:36px; font-weight:900; letter-spacing:-0.025em; margin:0;">Screens &amp; states</h2>
+      <span style="margin-left:auto; font-size:12px; font-weight:700; color:#726f6e;">Android · light &amp; dark · Feed covers all four states</span>
+    </div>
+  </div>
+
+  <!-- FEED -->
+  <div style="max-width:1440px; margin:0 auto 40px;">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:22px;"><div style="width:26px; height:26px; background:#6495ED; color:#0f1b2e; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900;">1</div><div style="font-size:20px; font-weight:900; letter-spacing:-0.01em;">Feed — home</div><div style="font-size:12px; color:#726f6e; font-weight:600;">The screen users open most. Pull-to-refresh, scannable alert stream.</div></div>
+    <div style="display:flex; gap:36px; flex-wrap:wrap;">
+
+      <div style="display:flex; flex-direction:column; align-items:center;">
+        <dc-import name="Phone" theme="dark" active="feed" h="772" hint-size="356px,792px">
+          <div style="flex:none; background:var(--sp-bg); border-bottom:2px solid var(--sp-divider-strong);">
+            <div style="padding:4px 16px 10px; display:flex; align-items:flex-end; justify-content:space-between;">
+              <div><div style="font-size:9px; font-weight:900; letter-spacing:0.16em; color:var(--sp-accent);">STOCKPULSE</div><div style="font-size:27px; font-weight:900; letter-spacing:-0.02em; line-height:1; margin-top:2px;">Feed</div></div>
+              <div style="display:flex; gap:16px; padding-bottom:4px; color:var(--sp-text);"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><div style="position:relative;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg><div style="position:absolute; top:-1px; right:-1px; width:8px; height:8px; background:var(--sp-accent); border:1.5px solid var(--sp-bg);"></div></div></div>
+            </div>
+            <div style="display:flex; padding:0 16px 10px;"><div style="display:inline-flex; border:1px solid var(--sp-divider-strong);"><div style="padding:6px 12px; font-size:11px; font-weight:800; background:var(--sp-accent); color:var(--sp-on-accent);">All</div><div style="padding:6px 12px; font-size:11px; font-weight:800; color:var(--sp-muted); border-left:1px solid var(--sp-divider-strong);">Watchlist</div><div style="padding:6px 12px; font-size:11px; font-weight:800; color:var(--sp-muted); border-left:1px solid var(--sp-divider-strong);">Macro</div></div></div>
+          </div>
+          <div style="flex:1; overflow:hidden; display:flex; flex-direction:column; background:var(--sp-bg);">
+            <div style="display:flex; align-items:center; justify-content:center; gap:6px; padding:7px; background:var(--sp-surface); color:var(--sp-muted); font-size:10px; font-weight:800; letter-spacing:0.06em;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>UPDATED 2 MIN AGO · PULL TO REFRESH</div>
+            <sc-for list="{{ alerts }}" as="a" hint-placeholder-count="4">
+              <div style="border-bottom:2px solid var(--sp-divider); padding:13px 16px 14px; display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; align-items:center; gap:7px;"><div style="display:inline-flex; align-items:center; gap:6px; padding:3px 8px; background:{{ a.impBg }}; color:{{ a.impFg }};"><div style="display:flex; gap:2px;"><sc-for list="{{ a.cells }}" as="c"><div style="width:3px; height:10px; background:{{ c }};"></div></sc-for></div><span style="font-size:9px; font-weight:800; letter-spacing:0.06em;">{{ a.imp }}</span></div><span style="font-size:9px; font-weight:800; letter-spacing:0.08em; padding:3px 7px; border:1px solid var(--sp-divider-strong); color:var(--sp-muted);">{{ a.category }}</span><span style="margin-left:auto; font-size:10px; color:var(--sp-faint); font-weight:700;">{{ a.time }}</span></div>
+                <div style="font-size:14.5px; font-weight:700; line-height:1.26; letter-spacing:-0.01em;">{{ a.summary }}</div>
+                <div style="display:flex; gap:7px; font-size:12px; color:var(--sp-muted); line-height:1.38;"><span style="color:var(--sp-accent-ink); font-weight:900; flex:none;">WHY</span><span>{{ a.why }}</span></div>
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><sc-for list="{{ a.tickers }}" as="t"><span style="font-size:10.5px; font-weight:800; padding:3px 7px; background:var(--sp-surface-2);">{{ t }}</span></sc-for><div style="margin-left:auto; display:inline-flex; align-items:center; gap:5px; padding:3px 9px; background:{{ a.sentBg }}; color:{{ a.sentFg }};"><span style="font-size:11px; font-weight:900; line-height:1;">{{ a.sentGlyph }}</span><span style="font-size:9px; font-weight:800; letter-spacing:0.05em;">{{ a.sentLabel }}</span></div></div>
+                <div style="display:flex; align-items:center; gap:8px;"><span style="font-size:12.5px; font-weight:800;">{{ a.px.sym }}</span><span style="font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums;">{{ a.px.px }}</span><span style="font-size:11.5px; font-weight:800; color:{{ a.px.color }}; font-variant-numeric:tabular-nums;">{{ a.px.chg }}</span><span style="margin-left:auto; font-size:8.5px; font-weight:800; letter-spacing:0.05em; color:var(--sp-faint);">{{ a.px.fresh }}</span></div>
+              </div>
+            </sc-for>
+          </div>
+        </dc-import>
+        <div style="text-align:center; margin-top:14px;"><div style="font-size:12px; font-weight:800;">Populated</div><div style="font-size:10px; font-weight:800; color:#726f6e; letter-spacing:0.06em; margin-top:2px;">DARK · DEFAULT</div></div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; align-items:center;">
+        <dc-import name="Phone" theme="light" active="feed" h="772" hint-size="356px,792px">
+          <div style="flex:none; background:var(--sp-bg); border-bottom:2px solid var(--sp-divider-strong);">
+            <div style="padding:4px 16px 10px; display:flex; align-items:flex-end; justify-content:space-between;">
+              <div><div style="font-size:9px; font-weight:900; letter-spacing:0.16em; color:var(--sp-accent);">STOCKPULSE</div><div style="font-size:27px; font-weight:900; letter-spacing:-0.02em; line-height:1; margin-top:2px;">Feed</div></div>
+              <div style="display:flex; gap:16px; padding-bottom:4px; color:var(--sp-text);"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><div style="position:relative;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg><div style="position:absolute; top:-1px; right:-1px; width:8px; height:8px; background:var(--sp-accent); border:1.5px solid var(--sp-bg);"></div></div></div>
+            </div>
+            <div style="display:flex; padding:0 16px 10px;"><div style="display:inline-flex; border:1px solid var(--sp-divider-strong);"><div style="padding:6px 12px; font-size:11px; font-weight:800; background:var(--sp-accent); color:var(--sp-on-accent);">All</div><div style="padding:6px 12px; font-size:11px; font-weight:800; color:var(--sp-muted); border-left:1px solid var(--sp-divider-strong);">Watchlist</div><div style="padding:6px 12px; font-size:11px; font-weight:800; color:var(--sp-muted); border-left:1px solid var(--sp-divider-strong);">Macro</div></div></div>
+          </div>
+          <div style="flex:1; overflow:hidden; display:flex; flex-direction:column; background:var(--sp-bg);">
+            <div style="display:flex; align-items:center; justify-content:center; gap:6px; padding:7px; background:var(--sp-surface); color:var(--sp-muted); font-size:10px; font-weight:800; letter-spacing:0.06em;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>UPDATED 2 MIN AGO · PULL TO REFRESH</div>
+            <sc-for list="{{ alerts }}" as="a" hint-placeholder-count="4">
+              <div style="border-bottom:2px solid var(--sp-divider); padding:13px 16px 14px; display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; align-items:center; gap:7px;"><div style="display:inline-flex; align-items:center; gap:6px; padding:3px 8px; background:{{ a.impBg }}; color:{{ a.impFg }};"><div style="display:flex; gap:2px;"><sc-for list="{{ a.cells }}" as="c"><div style="width:3px; height:10px; background:{{ c }};"></div></sc-for></div><span style="font-size:9px; font-weight:800; letter-spacing:0.06em;">{{ a.imp }}</span></div><span style="font-size:9px; font-weight:800; letter-spacing:0.08em; padding:3px 7px; border:1px solid var(--sp-divider-strong); color:var(--sp-muted);">{{ a.category }}</span><span style="margin-left:auto; font-size:10px; color:var(--sp-faint); font-weight:700;">{{ a.time }}</span></div>
+                <div style="font-size:14.5px; font-weight:700; line-height:1.26; letter-spacing:-0.01em;">{{ a.summary }}</div>
+                <div style="display:flex; gap:7px; font-size:12px; color:var(--sp-muted); line-height:1.38;"><span style="color:var(--sp-accent-ink); font-weight:900; flex:none;">WHY</span><span>{{ a.why }}</span></div>
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><sc-for list="{{ a.tickers }}" as="t"><span style="font-size:10.5px; font-weight:800; padding:3px 7px; background:var(--sp-surface-2);">{{ t }}</span></sc-for><div style="margin-left:auto; display:inline-flex; align-items:center; gap:5px; padding:3px 9px; background:{{ a.sentBg }}; color:{{ a.sentFg }};"><span style="font-size:11px; font-weight:900; line-height:1;">{{ a.sentGlyph }}</span><span style="font-size:9px; font-weight:800; letter-spacing:0.05em;">{{ a.sentLabel }}</span></div></div>
+                <div style="display:flex; align-items:center; gap:8px;"><span style="font-size:12.5px; font-weight:800;">{{ a.px.sym }}</span><span style="font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums;">{{ a.px.px }}</span><span style="font-size:11.5px; font-weight:800; color:{{ a.px.color }}; font-variant-numeric:tabular-nums;">{{ a.px.chg }}</span><span style="margin-left:auto; font-size:8.5px; font-weight:800; letter-spacing:0.05em; color:var(--sp-faint);">{{ a.px.fresh }}</span></div>
+              </div>
+            </sc-for>
+          </div>
+        </dc-import>
+        <div style="text-align:center; margin-top:14px;"><div style="font-size:12px; font-weight:800;">Populated</div><div style="font-size:10px; font-weight:800; color:#726f6e; letter-spacing:0.06em; margin-top:2px;">LIGHT</div></div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; align-items:center;">
+        <dc-import name="Phone" theme="dark" active="feed" h="772" hint-size="356px,792px">
+          <div style="flex:none; background:var(--sp-bg); border-bottom:2px solid var(--sp-divider-strong);">
+            <div style="padding:4px 16px 10px; display:flex; align-items:flex-end; justify-content:space-between;"><div><div style="font-size:9px; font-weight:900; letter-spacing:0.16em; color:var(--sp-accent);">STOCKPULSE</div><div style="font-size:27px; font-weight:900; letter-spacing:-0.02em; line-height:1; margin-top:2px;">Feed</div></div></div>
+          </div>
+          <div style="flex:1; overflow:hidden; display:flex; flex-direction:column; background:var(--sp-bg);">
+            <div style="display:flex; align-items:center; justify-content:center; gap:8px; padding:9px; color:var(--sp-muted); font-size:10px; font-weight:800; letter-spacing:0.06em;"><div style="width:14px; height:14px; border:2px solid var(--sp-divider-strong); border-top-color:var(--sp-accent); border-radius:50%; animation:sp-spin 0.8s linear infinite;"></div>FETCHING LATEST</div>
+            <sc-for list="{{ skeleton }}" as="s">
+              <div style="border-bottom:2px solid var(--sp-divider); padding:14px 16px; display:flex; flex-direction:column; gap:10px;">
+                <div style="display:flex; gap:8px;"><div style="width:74px; height:16px; background:var(--sp-shimmer-2); animation:sp-pulse 1.4s ease-in-out infinite;"></div><div style="width:54px; height:16px; background:var(--sp-shimmer); animation:sp-pulse 1.4s ease-in-out infinite;"></div></div>
+                <div style="width:100%; height:14px; background:var(--sp-shimmer-2); animation:sp-pulse 1.4s ease-in-out infinite;"></div>
+                <div style="width:82%; height:14px; background:var(--sp-shimmer-2); animation:sp-pulse 1.4s ease-in-out infinite;"></div>
+                <div style="width:58%; height:11px; background:var(--sp-shimmer); animation:sp-pulse 1.4s ease-in-out infinite;"></div>
+                <div style="display:flex; gap:6px;"><div style="width:46px; height:18px; background:var(--sp-shimmer);"></div><div style="width:46px; height:18px; background:var(--sp-shimmer);"></div><div style="margin-left:auto; width:70px; height:18px; background:var(--sp-shimmer);"></div></div>
+              </div>
+            </sc-for>
+          </div>
+        </dc-import>
+        <div style="text-align:center; margin-top:14px;"><div style="font-size:12px; font-weight:800;">Loading</div><div style="font-size:10px; font-weight:800; color:#726f6e; letter-spacing:0.06em; margin-top:2px;">SKELETON</div></div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; align-items:center;">
+        <dc-import name="Phone" theme="dark" active="feed" h="772" hint-size="356px,792px">
+          <div style="flex:none; background:var(--sp-bg); border-bottom:2px solid var(--sp-divider-strong);">
+            <div style="padding:4px 16px 10px; display:flex; align-items:flex-end; justify-content:space-between;"><div><div style="font-size:9px; font-weight:900; letter-spacing:0.16em; color:var(--sp-accent);">STOCKPULSE</div><div style="font-size:27px; font-weight:900; letter-spacing:-0.02em; line-height:1; margin-top:2px;">Feed</div></div></div>
+          </div>
+          <div style="flex:1; overflow:hidden; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:16px; padding:32px 28px; background:var(--sp-bg);">
+            <div style="width:76px; height:76px; border:2px solid var(--sp-divider-strong); display:flex; align-items:center; justify-content:center;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--sp-muted)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/><line x1="3" x2="21" y1="3" y2="21"/></svg></div>
+            <div style="font-size:20px; font-weight:900;">All caught up</div>
+            <div style="font-size:13px; color:var(--sp-muted); line-height:1.5; max-width:230px;">Nothing needs your attention right now. We'll ping you the moment something moves NVDA, WDC or MSFT.</div>
+            <div style="display:inline-flex; align-items:center; gap:8px; border:1px solid var(--sp-divider-strong); color:var(--sp-text); padding:10px 16px; font-size:13px; font-weight:800; margin-top:4px;">Manage watchlist</div>
+          </div>
+        </dc-import>
+        <div style="text-align:center; margin-top:14px;"><div style="font-size:12px; font-weight:800;">Empty</div><div style="font-size:10px; font-weight:800; color:#726f6e; letter-spacing:0.06em; margin-top:2px;">DARK</div></div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; align-items:center;">
+        <dc-import name="Phone" theme="light" active="feed" h="772" hint-size="356px,792px">
+          <div style="flex:none; background:var(--sp-bg); border-bottom:2px solid var(--sp-divider-strong);">
+            <div style="padding:4px 16px 10px; display:flex; align-items:flex-end; justify-content:space-between;"><div><div style="font-size:9px; font-weight:900; letter-spacing:0.16em; color:var(--sp-accent);">STOCKPULSE</div><div style="font-size:27px; font-weight:900; letter-spacing:-0.02em; line-height:1; margin-top:2px;">Feed</div></div></div>
+          </div>
+          <div style="flex:1; overflow:hidden; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:16px; padding:32px 28px; background:var(--sp-bg);">
+            <div style="width:76px; height:76px; border:2px solid var(--sp-accent); display:flex; align-items:center; justify-content:center;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--sp-accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.5 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg></div>
+            <div style="font-size:20px; font-weight:900;">Couldn't reach the feed</div>
+            <div style="font-size:13px; color:var(--sp-muted); line-height:1.5; max-width:240px;">Check your connection and try again. Your last briefing is still available offline.</div>
+            <div style="display:inline-flex; align-items:center; gap:8px; background:var(--sp-accent); color:var(--sp-on-accent); padding:11px 20px; font-size:13px; font-weight:800; margin-top:4px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>Retry</div>
+            <div style="font-size:11px; color:var(--sp-faint); font-weight:700; margin-top:2px;">Last synced 09:41 · Fri</div>
+          </div>
+        </dc-import>
+        <div style="text-align:center; margin-top:14px;"><div style="font-size:12px; font-weight:800;">Error</div><div style="font-size:10px; font-weight:800; color:#726f6e; letter-spacing:0.06em; margin-top:2px;">LIGHT</div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ALERT DETAIL -->
+  <div style="max-width:1440px; margin:0 auto 40px;">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:22px;"><div style="width:26px; height:26px; background:#6495ED; color:#0f1b2e; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900;">2</div><div style="font-size:20px; font-weight:900; letter-spacing:-0.01em;">Alert detail</div><div style="font-size:12px; color:#726f6e; font-weight:600;">Full alert — summary, why it matters, affected tickers, price, source.</div></div>
+    <div style="display:flex; gap:36px; flex-wrap:wrap;">
+      <sc-for list="{{ detailThemes }}" as="th">
+      <div style="display:flex; flex-direction:column; align-items:center;">
+        <dc-import name="Phone" theme="{{ th.name }}" show-tabs="false" h="772" hint-size="356px,792px">
+          <div style="flex:none; display:flex; align-items:center; gap:12px; padding:6px 14px 12px; border-bottom:2px solid var(--sp-divider-strong); background:var(--sp-bg); color:var(--sp-text);">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+            <span style="font-size:14px; font-weight:800;">Alert</span>
+            <div style="margin-left:auto; display:flex; gap:16px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" x2="15.4" y1="10.5" y2="6.5"/><line x1="8.6" x2="15.4" y1="13.5" y2="17.5"/></svg></div>
+          </div>
+          <div style="flex:1; overflow:hidden; display:flex; flex-direction:column; background:var(--sp-bg); color:var(--sp-text);">
+            <div style="padding:16px; display:flex; flex-direction:column; gap:14px;">
+              <div style="display:flex; align-items:center; gap:8px;"><div style="display:inline-flex; align-items:center; gap:6px; padding:4px 9px; background:{{ detail.impBg }}; color:{{ detail.impFg }};"><div style="display:flex; gap:2px;"><sc-for list="{{ detail.cells }}" as="c"><div style="width:3px; height:11px; background:{{ c }};"></div></sc-for></div><span style="font-size:9px; font-weight:800; letter-spacing:0.06em;">{{ detail.imp }}</span></div><span style="font-size:9px; font-weight:800; letter-spacing:0.08em; padding:3px 8px; border:1px solid var(--sp-divider-strong); color:var(--sp-muted);">{{ detail.category }}</span><span style="margin-left:auto; font-size:10px; color:var(--sp-faint); font-weight:700;">FRI · 12:48 PDT · 12m ago</span></div>
+              <div style="font-size:22px; font-weight:900; line-height:1.16; letter-spacing:-0.02em;">{{ detail.summary }}</div>
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><div style="display:inline-flex; align-items:center; gap:6px; padding:5px 11px; background:{{ detail.sentBg }}; color:{{ detail.sentFg }};"><span style="font-size:12px; font-weight:900;">{{ detail.sentGlyph }}</span><span style="font-size:10px; font-weight:800; letter-spacing:0.05em;">{{ detail.sentLabel }}</span></div><sc-for list="{{ detail.tickers }}" as="t"><span style="font-size:11px; font-weight:800; padding:3px 8px; background:var(--sp-surface-2);">{{ t }}</span></sc-for></div>
+              <div style="background:var(--sp-surface); padding:14px;">
+                <div style="display:flex; align-items:baseline; gap:9px;"><span style="font-size:16px; font-weight:900;">NVDA</span><span style="font-size:22px; font-weight:800; letter-spacing:-0.01em; font-variant-numeric:tabular-nums;">118.44</span><span style="font-size:14px; font-weight:800; color:var(--sp-bear); font-variant-numeric:tabular-nums;">▼ 4.2%</span></div>
+                <div style="display:flex; align-items:flex-end; gap:2px; height:44px; margin-top:12px;"><div style="flex:1; height:70%; background:var(--sp-neutral-bg);"></div><div style="flex:1; height:82%; background:var(--sp-neutral-bg);"></div><div style="flex:1; height:75%; background:var(--sp-neutral-bg);"></div><div style="flex:1; height:88%; background:var(--sp-neutral-bg);"></div><div style="flex:1; height:80%; background:var(--sp-neutral-bg);"></div><div style="flex:1; height:65%; background:var(--sp-bear-bg);"></div><div style="flex:1; height:58%; background:var(--sp-bear-bg);"></div><div style="flex:1; height:48%; background:var(--sp-bear);"></div><div style="flex:1; height:40%; background:var(--sp-bear);"></div><div style="flex:1; height:33%; background:var(--sp-bear);"></div><div style="flex:1; height:28%; background:var(--sp-bear);"></div><div style="flex:1; height:22%; background:var(--sp-bear);"></div></div>
+                <div style="display:flex; justify-content:space-between; margin-top:8px;"><span style="font-size:9px; font-weight:800; letter-spacing:0.05em; color:var(--sp-faint);">5-DAY</span><span style="font-size:9px; font-weight:800; letter-spacing:0.05em; color:var(--sp-faint);">AS OF FRI 13:00 PDT</span></div>
+              </div>
+              <div style="height:2px; background:var(--sp-divider);"></div>
+              <div><div style="font-size:10px; font-weight:900; letter-spacing:0.1em; color:var(--sp-accent-ink); margin-bottom:8px;">WHY IT MATTERS</div><div style="font-size:13.5px; line-height:1.5; color:var(--sp-text);">A Commerce Department review could delay $4–5B of H20 accelerator shipments into next quarter. If it lands, consensus data-center revenue for the October quarter looks 6–8% too high, and the read-through hits TSM and AMD. Base case: a licensing framework, not an outright ban.</div></div>
+              <div><div style="font-size:10px; font-weight:900; letter-spacing:0.1em; color:var(--sp-muted); margin-bottom:8px;">AFFECTED TICKERS</div>
+                <div style="display:flex; flex-direction:column; gap:0;">
+                  <div style="display:flex; align-items:center; gap:9px; padding:9px 0; border-bottom:1px solid var(--sp-divider);"><span style="font-size:12.5px; font-weight:800; width:52px;">NVDA</span><span style="font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums;">118.44</span><span style="margin-left:auto; font-size:12px; font-weight:800; color:var(--sp-bear); font-variant-numeric:tabular-nums;">▼ 4.2%</span></div>
+                  <div style="display:flex; align-items:center; gap:9px; padding:9px 0; border-bottom:1px solid var(--sp-divider);"><span style="font-size:12.5px; font-weight:800; width:52px;">TSM</span><span style="font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums;">182.40</span><span style="margin-left:auto; font-size:12px; font-weight:800; color:var(--sp-bear); font-variant-numeric:tabular-nums;">▼ 2.1%</span></div>
+                  <div style="display:flex; align-items:center; gap:9px; padding:9px 0;"><span style="font-size:12.5px; font-weight:800; width:52px;">AMD</span><span style="font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums;">158.90</span><span style="margin-left:auto; font-size:12px; font-weight:800; color:var(--sp-bear); font-variant-numeric:tabular-nums;">▼ 3.4%</span></div>
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; background:var(--sp-surface); padding:12px 14px;"><div style="flex:1;"><div style="font-size:12px; font-weight:800;">Reuters</div><div style="font-size:10px; color:var(--sp-muted); font-weight:600;">Regulatory · Fri 12:48 PDT</div></div><div style="display:inline-flex; align-items:center; gap:6px; color:var(--sp-accent-ink); font-size:12px; font-weight:800;">Open<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/></svg></div></div>
+              <div style="display:flex; align-items:center; gap:8px; background:var(--sp-accent); color:var(--sp-on-accent); padding:13px 15px; font-size:14px; font-weight:800;"><span>Generate briefing on NVDA</span><svg style="margin-left:auto;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
+              <div style="font-size:10px; color:var(--sp-faint); font-weight:600; line-height:1.4;">AI-generated summary. Not investment advice — verify against the source before acting.</div>
+            </div>
+          </div>
+        </dc-import>
+        <div style="text-align:center; margin-top:14px;"><div style="font-size:12px; font-weight:800;">Alert detail</div><div style="font-size:10px; font-weight:800; color:#726f6e; letter-spacing:0.06em; margin-top:2px;">{{ th.label }}</div></div>
+      </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- REPORT / BRIEFING -->
+  <div style="max-width:1440px; margin:0 auto 40px;">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:22px;"><div style="width:26px; height:26px; background:#6495ED; color:#0f1b2e; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900;">3</div><div style="font-size:20px; font-weight:900; letter-spacing:-0.01em;">Report — AI briefing</div><div style="font-size:12px; color:#726f6e; font-weight:600;">On-demand: headline takeaway, themed sections, watchlist price block.</div></div>
+    <div style="display:flex; gap:36px; flex-wrap:wrap;">
+      <sc-for list="{{ themes }}" as="th">
+      <div style="display:flex; flex-direction:column; align-items:center;">
+        <dc-import name="Phone" theme="{{ th.name }}" active="report" h="772" hint-size="356px,792px">
+          <div style="flex:none; background:var(--sp-bg); color:var(--sp-text); border-bottom:2px solid var(--sp-divider-strong);">
+            <div style="padding:4px 16px 10px; display:flex; align-items:flex-end; justify-content:space-between;">
+              <div><div style="font-size:9px; font-weight:900; letter-spacing:0.16em; color:var(--sp-accent);">BRIEFING · FRI 30 JUL</div><div style="font-size:27px; font-weight:900; letter-spacing:-0.02em; line-height:1; margin-top:2px;">Report</div></div>
+              <div style="padding-bottom:4px;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></div>
+            </div>
+            <div style="padding:0 16px 10px;"><div style="display:inline-flex; border:1px solid var(--sp-divider-strong);"><div style="padding:6px 13px; font-size:11px; font-weight:800; background:var(--sp-accent); color:var(--sp-on-accent);">Whole watchlist</div><div style="padding:6px 13px; font-size:11px; font-weight:800; color:var(--sp-muted); border-left:1px solid var(--sp-divider-strong);">Single stock</div></div></div>
+          </div>
+          <div style="flex:1; overflow:hidden; display:flex; flex-direction:column; background:var(--sp-bg); color:var(--sp-text);">
+            <div style="padding:16px;">
+              <div style="border-top:3px solid var(--sp-accent); padding-top:12px; margin-bottom:16px;">
+                <div style="font-size:10px; font-weight:900; letter-spacing:0.12em; color:var(--sp-accent-ink); margin-bottom:8px;">TODAY'S TAKEAWAY</div>
+                <div style="font-size:19px; font-weight:900; line-height:1.22; letter-spacing:-0.015em;">Rates are back in the driver's seat. AI hardware wobbles on China risk; software and storage hold up.</div>
+              </div>
+              <sc-for list="{{ reportSecs }}" as="s">
+                <div style="padding:14px 0; border-bottom:2px solid var(--sp-divider);">
+                  <div style="display:flex; align-items:center; gap:9px; margin-bottom:7px;"><span style="width:10px; height:10px; background:{{ s.sentFg }};"></span><span style="font-size:15px; font-weight:900; letter-spacing:-0.01em;">{{ s.title }}</span><span style="margin-left:auto; display:inline-flex; gap:4px; align-items:center; font-size:9px; font-weight:800; letter-spacing:0.05em; color:{{ s.sentFg }};"><span style="font-size:11px;">{{ s.sentGlyph }}</span>{{ s.sentLabel }}</span></div>
+                  <div style="font-size:13px; line-height:1.5; color:var(--sp-muted);">{{ s.body }}</div>
+                </div>
+              </sc-for>
+              <div style="margin-top:16px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;"><span style="font-size:10px; font-weight:900; letter-spacing:0.1em; color:var(--sp-muted);">WATCHLIST · % VS OPEN</span><span style="font-size:9px; font-weight:800; letter-spacing:0.05em; color:var(--sp-faint);">AS OF FRI 13:00 PDT</span></div>
+                <sc-for list="{{ watch }}" as="w">
+                  <div style="display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--sp-divider);"><span style="font-size:12.5px; font-weight:800; width:46px;">{{ w.tk }}</span><span style="font-size:11px; color:var(--sp-muted); flex:1; overflow:hidden; white-space:nowrap;">{{ w.name }}</span><span style="font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums;">{{ w.px }}</span><span style="font-size:12px; font-weight:800; color:{{ w.color }}; width:66px; text-align:right; font-variant-numeric:tabular-nums;">{{ w.chg }}</span></div>
+                </sc-for>
+              </div>
+              <div style="font-size:10px; color:var(--sp-faint); font-weight:600; line-height:1.4; margin-top:14px;">Generated 9:41 AM by StockPulse AI from 240 sources overnight. Not investment advice.</div>
+            </div>
+          </div>
+        </dc-import>
+        <div style="text-align:center; margin-top:14px;"><div style="font-size:12px; font-weight:800;">Report</div><div style="font-size:10px; font-weight:800; color:#726f6e; letter-spacing:0.06em; margin-top:2px;">{{ th.label }}</div></div>
+      </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- WATCHLIST -->
+  <div style="max-width:1440px; margin:0 auto 40px;">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:22px;"><div style="width:26px; height:26px; background:#6495ED; color:#0f1b2e; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900;">4</div><div style="font-size:20px; font-weight:900; letter-spacing:-0.01em;">Watchlist</div><div style="font-size:12px; color:#726f6e; font-weight:600;">Tracked stocks · search-to-add (tesla → TSLA) · swipe-to-remove.</div></div>
+    <div style="display:flex; gap:36px; flex-wrap:wrap;">
+
+      <div style="display:flex; flex-direction:column; align-items:center;">
+        <dc-import name="Phone" theme="dark" active="watchlist" h="772" hint-size="356px,792px">
+          <div style="flex:none; background:var(--sp-bg); color:var(--sp-text); border-bottom:2px solid var(--sp-divider-strong);">
+            <div style="padding:4px 16px 12px; display:flex; align-items:flex-end; justify-content:space-between;"><div><div style="font-size:9px; font-weight:900; letter-spacing:0.16em; color:var(--sp-accent);">5 STOCKS</div><div style="font-size:27px; font-weight:900; letter-spacing:-0.02em; line-height:1; margin-top:2px;">Watchlist</div></div><div style="width:34px; height:34px; background:var(--sp-accent); color:var(--sp-on-accent); display:flex; align-items:center; justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></div></div>
+          </div>
+          <div style="flex:1; overflow:hidden; display:flex; flex-direction:column; background:var(--sp-bg); color:var(--sp-text);">
+            <sc-for list="{{ watch }}" as="w">
+              <div style="display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:2px solid var(--sp-divider);">
+                <div style="flex:1;"><div style="display:flex; align-items:center; gap:8px;"><span style="font-size:16px; font-weight:900;">{{ w.tk }}</span><span style="display:inline-flex; gap:3px; align-items:center; padding:2px 7px; background:{{ w.sentBg }}; color:{{ w.sentFg }}; font-size:8.5px; font-weight:800; letter-spacing:0.04em;"><span style="font-size:10px;">{{ w.sentGlyph }}</span>{{ w.sentLabel }}</span></div><div style="font-size:11px; color:var(--sp-muted); margin-top:3px;">{{ w.name }}</div></div>
+                <div style="text-align:right;"><div style="font-size:15px; font-weight:800; font-variant-numeric:tabular-nums;">{{ w.px }}</div><div style="font-size:12px; font-weight:800; color:{{ w.color }}; font-variant-numeric:tabular-nums;">{{ w.chg }}</div></div>
+              </div>
+            </sc-for>
+            <div style="position:relative; overflow:hidden; border-bottom:2px solid var(--sp-divider);">
+              <div style="position:absolute; right:0; top:0; bottom:0; width:100px; background:var(--sp-accent); color:var(--sp-on-accent); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span style="font-size:10px; font-weight:800;">Remove</span></div>
+              <div style="transform:translateX(-100px); background:var(--sp-bg); display:flex; align-items:center; gap:12px; padding:14px 16px;"><div style="flex:1;"><div style="display:flex; align-items:center; gap:8px;"><span style="font-size:16px; font-weight:900;">SMCI</span><span style="display:inline-flex; gap:3px; align-items:center; padding:2px 7px; background:var(--sp-neutral-bg); color:var(--sp-neutral); font-size:8.5px; font-weight:800;">→ NEUTRAL</span></div><div style="font-size:11px; color:var(--sp-muted); margin-top:3px;">Super Micro Computer</div></div><div style="text-align:right;"><div style="font-size:15px; font-weight:800; font-variant-numeric:tabular-nums;">44.10</div><div style="font-size:12px; font-weight:800; color:var(--sp-neutral); font-variant-numeric:tabular-nums;">→ 0.2%</div></div></div>
+            </div>
+            <div style="padding:11px 16px; font-size:10px; font-weight:800; letter-spacing:0.05em; color:var(--sp-faint); text-align:center;">SWIPE A ROW TO REMOVE · AS OF FRI 13:00 PDT</div>
+          </div>
+        </dc-import>
+        <div style="text-align:center; margin-top:14px;"><div style="font-size:12px; font-weight:800;">Populated · swipe-to-remove</div><div style="font-size:10px; font-weight:800; color:#726f6e; letter-spacing:0.06em; margin-top:2px;">DARK</div></div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; align-items:center;">
+        <dc-import name="Phone" theme="light" active="watchlist" show-tabs="false" h="772" hint-size="356px,792px">
+          <div style="flex:none; display:flex; align-items:center; gap:12px; padding:6px 14px 12px; border-bottom:2px solid var(--sp-divider-strong); background:var(--sp-bg); color:var(--sp-text);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg><span style="font-size:14px; font-weight:800;">Add to watchlist</span></div>
+          <div style="flex:1; overflow:hidden; display:flex; flex-direction:column; background:var(--sp-bg); color:var(--sp-text);">
+            <div style="padding:14px 16px;">
+              <div style="display:flex; align-items:center; gap:10px; background:var(--sp-surface); border:1px solid var(--sp-accent); padding:12px 14px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--sp-muted)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span style="font-size:15px; font-weight:600;">tesla</span><span style="width:2px; height:18px; background:var(--sp-accent);"></span></div>
+            </div>
+            <div style="padding:0 16px 8px; font-size:10px; font-weight:900; letter-spacing:0.1em; color:var(--sp-muted);">MATCHES</div>
+            <div style="display:flex; align-items:center; gap:12px; padding:13px 16px; border-top:2px solid var(--sp-divider);"><div style="flex:1;"><div style="font-size:15px; font-weight:900;">TSLA</div><div style="font-size:11px; color:var(--sp-muted); margin-top:2px;">Tesla, Inc. · NASDAQ</div></div><div style="width:32px; height:32px; background:var(--sp-accent); color:var(--sp-on-accent); display:flex; align-items:center; justify-content:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></div></div>
+            <div style="display:flex; align-items:center; gap:12px; padding:13px 16px; border-top:1px solid var(--sp-divider);"><div style="flex:1;"><div style="font-size:15px; font-weight:900;">TSLL</div><div style="font-size:11px; color:var(--sp-muted); margin-top:2px;">Direxion Daily TSLA Bull 2X</div></div><div style="width:32px; height:32px; border:1px solid var(--sp-divider-strong); color:var(--sp-text); display:flex; align-items:center; justify-content:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></div></div>
+            <div style="padding:18px 16px 8px; font-size:10px; font-weight:900; letter-spacing:0.1em; color:var(--sp-muted);">TRENDING NOW</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; padding:0 16px;"><span style="font-size:12px; font-weight:800; padding:6px 11px; border:1px solid var(--sp-divider-strong);">+ PLTR</span><span style="font-size:12px; font-weight:800; padding:6px 11px; border:1px solid var(--sp-divider-strong);">+ AVGO</span><span style="font-size:12px; font-weight:800; padding:6px 11px; border:1px solid var(--sp-divider-strong);">+ AMZN</span><span style="font-size:12px; font-weight:800; padding:6px 11px; border:1px solid var(--sp-divider-strong);">+ COIN</span></div>
+          </div>
+        </dc-import>
+        <div style="text-align:center; margin-top:14px;"><div style="font-size:12px; font-weight:800;">Add flow · search</div><div style="font-size:10px; font-weight:800; color:#726f6e; letter-spacing:0.06em; margin-top:2px;">LIGHT</div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- EVALUATION -->
+  <div style="max-width:1440px; margin:0 auto 40px;">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:22px;"><div style="width:26px; height:26px; background:#6495ED; color:#0f1b2e; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900;">5</div><div style="font-size:20px; font-weight:900; letter-spacing:-0.01em;">Evaluation</div><div style="font-size:12px; color:#726f6e; font-weight:600;">How accurate have the AI's calls been — headline stat + history.</div></div>
+    <div style="display:flex; gap:36px; flex-wrap:wrap;">
+      <sc-for list="{{ themes }}" as="th">
+      <div style="display:flex; flex-direction:column; align-items:center;">
+        <dc-import name="Phone" theme="{{ th.name }}" show-tabs="false" h="772" hint-size="356px,792px">
+          <div style="flex:none; display:flex; align-items:center; gap:12px; padding:6px 14px 12px; border-bottom:2px solid var(--sp-divider-strong); background:var(--sp-bg); color:var(--sp-text);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg><span style="font-size:14px; font-weight:800;">AI accuracy</span></div>
+          <div style="flex:1; overflow:hidden; display:flex; flex-direction:column; background:var(--sp-bg); color:var(--sp-text);">
+            <div style="padding:18px 16px; border-bottom:2px solid var(--sp-divider);">
+              <div style="font-size:10px; font-weight:900; letter-spacing:0.1em; color:var(--sp-muted);">DIRECTIONAL ACCURACY · LAST 90 DAYS</div>
+              <div style="display:flex; align-items:baseline; gap:12px; margin-top:8px;"><span style="font-size:62px; font-weight:900; letter-spacing:-0.03em; line-height:0.85;">74%</span><div style="font-size:12px; color:var(--sp-muted); font-weight:700; line-height:1.35;">of 128 calls<br>matched a 5-day move</div><div style="margin-left:auto; text-align:right;"><div style="font-size:22px; font-weight:900; color:var(--sp-bull);">12</div><div style="font-size:9px; font-weight:800; letter-spacing:0.05em; color:var(--sp-muted);">HIT STREAK</div></div></div>
+            </div>
+            <div style="padding:16px; border-bottom:2px solid var(--sp-divider); display:flex; flex-direction:column; gap:12px;">
+              <div style="display:flex; align-items:center; gap:10px;"><span style="font-size:10px; font-weight:800; letter-spacing:0.04em; width:64px;">▲ BULLISH</span><div style="flex:1; height:12px; background:var(--sp-neutral-bg);"><div style="width:81%; height:100%; background:var(--sp-bull);"></div></div><span style="font-size:11px; font-weight:800; width:32px; text-align:right;">81%</span></div>
+              <div style="display:flex; align-items:center; gap:10px;"><span style="font-size:10px; font-weight:800; letter-spacing:0.04em; width:64px;">▼ BEARISH</span><div style="flex:1; height:12px; background:var(--sp-neutral-bg);"><div style="width:69%; height:100%; background:var(--sp-bear);"></div></div><span style="font-size:11px; font-weight:800; width:32px; text-align:right;">69%</span></div>
+              <div style="display:flex; align-items:center; gap:10px;"><span style="font-size:10px; font-weight:800; letter-spacing:0.04em; width:64px;">→ NEUTRAL</span><div style="flex:1; height:12px; background:var(--sp-neutral-bg);"><div style="width:71%; height:100%; background:var(--sp-neutral);"></div></div><span style="font-size:11px; font-weight:800; width:32px; text-align:right;">71%</span></div>
+            </div>
+            <div style="padding:14px 16px 6px; font-size:10px; font-weight:900; letter-spacing:0.1em; color:var(--sp-muted);">RECENT CALLS</div>
+            <sc-for list="{{ evalHist }}" as="e">
+              <div style="display:flex; align-items:center; gap:9px; padding:11px 16px; border-top:1px solid var(--sp-divider);">
+                <span style="font-size:12.5px; font-weight:900; width:46px;">{{ e.tk }}</span>
+                <span style="display:inline-flex; gap:3px; align-items:center; padding:2px 7px; background:{{ e.sentBg }}; color:{{ e.sentFg }}; font-size:8.5px; font-weight:800; letter-spacing:0.03em;"><span style="font-size:10px;">{{ e.sentGlyph }}</span>{{ e.label }}</span>
+                <span style="font-size:10px; color:var(--sp-faint); font-weight:700;">{{ e.when }}</span>
+                <span style="margin-left:auto; font-size:11px; font-weight:800; color:{{ e.markColor }}; font-variant-numeric:tabular-nums;">{{ e.note }}</span>
+                <span style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; background:{{ e.markBg }}; color:{{ e.markColor }}; font-size:12px; font-weight:900;">{{ e.mark }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </dc-import>
+        <div style="text-align:center; margin-top:14px;"><div style="font-size:12px; font-weight:800;">Evaluation</div><div style="font-size:10px; font-weight:800; color:#726f6e; letter-spacing:0.06em; margin-top:2px;">{{ th.label }}</div></div>
+      </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- ONBOARDING -->
+  <div style="max-width:1440px; margin:0 auto 40px;">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:22px;"><div style="width:26px; height:26px; background:#6495ED; color:#0f1b2e; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900;">6</div><div style="font-size:20px; font-weight:900; letter-spacing:-0.01em;">Onboarding</div><div style="font-size:12px; color:#726f6e; font-weight:600;">Sign in · notifications ask · watchlist starter.</div></div>
+    <div style="display:flex; gap:36px; flex-wrap:wrap;">
+
+      <div style="display:flex; flex-direction:column; align-items:center;">
+        <dc-import name="Phone" theme="dark" show-tabs="false" h="772" hint-size="356px,792px">
+          <div style="flex:1; display:flex; flex-direction:column; background:var(--sp-bg); color:var(--sp-text); padding:0 24px;">
+            <div style="flex:1; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:18px;">
+              <div style="width:76px; height:76px; background:var(--sp-accent); display:flex; align-items:center; justify-content:center;"><svg width="48" height="48" viewBox="0 0 60 60" fill="none" stroke="var(--sp-on-accent)" stroke-width="6" stroke-linecap="square"><polyline points="6,38 20,38 26,16 34,46 40,30 54,30"/></svg></div>
+              <div><div style="font-size:38px; font-weight:900; letter-spacing:-0.03em; line-height:1;">StockPulse</div><div style="font-size:15px; color:var(--sp-muted); font-weight:600; margin-top:10px; line-height:1.4;">A calm market analyst in your pocket. We watch the news; you get the point.</div></div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px; padding-bottom:8px;">
+              <div style="display:flex; align-items:center; gap:10px; background:var(--sp-text); color:var(--sp-bg); padding:13px 15px; font-size:14px; font-weight:800;"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.15-2.8.85-3.5.85s-1.8-.83-3-.8c-1.5.02-2.9.9-3.7 2.25-1.6 2.75-.4 6.8 1.1 9 .75 1.1 1.6 2.3 2.8 2.25 1.1-.05 1.5-.72 2.9-.72s1.7.72 2.9.7c1.2-.02 2-1.1 2.7-2.2.85-1.25 1.2-2.5 1.2-2.55-.02-.02-2.3-.9-2.3-3.5zM14.2 5.6c.6-.75 1-1.8.9-2.85-.87.04-1.95.58-2.6 1.3-.58.65-1.08 1.7-.95 2.7.98.08 1.98-.5 2.65-1.15z"/></svg><span>Continue with Apple</span></div>
+              <div style="display:flex; align-items:center; gap:10px; border:1px solid var(--sp-divider-strong); color:var(--sp-text); padding:13px 15px; font-size:14px; font-weight:800;"><span style="width:16px; height:16px; background:var(--sp-muted); display:flex; align-items:center; justify-content:center; color:var(--sp-bg); font-size:11px; font-weight:900;">G</span><span>Continue with Google</span></div>
+              <div style="display:flex; align-items:center; gap:10px; border:1px solid var(--sp-divider-strong); color:var(--sp-text); padding:13px 15px; font-size:14px; font-weight:800;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="0"/><path d="m2 6 10 7L22 6"/></svg><span>Continue with email</span></div>
+              <div style="font-size:10px; color:var(--sp-faint); font-weight:600; line-height:1.4; margin-top:6px;">By continuing you agree to our Terms and Privacy Policy.</div>
+            </div>
+          </div>
+        </dc-import>
+        <div style="text-align:center; margin-top:14px;"><div style="font-size:12px; font-weight:800;">Sign in</div><div style="font-size:10px; font-weight:800; color:#726f6e; letter-spacing:0.06em; margin-top:2px;">DARK</div></div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; align-items:center;">
+        <dc-import name="Phone" theme="dark" show-tabs="false" h="772" hint-size="356px,792px">
+          <div style="flex:1; display:flex; flex-direction:column; background:var(--sp-bg); color:var(--sp-text); padding:0 24px;">
+            <div style="padding-top:16px; font-size:11px; font-weight:800; letter-spacing:0.06em; color:var(--sp-muted);">STEP 2 OF 3</div>
+            <div style="flex:1; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:20px;">
+              <div style="width:88px; height:88px; border:2px solid var(--sp-accent); display:flex; align-items:center; justify-content:center;"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--sp-accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg></div>
+              <div><div style="font-size:30px; font-weight:900; letter-spacing:-0.02em; line-height:1.05;">Never miss the one alert that matters</div><div style="font-size:14px; color:var(--sp-muted); font-weight:600; margin-top:12px; line-height:1.45;">Turn on notifications for critical and high-importance alerts. You control quiet hours — no 3 a.m. noise.</div></div>
+              <div style="display:flex; flex-direction:column; gap:10px; width:100%;"><div style="display:flex; align-items:center; gap:8px;"><span style="color:var(--sp-bull);">✓</span><span style="font-size:12.5px; color:var(--sp-text);">Critical &amp; high-importance only, by default</span></div><div style="display:flex; align-items:center; gap:8px;"><span style="color:var(--sp-bull);">✓</span><span style="font-size:12.5px; color:var(--sp-text);">Quiet hours 10 PM – 7 AM</span></div></div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px; padding-bottom:8px;">
+              <div style="display:flex; align-items:center; gap:8px; background:var(--sp-accent); color:var(--sp-on-accent); padding:14px 15px; font-size:14px; font-weight:800;"><span>Allow notifications</span><svg style="margin-left:auto;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
+              <div style="text-align:center; font-size:13px; font-weight:800; color:var(--sp-muted); padding:6px;">Maybe later</div>
+            </div>
+          </div>
+        </dc-import>
+        <div style="text-align:center; margin-top:14px;"><div style="font-size:12px; font-weight:800;">Notifications ask</div><div style="font-size:10px; font-weight:800; color:#726f6e; letter-spacing:0.06em; margin-top:2px;">DARK</div></div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; align-items:center;">
+        <dc-import name="Phone" theme="light" show-tabs="false" h="772" hint-size="356px,792px">
+          <div style="flex:1; display:flex; flex-direction:column; background:var(--sp-bg); color:var(--sp-text);">
+            <div style="padding:16px 20px 12px;"><div style="font-size:11px; font-weight:800; letter-spacing:0.06em; color:var(--sp-muted);">STEP 3 OF 3</div><div style="font-size:28px; font-weight:900; letter-spacing:-0.02em; line-height:1.05; margin-top:6px;">Pick a few to watch</div><div style="font-size:13px; color:var(--sp-muted); font-weight:600; margin-top:6px;">We'll start watching the news for these right away.</div></div>
+            <div style="flex:1; overflow:hidden; display:flex; flex-direction:column;">
+              <div style="display:flex; align-items:center; gap:10px; padding:13px 20px; border-top:2px solid var(--sp-divider); background:var(--sp-accent-bg);"><div style="flex:1;"><span style="font-size:15px; font-weight:900;">NVDA</span><span style="font-size:11px; color:var(--sp-muted); margin-left:8px;">NVIDIA Corp</span></div><div style="width:28px; height:28px; background:var(--sp-accent); color:var(--sp-on-accent); display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg></div></div>
+              <div style="display:flex; align-items:center; gap:10px; padding:13px 20px; border-top:1px solid var(--sp-divider); background:var(--sp-accent-bg);"><div style="flex:1;"><span style="font-size:15px; font-weight:900;">WDC</span><span style="font-size:11px; color:var(--sp-muted); margin-left:8px;">Western Digital</span></div><div style="width:28px; height:28px; background:var(--sp-accent); color:var(--sp-on-accent); display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg></div></div>
+              <div style="display:flex; align-items:center; gap:10px; padding:13px 20px; border-top:1px solid var(--sp-divider); background:var(--sp-accent-bg);"><div style="flex:1;"><span style="font-size:15px; font-weight:900;">MSFT</span><span style="font-size:11px; color:var(--sp-muted); margin-left:8px;">Microsoft Corp</span></div><div style="width:28px; height:28px; background:var(--sp-accent); color:var(--sp-on-accent); display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg></div></div>
+              <div style="display:flex; align-items:center; gap:10px; padding:13px 20px; border-top:1px solid var(--sp-divider);"><div style="flex:1;"><span style="font-size:15px; font-weight:900;">AAPL</span><span style="font-size:11px; color:var(--sp-muted); margin-left:8px;">Apple Inc</span></div><div style="width:28px; height:28px; border:1px solid var(--sp-divider-strong); color:var(--sp-text); display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></div></div>
+              <div style="display:flex; align-items:center; gap:10px; padding:13px 20px; border-top:1px solid var(--sp-divider);"><div style="flex:1;"><span style="font-size:15px; font-weight:900;">QQQ</span><span style="font-size:11px; color:var(--sp-muted); margin-left:8px;">Invesco QQQ Trust</span></div><div style="width:28px; height:28px; border:1px solid var(--sp-divider-strong); color:var(--sp-text); display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></div></div>
+            </div>
+            <div style="padding:12px 20px 16px; border-top:2px solid var(--sp-divider-strong);"><div style="display:flex; align-items:center; gap:8px; background:var(--sp-accent); color:var(--sp-on-accent); padding:14px 15px; font-size:14px; font-weight:800;"><span>Start watching 3 stocks</span><svg style="margin-left:auto;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div></div>
+          </div>
+        </dc-import>
+        <div style="text-align:center; margin-top:14px;"><div style="font-size:12px; font-weight:800;">Watchlist starter</div><div style="font-size:10px; font-weight:800; color:#726f6e; letter-spacing:0.06em; margin-top:2px;">LIGHT</div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SETTINGS + PAYWALL -->
+  <div style="max-width:1440px; margin:0 auto 96px;">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:22px;"><div style="width:26px; height:26px; background:#6495ED; color:#0f1b2e; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900;">7</div><div style="font-size:20px; font-weight:900; letter-spacing:-0.01em;">Settings &amp; Paywall</div><div style="font-size:12px; color:#726f6e; font-weight:600;">Preferences, quiet hours, Telegram, subscription — and the upgrade screen.</div></div>
+    <div style="display:flex; gap:36px; flex-wrap:wrap;">
+
+      <div style="display:flex; flex-direction:column; align-items:center;">
+        <dc-import name="Phone" theme="dark" active="settings" h="772" hint-size="356px,792px">
+          <div style="flex:none; background:var(--sp-bg); color:var(--sp-text); border-bottom:2px solid var(--sp-divider-strong); padding:4px 16px 12px;"><div style="font-size:27px; font-weight:900; letter-spacing:-0.02em;">Settings</div></div>
+          <div style="flex:1; overflow:hidden; display:flex; flex-direction:column; background:var(--sp-bg); color:var(--sp-text);">
+            <div style="display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:2px solid var(--sp-divider);"><div style="width:42px; height:42px; background:var(--sp-accent); color:var(--sp-on-accent); display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:900;">JR</div><div style="flex:1;"><div style="font-size:15px; font-weight:800;">Jordan Reyes</div><div style="font-size:11px; color:var(--sp-muted);">jordan@stockpulse.app</div></div><span style="font-size:10px; font-weight:800; padding:3px 8px; background:var(--sp-accent); color:var(--sp-on-accent);">PRO</span></div>
+            <div style="padding:14px 16px 6px; font-size:10px; font-weight:900; letter-spacing:0.1em; color:var(--sp-muted);">PREFERENCES</div>
+            <div style="display:flex; align-items:center; gap:12px; padding:13px 16px; border-top:1px solid var(--sp-divider);"><span style="font-size:13.5px; font-weight:700; flex:1;">Language</span><span style="font-size:12px; color:var(--sp-muted);">English</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--sp-faint)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
+            <div style="display:flex; align-items:center; gap:12px; padding:13px 16px; border-top:1px solid var(--sp-divider);"><span style="font-size:13.5px; font-weight:700; flex:1;">Quiet hours</span><span style="font-size:12px; color:var(--sp-muted);">10 PM – 7 AM</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--sp-faint)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
+            <div style="display:flex; align-items:center; gap:12px; padding:13px 16px; border-top:1px solid var(--sp-divider);"><span style="font-size:13.5px; font-weight:700; flex:1;">Briefing schedule</span><span style="font-size:12px; color:var(--sp-muted);">Daily · 8:00 AM</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--sp-faint)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
+            <div style="display:flex; align-items:center; gap:12px; padding:13px 16px; border-top:1px solid var(--sp-divider);"><span style="font-size:13.5px; font-weight:700; flex:1;">Push notifications</span><div style="width:40px; height:22px; background:var(--sp-accent); position:relative;"><div style="position:absolute; top:2px; right:2px; width:18px; height:18px; background:var(--sp-on-accent);"></div></div></div>
+            <div style="padding:14px 16px 6px; font-size:10px; font-weight:900; letter-spacing:0.1em; color:var(--sp-muted);">INTEGRATIONS &amp; ACCOUNT</div>
+            <div style="display:flex; align-items:center; gap:12px; padding:13px 16px; border-top:1px solid var(--sp-divider);"><span style="font-size:13.5px; font-weight:700; flex:1;">Link Telegram</span><span style="display:inline-flex; gap:4px; align-items:center; font-size:11px; font-weight:800; color:var(--sp-bull);"><span>✓</span>@jreyes</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--sp-faint)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
+            <div style="display:flex; align-items:center; gap:12px; padding:13px 16px; border-top:1px solid var(--sp-divider);"><span style="font-size:13.5px; font-weight:700; flex:1;">Manage subscription</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--sp-faint)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
+            <div style="display:flex; align-items:center; gap:12px; padding:13px 16px; border-top:1px solid var(--sp-divider);"><span style="font-size:13.5px; font-weight:700; flex:1; color:var(--sp-muted);">Sign out</span></div>
+            <div style="display:flex; align-items:center; gap:12px; padding:13px 16px; border-top:1px solid var(--sp-divider);"><span style="font-size:13.5px; font-weight:800; flex:1; color:var(--sp-accent);">Delete account</span></div>
+          </div>
+        </dc-import>
+        <div style="text-align:center; margin-top:14px;"><div style="font-size:12px; font-weight:800;">Settings</div><div style="font-size:10px; font-weight:800; color:#726f6e; letter-spacing:0.06em; margin-top:2px;">DARK</div></div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; align-items:center;">
+        <dc-import name="Phone" theme="dark" show-tabs="false" h="772" hint-size="356px,792px">
+          <div style="flex:none; display:flex; align-items:center; padding:10px 16px; background:var(--sp-bg); color:var(--sp-text);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg><span style="margin-left:auto; font-size:12px; font-weight:800; color:var(--sp-muted);">Restore</span></div>
+          <div style="flex:1; overflow:hidden; display:flex; flex-direction:column; background:var(--sp-bg); color:var(--sp-text); padding:0 20px;">
+            <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;"><span style="font-size:11px; font-weight:900; letter-spacing:0.14em; color:var(--sp-accent);">STOCKPULSE PRO</span><div style="font-size:30px; font-weight:900; letter-spacing:-0.025em; line-height:1.05;">Trade with an edge, not a feed of noise</div></div>
+            <div style="border-top:2px solid var(--sp-divider-strong); border-bottom:2px solid var(--sp-divider-strong);">
+              <div style="display:flex; padding:9px 0; border-bottom:1px solid var(--sp-divider);"><span style="flex:1; font-size:12px; font-weight:700;">&nbsp;</span><span style="width:56px; text-align:center; font-size:9px; font-weight:900; letter-spacing:0.08em; color:var(--sp-muted);">FREE</span><span style="width:56px; text-align:center; font-size:9px; font-weight:900; letter-spacing:0.08em; color:var(--sp-accent);">PRO</span></div>
+              <div style="display:flex; align-items:center; padding:10px 0; border-bottom:1px solid var(--sp-divider);"><span style="flex:1; font-size:12.5px; font-weight:700;">Alerts per day</span><span style="width:56px; text-align:center; font-size:11px; font-weight:800; color:var(--sp-muted);">3</span><span style="width:56px; text-align:center; font-size:11px; font-weight:900; color:var(--sp-text);">∞</span></div>
+              <div style="display:flex; align-items:center; padding:10px 0; border-bottom:1px solid var(--sp-divider);"><span style="flex:1; font-size:12.5px; font-weight:700;">Watchlist size</span><span style="width:56px; text-align:center; font-size:11px; font-weight:800; color:var(--sp-muted);">5</span><span style="width:56px; text-align:center; font-size:11px; font-weight:900; color:var(--sp-text);">∞</span></div>
+              <div style="display:flex; align-items:center; padding:10px 0; border-bottom:1px solid var(--sp-divider);"><span style="flex:1; font-size:12.5px; font-weight:700;">AI briefings</span><span style="width:56px; text-align:center; font-size:10px; font-weight:800; color:var(--sp-muted);">Weekly</span><span style="width:56px; text-align:center; font-size:10px; font-weight:900; color:var(--sp-text);">On-demand</span></div>
+              <div style="display:flex; align-items:center; padding:10px 0; border-bottom:1px solid var(--sp-divider);"><span style="flex:1; font-size:12.5px; font-weight:700;">Accuracy history</span><span style="width:56px; text-align:center; font-size:11px; color:var(--sp-faint);">—</span><span style="width:56px; text-align:center; color:var(--sp-bull); font-size:13px; font-weight:900;">✓</span></div>
+              <div style="display:flex; align-items:center; padding:10px 0;"><span style="flex:1; font-size:12.5px; font-weight:700;">Telegram + push</span><span style="width:56px; text-align:center; color:var(--sp-bull); font-size:13px; font-weight:900;">✓</span><span style="width:56px; text-align:center; color:var(--sp-bull); font-size:13px; font-weight:900;">✓</span></div>
+            </div>
+            <div style="display:flex; gap:0; margin-top:16px; border:1px solid var(--sp-divider-strong);">
+              <div style="flex:1; padding:12px; background:var(--sp-accent); color:var(--sp-on-accent);"><div style="font-size:10px; font-weight:800; letter-spacing:0.05em;">YEARLY · SAVE 34%</div><div style="font-size:20px; font-weight:900; margin-top:2px;">$79<span style="font-size:11px; font-weight:700;">/yr</span></div></div>
+              <div style="flex:1; padding:12px; border-left:1px solid var(--sp-divider-strong);"><div style="font-size:10px; font-weight:800; letter-spacing:0.05em; color:var(--sp-muted);">MONTHLY</div><div style="font-size:20px; font-weight:900; margin-top:2px;">$9.99<span style="font-size:11px; font-weight:700; color:var(--sp-muted);">/mo</span></div></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; background:var(--sp-accent); color:var(--sp-on-accent); padding:14px 15px; font-size:14px; font-weight:800; margin-top:14px;"><span>Start 7-day free trial</span><svg style="margin-left:auto;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
+            <div style="text-align:center; font-size:10px; color:var(--sp-faint); font-weight:600; margin-top:10px;">Then $79/yr. Cancel anytime · Terms apply.</div>
+          </div>
+        </dc-import>
+        <div style="text-align:center; margin-top:14px;"><div style="font-size:12px; font-weight:800;">Paywall · Free vs Pro</div><div style="font-size:10px; font-weight:800; color:#726f6e; letter-spacing:0.06em; margin-top:2px;">DARK</div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- =============== 04 · ICON & SPLASH =============== -->
+  <div id="sec-brand" style="max-width:1360px; margin:0 auto 40px;">
+    <div style="display:flex; align-items:baseline; gap:16px; border-bottom:2px solid #201e1d; padding-bottom:10px;">
+      <span style="font-size:13px; font-weight:900; letter-spacing:0.1em; color:#2f5aa8;">04</span>
+      <h2 style="font-size:36px; font-weight:900; letter-spacing:-0.025em; margin:0;">App icon &amp; splash</h2>
+      <span style="margin-left:auto; font-size:12px; font-weight:700; color:#726f6e;">Abstract pulse mark — evolved from the shiba, kept the warm accent</span>
+    </div>
+  </div>
+  <div style="max-width:1360px; margin:0 auto 96px; display:flex; gap:36px; flex-wrap:wrap; align-items:flex-start;">
+    <div style="flex:none;">
+      <div style="font-size:11px; font-weight:800; letter-spacing:0.08em; color:#726f6e; margin-bottom:14px;">APP ICON</div>
+      <div style="display:flex; align-items:flex-end; gap:20px;">
+        <div style="width:120px; height:120px; background:#6495ED; display:flex; align-items:center; justify-content:center;"><svg width="80" height="80" viewBox="0 0 60 60" fill="none" stroke="#f3f2f2" stroke-width="6" stroke-linecap="square"><polyline points="6,38 20,38 26,16 34,46 40,30 54,30"/></svg></div>
+        <div style="width:72px; height:72px; background:#6495ED; display:flex; align-items:center; justify-content:center;"><svg width="48" height="48" viewBox="0 0 60 60" fill="none" stroke="#f3f2f2" stroke-width="7" stroke-linecap="square"><polyline points="6,38 20,38 26,16 34,46 40,30 54,30"/></svg></div>
+        <div style="width:48px; height:48px; background:#6495ED; display:flex; align-items:center; justify-content:center;"><svg width="32" height="32" viewBox="0 0 60 60" fill="none" stroke="#f3f2f2" stroke-width="8" stroke-linecap="square"><polyline points="6,38 20,38 26,16 34,46 40,30 54,30"/></svg></div>
+      </div>
+      <div style="display:flex; gap:20px; margin-top:22px;">
+        <div style="text-align:center;"><div style="width:88px; height:88px; background:#201e1d; display:flex; align-items:center; justify-content:center;"><svg width="58" height="58" viewBox="0 0 60 60" fill="none" stroke="#6495ED" stroke-width="6" stroke-linecap="square"><polyline points="6,38 20,38 26,16 34,46 40,30 54,30"/></svg></div><div style="font-size:10px; font-weight:800; color:#726f6e; margin-top:8px;">DARK GROUND</div></div>
+        <div style="text-align:center;"><div style="width:88px; height:88px; background:#f3f2f2; border:1px solid rgba(32,30,29,0.2); display:flex; align-items:center; justify-content:center;"><svg width="58" height="58" viewBox="0 0 60 60" fill="none" stroke="#201e1d" stroke-width="6" stroke-linecap="square"><polyline points="6,38 20,38 26,16 34,46 40,30 54,30"/></svg></div><div style="font-size:10px; font-weight:800; color:#726f6e; margin-top:8px;">MONOCHROME</div></div>
+        <div style="text-align:center;"><div style="width:88px; height:88px; background:#6495ED; border-radius:20px; display:flex; align-items:center; justify-content:center;"><svg width="58" height="58" viewBox="0 0 60 60" fill="none" stroke="#f3f2f2" stroke-width="6" stroke-linecap="square"><polyline points="6,38 20,38 26,16 34,46 40,30 54,30"/></svg></div><div style="font-size:10px; font-weight:800; color:#726f6e; margin-top:8px;">iOS SQUIRCLE MASK</div></div>
+      </div>
+    </div>
+    <div style="flex:1; min-width:520px;">
+      <div style="font-size:11px; font-weight:800; letter-spacing:0.08em; color:#726f6e; margin-bottom:14px;">SPLASH SCREEN</div>
+      <div style="display:flex; gap:28px; flex-wrap:wrap;">
+        <dc-import name="Phone" theme="dark" show-tabs="false" h="560" hint-size="356px,580px">
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; background:var(--sp-bg); color:var(--sp-text);">
+            <div style="width:88px; height:88px; background:var(--sp-accent); display:flex; align-items:center; justify-content:center;"><svg width="56" height="56" viewBox="0 0 60 60" fill="none" stroke="var(--sp-on-accent)" stroke-width="6" stroke-linecap="square"><polyline points="6,38 20,38 26,16 34,46 40,30 54,30"/></svg></div>
+            <div style="font-size:26px; font-weight:900; letter-spacing:-0.02em;">StockPulse</div>
+            <div style="display:flex; gap:5px; margin-top:6px;"><div style="width:6px; height:6px; background:var(--sp-accent);"></div><div style="width:6px; height:6px; background:var(--sp-divider-strong);"></div><div style="width:6px; height:6px; background:var(--sp-divider-strong);"></div></div>
+          </div>
+        </dc-import>
+        <dc-import name="Phone" theme="light" show-tabs="false" h="560" hint-size="356px,580px">
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; background:var(--sp-bg); color:var(--sp-text);">
+            <div style="width:88px; height:88px; background:var(--sp-accent); display:flex; align-items:center; justify-content:center;"><svg width="56" height="56" viewBox="0 0 60 60" fill="none" stroke="var(--sp-on-accent)" stroke-width="6" stroke-linecap="square"><polyline points="6,38 20,38 26,16 34,46 40,30 54,30"/></svg></div>
+            <div style="font-size:26px; font-weight:900; letter-spacing:-0.02em;">StockPulse</div>
+            <div style="display:flex; gap:5px; margin-top:6px;"><div style="width:6px; height:6px; background:var(--sp-accent);"></div><div style="width:6px; height:6px; background:var(--sp-divider-strong);"></div><div style="width:6px; height:6px; background:var(--sp-divider-strong);"></div></div>
+          </div>
+        </dc-import>
+      </div>
+    </div>
+  </div>
+
+  <!-- =============== 05 · NAVIGATION MAP =============== -->
+  <div id="sec-flow" style="max-width:1360px; margin:0 auto 40px;">
+    <div style="display:flex; align-items:baseline; gap:16px; border-bottom:2px solid #201e1d; padding-bottom:10px;">
+      <span style="font-size:13px; font-weight:900; letter-spacing:0.1em; color:#2f5aa8;">05</span>
+      <h2 style="font-size:36px; font-weight:900; letter-spacing:-0.025em; margin:0;">Navigation map</h2>
+      <span style="margin-left:auto; font-size:12px; font-weight:700; color:#726f6e;">Onboarding → four-tab app · pushed detail &amp; modal screens</span>
+    </div>
+  </div>
+  <div style="max-width:1360px; margin:0 auto 40px; border:2px solid #201e1d; background:#f3f2f2; padding:32px;">
+
+    <!-- entry chain -->
+    <div style="font-size:10px; font-weight:900; letter-spacing:0.1em; color:#726f6e; margin-bottom:14px;">FIRST RUN</div>
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
+      <div style="border:2px solid #201e1d; background:#fff; padding:9px 13px;"><div style="font-size:8.5px; font-weight:800; letter-spacing:0.08em; color:#726f6e;">SPLASH</div><div style="font-size:13px; font-weight:800;">StockPulse</div></div>
+      <span style="font-size:18px; font-weight:800; color:#2f5aa8;">→</span>
+      <div style="border:2px solid #201e1d; background:#fff; padding:9px 13px;"><div style="font-size:8.5px; font-weight:800; letter-spacing:0.08em; color:#726f6e;">1</div><div style="font-size:13px; font-weight:800;">Sign in</div><div style="font-size:10px; color:#726f6e;">Apple · Google · Email</div></div>
+      <span style="font-size:18px; font-weight:800; color:#2f5aa8;">→</span>
+      <div style="border:2px solid #201e1d; background:#fff; padding:9px 13px;"><div style="font-size:8.5px; font-weight:800; letter-spacing:0.08em; color:#726f6e;">2</div><div style="font-size:13px; font-weight:800;">Notifications ask</div></div>
+      <span style="font-size:18px; font-weight:800; color:#2f5aa8;">→</span>
+      <div style="border:2px solid #201e1d; background:#fff; padding:9px 13px;"><div style="font-size:8.5px; font-weight:800; letter-spacing:0.08em; color:#726f6e;">3</div><div style="font-size:13px; font-weight:800;">Watchlist starter</div></div>
+      <span style="font-size:18px; font-weight:800; color:#2f5aa8;">→</span>
+      <div style="border:2px solid #6495ED; background:#6495ED; color:#0f1b2e; padding:9px 13px;"><div style="font-size:8.5px; font-weight:800; letter-spacing:0.08em;">ENTER</div><div style="font-size:13px; font-weight:800;">Feed (home)</div></div>
+    </div>
+
+    <div style="height:2px; background:rgba(32,30,29,0.4); margin:24px 0;"></div>
+
+    <!-- tab bar -->
+    <div style="font-size:10px; font-weight:900; letter-spacing:0.1em; color:#726f6e; margin-bottom:14px;">PRIMARY NAV · BOTTOM TAB BAR</div>
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:10px;">
+      <div style="border:2px solid #6495ED; background:#6495ED; color:#0f1b2e; padding:11px 14px;"><div style="font-size:9px; font-weight:800; letter-spacing:0.08em;">TAB 1</div><div style="font-size:15px; font-weight:900;">Feed</div></div>
+      <div style="border:2px solid #201e1d; background:#fff; padding:11px 14px;"><div style="font-size:9px; font-weight:800; letter-spacing:0.08em; color:#726f6e;">TAB 2</div><div style="font-size:15px; font-weight:900;">Report</div></div>
+      <div style="border:2px solid #201e1d; background:#fff; padding:11px 14px;"><div style="font-size:9px; font-weight:800; letter-spacing:0.08em; color:#726f6e;">TAB 3</div><div style="font-size:15px; font-weight:900;">Watchlist</div></div>
+      <div style="border:2px solid #201e1d; background:#fff; padding:11px 14px;"><div style="font-size:9px; font-weight:800; letter-spacing:0.08em; color:#726f6e;">TAB 4</div><div style="font-size:15px; font-weight:900;">Settings</div></div>
+    </div>
+
+    <!-- downstream columns -->
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px; align-items:start;">
+      <div style="display:flex; flex-direction:column; align-items:stretch; gap:0;">
+        <div style="text-align:center; font-size:15px; color:#726f6e; line-height:0.9; padding:4px 0;">↓</div>
+        <div style="border:2px solid #201e1d; background:#fff; padding:10px 12px;"><div style="font-size:13px; font-weight:800;">Alert detail</div><div style="font-size:10px; color:#726f6e; margin-top:2px;">why · tickers · price · source</div></div>
+        <div style="text-align:center; font-size:15px; color:#726f6e; line-height:0.9; padding:4px 0;">↓</div>
+        <div style="border:2px dashed #6495ED; background:#fff; padding:10px 12px;"><div style="font-size:12px; font-weight:800; color:#2f5aa8;">Generate briefing →</div><div style="font-size:10px; color:#726f6e; margin-top:2px;">jumps to Report</div></div>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:stretch; gap:0;">
+        <div style="text-align:center; font-size:15px; color:#726f6e; line-height:0.9; padding:4px 0;">↓</div>
+        <div style="border:2px solid #201e1d; background:#fff; padding:10px 12px;"><div style="font-size:13px; font-weight:800;">Briefing scope</div><div style="font-size:10px; color:#726f6e; margin-top:2px;">whole watchlist · single stock</div></div>
+        <div style="text-align:center; font-size:15px; color:#726f6e; line-height:0.9; padding:4px 0;">↓</div>
+        <div style="border:2px dashed #6495ED; background:#fff; padding:10px 12px;"><div style="font-size:12px; font-weight:800; color:#2f5aa8;">Free limit → Paywall</div></div>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:stretch; gap:0;">
+        <div style="text-align:center; font-size:15px; color:#726f6e; line-height:0.9; padding:4px 0;">↓</div>
+        <div style="border:2px solid #201e1d; background:#fff; padding:10px 12px;"><div style="font-size:13px; font-weight:800;">Add · search</div><div style="font-size:10px; color:#726f6e; margin-top:2px;">tesla → TSLA</div></div>
+        <div style="text-align:center; font-size:15px; color:#726f6e; line-height:0.9; padding:4px 0;">↓</div>
+        <div style="border:2px solid #201e1d; background:#fff; padding:10px 12px;"><div style="font-size:13px; font-weight:800;">Swipe to remove</div></div>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:stretch; gap:0;">
+        <div style="text-align:center; font-size:15px; color:#726f6e; line-height:0.9; padding:4px 0;">↓</div>
+        <div style="border:2px solid #201e1d; background:#fff; padding:10px 12px;"><div style="font-size:13px; font-weight:800;">Evaluation</div><div style="font-size:10px; color:#726f6e; margin-top:2px;">AI accuracy dashboard</div></div>
+        <div style="text-align:center; font-size:15px; color:#726f6e; line-height:0.9; padding:4px 0;">↓</div>
+        <div style="border:2px dashed #6495ED; background:#fff; padding:10px 12px;"><div style="font-size:12px; font-weight:800; color:#2f5aa8;">Manage sub → Paywall</div></div>
+        <div style="text-align:center; font-size:15px; color:#726f6e; line-height:0.9; padding:4px 0;">↓</div>
+        <div style="border:2px solid #201e1d; background:#fff; padding:10px 12px;"><div style="font-size:13px; font-weight:800;">Telegram · Sign out · Delete</div></div>
+      </div>
+    </div>
+
+    <div style="height:2px; background:rgba(32,30,29,0.4); margin:24px 0;"></div>
+    <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+      <div style="font-size:10px; font-weight:900; letter-spacing:0.1em; color:#726f6e;">EVERY SCREEN SHIPS</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;"><span style="font-size:11px; font-weight:800; padding:4px 10px; border:1px solid #201e1d;">POPULATED</span><span style="font-size:11px; font-weight:800; padding:4px 10px; border:1px solid #201e1d;">LOADING</span><span style="font-size:11px; font-weight:800; padding:4px 10px; border:1px solid #201e1d;">EMPTY</span><span style="font-size:11px; font-weight:800; padding:4px 10px; border:1px solid #201e1d;">ERROR</span></div>
+      <div style="display:flex; align-items:center; gap:8px; margin-left:auto;"><div style="width:16px; height:16px; background:#151312;"></div><div style="width:16px; height:16px; background:#f3f2f2; border:1px solid #201e1d;"></div><span style="font-size:11px; font-weight:800; color:#726f6e;">DARK + LIGHT THEMES</span></div>
+    </div>
+  </div>
+
+  <div style="max-width:1360px; margin:0 auto; text-align:center; padding:20px 0 0;"><div style="font-size:11px; font-weight:800; letter-spacing:0.1em; color:#726f6e;">STOCKPULSE · MODERNIST DESIGN SYSTEM · ARCHIVO</div></div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{}">
+class Component extends DCLogic {
+  sentMeta(k){
+    return ({
+      bull:{glyph:'\u25B2',label:'BULLISH',fg:'var(--sp-bull)',ink:'var(--sp-bull-ink)',bg:'var(--sp-bull-bg)'},
+      bear:{glyph:'\u25BC',label:'BEARISH',fg:'var(--sp-bear)',ink:'var(--sp-bear-ink)',bg:'var(--sp-bear-bg)'},
+      neutral:{glyph:'\u2192',label:'NEUTRAL',fg:'var(--sp-neutral)',ink:'var(--sp-neutral-ink)',bg:'var(--sp-neutral-bg)'},
+    })[k];
+  }
+  impMeta(k){
+    return ({
+      LOW:{n:1,fg:'var(--sp-muted)',bg:'var(--sp-neutral-bg)',solid:false},
+      MEDIUM:{n:2,fg:'var(--sp-bear)',bg:'var(--sp-bear-bg)',solid:false},
+      HIGH:{n:3,fg:'var(--sp-accent)',bg:'var(--sp-accent-bg)',solid:false},
+      CRITICAL:{n:4,fg:'var(--sp-on-accent)',bg:'var(--sp-accent)',solid:true},
+    })[k];
+  }
+  cells(im){
+    const a=[]; for(let i=0;i<4;i++){ a.push(i<im.n?im.fg:(im.solid?'rgba(255,255,255,0.30)':'var(--sp-divider-strong)')); } return a;
+  }
+  price(p){
+    const m = p.dir==='up'?{a:'\u25B2',c:'var(--sp-bull)'}:p.dir==='down'?{a:'\u25BC',c:'var(--sp-bear)'}:{a:'\u2192',c:'var(--sp-neutral)'};
+    return Object.assign({}, p, { chg:m.a+' '+p.pct, color:m.c });
+  }
+  alert(a){
+    const im=this.impMeta(a.imp), s=this.sentMeta(a.sent);
+    return { id:a.id, imp:a.imp, impFg:im.fg, impBg:im.bg, cells:this.cells(im),
+      category:a.cat, summary:a.summary, why:a.why, tickers:a.tickers,
+      sentGlyph:s.glyph, sentLabel:s.label, sentFg:s.fg, sentBg:s.bg,
+      px:this.price(a.px), source:a.source, time:a.time };
+  }
+  renderVals(){
+    const alertsRaw=[
+      {id:'a1',imp:'CRITICAL',cat:'TICKER',sent:'bear',summary:'Nvidia slips as U.S. weighs fresh curbs on H20 exports to China',why:'A Commerce review could delay $4\u20135B of shipments into next quarter and dent data-center guidance.',tickers:['NVDA','TSM','AMD'],px:{sym:'NVDA',px:'118.44',pct:'4.2%',dir:'down',fresh:'AS OF FRI 13:00 PDT'},source:'Reuters \u00b7 Regulatory',time:'12m'},
+      {id:'a2',imp:'HIGH',cat:'MACRO',sent:'bear',summary:'June CPI runs hot at 3.4%, topping the 3.1% consensus',why:'Reprices September rate-cut odds toward a hold and pressures long-duration tech.',tickers:['QQQ','TLT'],px:{sym:'QQQ',px:'498.10',pct:'1.1%',dir:'down',fresh:'\u25CF LIVE'},source:'BLS \u00b7 Economic data',time:'1h'},
+      {id:'a3',imp:'MEDIUM',cat:'SECTOR',sent:'bull',summary:'DRAM contract prices firm as Micron guides memory pricing higher',why:'Tailwind for storage names; Western Digital\u2019s HDD mix benefits from AI-cloud demand.',tickers:['WDC','MU','STX'],px:{sym:'WDC',px:'71.20',pct:'2.6%',dir:'up',fresh:'\u25CF LIVE'},source:'Bloomberg \u00b7 Semiconductors',time:'2h'},
+      {id:'a4',imp:'HIGH',cat:'TICKER',sent:'bull',summary:'Microsoft says Copilot enterprise seats topped 40M, up ~60% QoQ',why:'Signals durable AI monetization ahead of the Jul 29 print and supports Azure attach.',tickers:['MSFT'],px:{sym:'MSFT',px:'512.30',pct:'1.9%',dir:'up',fresh:'\u25CF LIVE'},source:'Microsoft \u00b7 Company',time:'3h'},
+      {id:'a5',imp:'LOW',cat:'TICKER',sent:'neutral',summary:'Microsoft names veteran engineer to lead Azure security org',why:'Organizational move; no near-term financial impact expected.',tickers:['MSFT'],px:{sym:'MSFT',px:'512.30',pct:'0.1%',dir:'flat',fresh:'\u25CF LIVE'},source:'The Verge \u00b7 People',time:'5h'},
+    ];
+    const watchRaw=[
+      {tk:'NVDA',name:'NVIDIA Corp',px:'118.44',pct:'4.2%',dir:'down',sent:'bear'},
+      {tk:'WDC',name:'Western Digital',px:'71.20',pct:'2.6%',dir:'up',sent:'bull'},
+      {tk:'MSFT',name:'Microsoft Corp',px:'512.30',pct:'1.9%',dir:'up',sent:'bull'},
+      {tk:'AAPL',name:'Apple Inc',px:'229.85',pct:'0.3%',dir:'up',sent:'neutral'},
+      {tk:'QQQ',name:'Invesco QQQ Trust',px:'498.10',pct:'1.1%',dir:'down',sent:'bear'},
+    ];
+    const watch = watchRaw.map(w=>{ const s=this.sentMeta(w.sent); return Object.assign({}, this.price(w), {name:w.name, sentGlyph:s.glyph, sentLabel:s.label, sentFg:s.fg, sentBg:s.bg}); });
+    const reportSecRaw=[
+      {sent:'bear',title:'Macro & Rates',body:'Hotter June CPI (3.4%) pushed the odds of a September cut below 50%. Expect choppier long-duration tech until the next PCE print.'},
+      {sent:'bear',title:'AI Hardware',body:'Renewed China export scrutiny hangs over NVDA and the accelerator complex \u2014 watch H20 shipment commentary on the call.'},
+      {sent:'bull',title:'Software & Cloud',body:'Copilot seat growth and Azure attach keep MSFT estimates biased higher into earnings \u2014 the cleanest name on your list.'},
+      {sent:'bull',title:'Storage & Memory',body:'Firming DRAM contract pricing is a real tailwind for WDC; supply discipline is finally showing up in guidance.'},
+    ];
+    const reportSecs = reportSecRaw.map(r=>{ const s=this.sentMeta(r.sent); return Object.assign({}, r, {sentGlyph:s.glyph, sentLabel:s.label, sentFg:s.fg, sentBg:s.bg}); });
+    const evalRaw=[
+      {tk:'MSFT',call:'bull',label:'BULLISH',when:'Jul 22',result:'hit',note:'+3.1% in 5d'},
+      {tk:'NVDA',call:'bear',label:'BEARISH',when:'Jul 18',result:'hit',note:'\u22124.6% in 5d'},
+      {tk:'WDC',call:'bull',label:'BULLISH',when:'Jul 15',result:'miss',note:'\u22121.2% in 5d'},
+      {tk:'AAPL',call:'neutral',label:'NEUTRAL',when:'Jul 11',result:'hit',note:'+0.4% in 5d'},
+      {tk:'QQQ',call:'bear',label:'BEARISH',when:'Jul 08',result:'hit',note:'\u22122.0% in 5d'},
+    ];
+    const evalHist = evalRaw.map(e=>{ const s=this.sentMeta(e.call); const hit=e.result==='hit'; return Object.assign({}, e, {sentGlyph:s.glyph, sentFg:s.fg, sentBg:s.bg, ok:hit, mark:hit?'\u2713':'\u2717', markColor:hit?'var(--sp-bull)':'var(--sp-bear)', markBg:hit?'var(--sp-bull-bg)':'var(--sp-bear-bg)', markLabel:hit?'HIT':'MISS'}); });
+    const sentVariants = ['bull','bear','neutral'].map(k=>this.sentMeta(k));
+    const impVariants = ['LOW','MEDIUM','HIGH','CRITICAL'].map(k=>{ const im=this.impMeta(k); return {label:k, fg:im.fg, bg:im.bg, cells:this.cells(im)}; });
+    const priceVariants=[
+      {sym:'WDC',px:'71.20',pct:'2.6%',dir:'up',fresh:'\u25CF LIVE'},
+      {sym:'NVDA',px:'118.44',pct:'4.2%',dir:'down',fresh:'AS OF FRI 13:00 PDT'},
+      {sym:'AAPL',px:'229.85',pct:'0.1%',dir:'flat',fresh:'\u25CF LIVE'},
+    ].map(p=>this.price(p));
+    return {
+      alerts: alertsRaw.map(a=>this.alert(a)),
+      detail: this.alert(alertsRaw[0]),
+      compBull: this.alert(alertsRaw[2]),
+      priceVariants,
+      watch, reportSecs, evalHist, sentVariants, impVariants,
+      detailThemes:[{name:'dark',label:'DARK · DEFAULT'},{name:'light',label:'LIGHT'}],
+      themes:[{name:'dark',label:'DARK · DEFAULT'},{name:'light',label:'LIGHT'}],
+      skeleton:[1,2,3,4],
+    };
+  }
+}
+</script>
+</body>
+</html>
