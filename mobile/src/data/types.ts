@@ -20,8 +20,9 @@ export type Alert = {
   why: string;
   tickers: string[];
   sentiment: Sentiment;
-  price: PriceSnapshot;
+  price?: PriceSnapshot | null; // absent for real-feed items until price context lands
   source: string;
+  url?: string;
 };
 
 export type WatchRow = {

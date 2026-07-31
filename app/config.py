@@ -158,6 +158,11 @@ class Settings(BaseSettings):
     # Docker this is redirected into the ./data volume so it survives rebuilds.
     prefs_file: str = "runtime_prefs.json"
 
+    # Read-only JSON API for the mobile app (GET /api/feed). Off by default and
+    # gated by a bearer token; purely additive (does not affect alerts/Telegram).
+    mobile_api_enabled: bool = False
+    mobile_api_token: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

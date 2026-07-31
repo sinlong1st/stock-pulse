@@ -45,8 +45,8 @@ export function AlertCard({ alert, onPress }: { alert: Alert; onPress?: () => vo
         </View>
       </View>
 
-      {/* price line */}
-      <PriceLine price={alert.price} />
+      {/* price line — only when the item carries price context */}
+      {alert.price ? <PriceLine price={alert.price} /> : null}
     </Pressable>
   );
 }

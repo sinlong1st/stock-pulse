@@ -35,6 +35,31 @@ Then either:
 | **Settings** — preferences, account, live theme toggle | ✅ `src/screens/SettingsScreen.tsx` |
 | 4-tab navigation (Feed · Report · Watchlist · Settings) | ✅ `src/navigation/Tabs.tsx` |
 
+## Showing real data
+
+By default the app renders **mock data** (`src/data/mock.ts`) so it always works.
+To point the **Feed** at your real backend:
+
+1. On the server, set in `.env` and restart:
+   ```
+   MOBILE_API_ENABLED=true
+   MOBILE_API_TOKEN=<a long random string>
+   ```
+   and make the port reachable from your device (see below).
+2. In [`src/config.ts`](src/config.ts) set `API_BASE_URL` (e.g.
+   `http://192.168.1.50:8000` for your computer on the same Wi-Fi, or your
+   droplet's address) and `API_TOKEN` to the same token.
+3. Reload the app (`npm start` / `npm run web`). The Feed now fetches
+   `GET /api/feed`, with loading / empty / error states and pull-to-refresh.
+
+Leave `API_BASE_URL` empty to go back to mock data. The header shows
+"SAMPLE DATA" when no backend is configured.
+
+> The endpoint is **read-only** and token-guarded; it does not affect the
+> news/alert/Telegram pipeline. Reaching it from a phone means exposing the port
+> (and ideally adding HTTPS) — fine for a personal test, see the main plan for
+> the production story.
+
 ## Not built yet (next steps)
 
 - **Screen states:** loading skeletons, empty, and error variants (design has all

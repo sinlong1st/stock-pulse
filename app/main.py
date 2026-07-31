@@ -3,10 +3,12 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from app import __version__
@@ -18,6 +20,7 @@ from app.alerts import (
     send_pending_alerts,
 )
 from app.alerts.telegram_listener import build_command_listener
+from app.api.feed import build_feed
 from app.collectors import build_all_collectors, collect_from
 from app.commands import build_command_handlers
 from app.config import get_settings, resolve_briefing_timezone, resolve_timezone
@@ -219,6 +222,33 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="StockPulse", version=__version__, lifespan=lifespan)
+
+# Permissive CORS so the mobile app (and `npm run web` in a browser) can call
+# the read-only JSON API. Endpoints are token-guarded; no cookies are used.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/api/feed")
+def api_feed(limit: int = 30, authorization: str | None = Header(default=None)) -> dict:
+    """Read-only feed for the mobile app: recent classified articles as JSON.
+
+    Off unless `MOBILE_API_ENABLED=true`, and requires
+    `Authorization: Bearer <MOBILE_API_TOKEN>`. Reads only — it does not affect
+    the news/alert/Telegram pipeline.
+    """
+    settings = get_settings()
+    if not settings.mobile_api_enabled:
+        raise HTTPException(status_code=404, detail="Not found")
+    if not settings.mobile_api_token or authorization != f"Bearer {settings.mobile_api_token}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    with SessionLocal() as session:
+        alerts = build_feed(session, limit=min(max(limit, 1), 100))
+    return {"alerts": alerts, "generated_at": datetime.now(UTC).isoformat()}
 
 
 @app.get("/", response_class=HTMLResponse)
