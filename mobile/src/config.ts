@@ -1,17 +1,21 @@
 /**
  * App configuration.
  *
- * Point the app at your StockPulse backend to see REAL data. Leave
- * API_BASE_URL empty ('') to fall back to the bundled mock data.
+ * Point the app at your StockPulse backend to see REAL data. Leave the base URL
+ * empty to use the bundled mock data (the app always renders).
  *
- * Examples for API_BASE_URL:
- *   'http://192.168.1.50:8000'   — backend running on your computer, same Wi-Fi
- *   'http://<your-droplet-ip>:8000' — the deployed server (exposed + token set)
+ * Set these ONCE via a gitignored env file, so the token never lands in git:
  *
- * API_TOKEN must match MOBILE_API_TOKEN in the server's .env.
+ *   mobile/.env.local
+ *     EXPO_PUBLIC_API_BASE_URL=https://your-droplet.tailXXXX.ts.net
+ *     EXPO_PUBLIC_API_TOKEN=<matches MOBILE_API_TOKEN on the server>
  *
- * Note: changing these values is a JS change — reload in dev (`npm start` /
- * `npm run web`), or rebuild/`eas update` the installed app to pick them up.
+ * `EXPO_PUBLIC_*` vars are read by Expo automatically (dev + `eas update`). For
+ * `eas build` in the cloud, set the same two as EAS environment variables:
+ *   eas env:create --name EXPO_PUBLIC_API_TOKEN --value <token> --environment preview
+ *
+ * See .env.example. (You can also just hardcode the fallback strings below for a
+ * throwaway local test — but don't commit a real token.)
  */
-export const API_BASE_URL = '';
-export const API_TOKEN = '';
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? '';
+export const API_TOKEN = process.env.EXPO_PUBLIC_API_TOKEN ?? '';

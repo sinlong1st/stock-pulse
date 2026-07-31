@@ -7,6 +7,12 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "stockpulse",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/080f9e5c-d0ad-4597-a0f2-6f80cac17dbc"
+    },
     "ios": {
       "supportsTablet": true
     },
