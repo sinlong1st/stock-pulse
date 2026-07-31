@@ -1,10 +1,15 @@
 import { DefaultTheme, NavigationContainer, Theme } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { Tabs } from './src/navigation/Tabs';
+import { RootStackParamList } from './src/navigation/types';
+import { AlertDetailScreen } from './src/screens/AlertDetailScreen';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function Root() {
   const { colors, mode } = useTheme();
@@ -27,7 +32,10 @@ function Root() {
     <NavigationContainer theme={navTheme}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
-        <Tabs />
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Tabs" component={Tabs} />
+          <Stack.Screen name="AlertDetail" component={AlertDetailScreen} />
+        </Stack.Navigator>
       </SafeAreaView>
     </NavigationContainer>
   );

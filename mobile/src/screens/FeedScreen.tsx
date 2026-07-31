@@ -1,4 +1,6 @@
 import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
@@ -7,12 +9,14 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Segmented } from '../components/Segmented';
 import { fetchFeed, usingMockData } from '../data/api';
 import { Alert } from '../data/types';
+import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeContext';
 
 const FILTERS = ['All', 'Watchlist', 'Macro'] as const;
 
 export function FeedScreen() {
   const { colors, toggle } = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [filter, setFilter] = useState<string>('All');
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +91,9 @@ export function FeedScreen() {
         <FlatList
           data={data}
           keyExtractor={(a) => a.id}
-          renderItem={({ item }) => <AlertCard alert={item} />}
+          renderItem={({ item }) => (
+            <AlertCard alert={item} onPress={() => navigation.navigate('AlertDetail', { alert: item })} />
+          )}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.accent} />
