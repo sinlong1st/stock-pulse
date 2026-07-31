@@ -7,13 +7,17 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+import app.api.watchlist as wl_api
 import app.config as config
 import app.main as main
 from app.api.feed import build_feed
+from app.config import Settings
 from app.db.database import Base
 from app.db.repository import ArticleRepository, ClassificationRepository
 from app.models.article import NewsArticle
 from app.models.classification import ClassificationResult
+from app.prices import PriceSnapshot
+from app.watchlist import WatchlistConfig
 
 
 @pytest.fixture
@@ -125,4 +129,48 @@ def test_feed_endpoint_200_with_token(monkeypatch) -> None:
         res = client.get("/api/feed", headers={"Authorization": "Bearer s3cret"})
         assert res.status_code == 200
         assert res.json()["alerts"] == []
+    config.get_settings.cache_clear()
+
+
+# --- watchlist -------------------------------------------------------------
+
+
+async def test_build_watchlist_prices_and_tolerates_misses(monkeypatch) -> None:
+    from datetime import UTC, datetime
+
+    cfg = WatchlistConfig(tickers=("NVDA", "MU"), aliases={"NVDA": ["Nvidia"], "MU": ["Micron"]})
+    monkeypatch.setattr(wl_api, "get_watchlist_config", lambda: cfg)
+
+    class FakeClient:
+        async def snapshot(self, ticker):
+            if ticker == "MU":
+                return None  # simulate a fetch miss — should still appear, price null
+            return PriceSnapshot(
+                ticker=ticker,
+                price=118.44,
+                price_time=datetime.now(tz=UTC),
+                open=123.60,
+                prev_close=120.0,
+            )
+
+    monkeypatch.setattr(wl_api, "maybe_briefing_price_client", lambda settings: FakeClient())
+
+    rows = await wl_api.build_watchlist(Settings(_env_file=None))
+    by = {r["ticker"]: r for r in rows}
+    assert by["NVDA"]["price"] == "118.44"
+    assert by["NVDA"]["changePct"] == round((118.44 - 123.60) / 123.60 * 100, 1)
+    assert by["NVDA"]["fresh"]  # a freshness label is present
+    assert by["MU"]["price"] is None and by["MU"]["changePct"] is None
+    assert by["MU"]["name"] == "Micron"
+
+
+def test_watchlist_endpoint_200_with_token(monkeypatch) -> None:
+    async def _fake(settings):
+        return []
+
+    monkeypatch.setattr(main, "build_watchlist", _fake)
+    with _client_with(monkeypatch, enabled=True, token="s3cret") as client:
+        res = client.get("/api/watchlist", headers={"Authorization": "Bearer s3cret"})
+        assert res.status_code == 200
+        assert res.json()["watchlist"] == []
     config.get_settings.cache_clear()

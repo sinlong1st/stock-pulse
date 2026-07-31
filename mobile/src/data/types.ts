@@ -28,9 +28,10 @@ export type Alert = {
 export type WatchRow = {
   ticker: string;
   name: string;
-  price: string;
-  changePct: number;
-  sentiment: Sentiment;
+  price?: string | null;
+  changePct?: number | null;
+  fresh?: string | null;
+  sentiment?: Sentiment; // not carried by the real feed yet
 };
 
 export type ReportSection = {

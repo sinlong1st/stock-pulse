@@ -3,32 +3,38 @@
  * config.ts; otherwise returns bundled mock data so the app always renders.
  */
 import { API_BASE_URL, API_TOKEN } from '../config';
-import { mockAlerts } from './mock';
-import { Alert } from './types';
+import { mockAlerts, mockWatchlist } from './mock';
+import { Alert, WatchRow } from './types';
 
 /** True when no backend is configured (the app is showing sample data). */
 export const usingMockData = !API_BASE_URL;
 
-export async function fetchFeed(limit = 30): Promise<Alert[]> {
-  if (!API_BASE_URL) return mockAlerts;
+const base = () => API_BASE_URL.replace(/\/+$/, '');
 
-  // Tolerate a trailing slash on the base URL (Tailscale prints one).
-  const base = API_BASE_URL.replace(/\/+$/, '');
-  const url = `${base}/api/feed?limit=${limit}`;
-
+async function getJson<T>(path: string): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(url, { headers: { Authorization: `Bearer ${API_TOKEN}` } });
+    res = await fetch(`${base()}${path}`, { headers: { Authorization: `Bearer ${API_TOKEN}` } });
   } catch {
-    // fetch throws only on a network-level failure (unreachable host, DNS, TLS).
-    throw new Error(`Can't reach ${base} — is Tailscale ON and the URL right?`);
+    throw new Error(`Can't reach ${base()} — is Tailscale ON and the URL right?`);
   }
   if (res.status === 401) {
     throw new Error('401 Unauthorized — API token doesn’t match the server.');
   }
   if (!res.ok) {
-    throw new Error(`Server returned ${res.status} at ${url}`);
+    throw new Error(`Server returned ${res.status} at ${path}`);
   }
-  const data = (await res.json()) as { alerts?: Alert[] };
+  return (await res.json()) as T;
+}
+
+export async function fetchFeed(limit = 30): Promise<Alert[]> {
+  if (!API_BASE_URL) return mockAlerts;
+  const data = await getJson<{ alerts?: Alert[] }>(`/api/feed?limit=${limit}`);
   return data.alerts ?? [];
+}
+
+export async function fetchWatchlist(): Promise<WatchRow[]> {
+  if (!API_BASE_URL) return mockWatchlist;
+  const data = await getJson<{ watchlist?: WatchRow[] }>('/api/watchlist');
+  return data.watchlist ?? [];
 }

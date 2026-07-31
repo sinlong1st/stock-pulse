@@ -54,9 +54,9 @@ export function ReportScreen() {
             <Text style={[styles.wName, { color: colors.muted }]} numberOfLines={1}>
               {w.name}
             </Text>
-            <Text style={[styles.wPx, { color: colors.text }]}>{w.price}</Text>
-            <Text style={[styles.wChg, { color: changeColor(colors, w.changePct) }]}>
-              {formatChange(w.changePct)}
+            <Text style={[styles.wPx, { color: colors.text }]}>{w.price ?? '—'}</Text>
+            <Text style={[styles.wChg, { color: changeColor(colors, w.changePct ?? 0) }]}>
+              {w.changePct != null ? formatChange(w.changePct) : '—'}
             </Text>
           </View>
         ))}

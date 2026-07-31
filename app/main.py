@@ -21,6 +21,7 @@ from app.alerts import (
 )
 from app.alerts.telegram_listener import build_command_listener
 from app.api.feed import build_feed
+from app.api.watchlist import build_watchlist
 from app.collectors import build_all_collectors, collect_from
 from app.commands import build_command_handlers
 from app.config import get_settings, resolve_briefing_timezone, resolve_timezone
@@ -233,6 +234,16 @@ app.add_middleware(
 )
 
 
+def _require_mobile_api(authorization: str | None):
+    """Gate the read-only mobile API: enabled + a matching bearer token."""
+    settings = get_settings()
+    if not settings.mobile_api_enabled:
+        raise HTTPException(status_code=404, detail="Not found")
+    if not settings.mobile_api_token or authorization != f"Bearer {settings.mobile_api_token}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return settings
+
+
 @app.get("/api/feed")
 def api_feed(limit: int = 30, authorization: str | None = Header(default=None)) -> dict:
     """Read-only feed for the mobile app: recent classified articles as JSON.
@@ -241,14 +252,17 @@ def api_feed(limit: int = 30, authorization: str | None = Header(default=None)) 
     `Authorization: Bearer <MOBILE_API_TOKEN>`. Reads only — it does not affect
     the news/alert/Telegram pipeline.
     """
-    settings = get_settings()
-    if not settings.mobile_api_enabled:
-        raise HTTPException(status_code=404, detail="Not found")
-    if not settings.mobile_api_token or authorization != f"Bearer {settings.mobile_api_token}":
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    _require_mobile_api(authorization)
     with SessionLocal() as session:
         alerts = build_feed(session, limit=min(max(limit, 1), 100))
     return {"alerts": alerts, "generated_at": datetime.now(UTC).isoformat()}
+
+
+@app.get("/api/watchlist")
+async def api_watchlist(authorization: str | None = Header(default=None)) -> dict:
+    """Read-only watchlist for the mobile app: your tickers + best-effort prices."""
+    settings = _require_mobile_api(authorization)
+    return {"watchlist": await build_watchlist(settings)}
 
 
 @app.get("/", response_class=HTMLResponse)
