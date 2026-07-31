@@ -26,8 +26,8 @@ export function FeedScreen() {
       const data = await fetchFeed();
       setAlerts(data);
       setError(null);
-    } catch {
-      setError('Couldn’t reach the feed. Check your connection and API settings.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Couldn’t reach the feed.');
     } finally {
       setLoading(false);
       setRefreshing(false);
