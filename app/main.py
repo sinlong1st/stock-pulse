@@ -263,7 +263,8 @@ async def api_feed(limit: int = 30, authorization: str | None = Header(default=N
 async def api_watchlist(authorization: str | None = Header(default=None)) -> dict:
     """Read-only watchlist for the mobile app: your tickers + best-effort prices."""
     settings = _require_mobile_api(authorization)
-    return {"watchlist": await build_watchlist(settings)}
+    with SessionLocal() as session:
+        return {"watchlist": await build_watchlist(settings, session=session)}
 
 
 @app.get("/api/report")

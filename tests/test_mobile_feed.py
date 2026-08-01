@@ -167,8 +167,20 @@ async def test_build_watchlist_prices_and_tolerates_misses(monkeypatch) -> None:
     assert by["MU"]["name"] == "Micron"
 
 
+async def test_build_watchlist_derives_sentiment(session, monkeypatch) -> None:
+    cfg = WatchlistConfig(tickers=("NVDA",), aliases={"NVDA": ["Nvidia"]})
+    monkeypatch.setattr(wl_api, "get_watchlist_config", lambda: cfg)
+    monkeypatch.setattr(wl_api, "maybe_briefing_price_client", lambda settings: None)
+    _classify(session, title="Nvidia news", tickers=["NVDA"])  # helper sets sentiment BEARISH
+
+    rows = await wl_api.build_watchlist(Settings(_env_file=None), session=session)
+    assert rows[0]["ticker"] == "NVDA"
+    assert rows[0]["sentiment"] == "BEARISH"
+    assert rows[0]["price"] is None  # no price client configured
+
+
 def test_watchlist_endpoint_200_with_token(monkeypatch) -> None:
-    async def _fake(settings):
+    async def _fake(settings, session=None):
         return []
 
     monkeypatch.setattr(main, "build_watchlist", _fake)

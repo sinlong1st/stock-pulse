@@ -39,8 +39,10 @@ export async function fetchWatchlist(): Promise<WatchRow[]> {
   return data.watchlist ?? [];
 }
 
-/** Generate a briefing on the server (one OpenAI call) — trigger on demand. */
-export async function fetchReport(): Promise<Report> {
+/** Generate a briefing on the server (one OpenAI call) — trigger on demand.
+ * Pass a query (ticker or company name) for a focused single-stock report. */
+export async function fetchReport(query?: string): Promise<Report> {
   if (!API_BASE_URL) return mockReport;
-  return getJson<Report>('/api/report');
+  const q = query?.trim() ? `?q=${encodeURIComponent(query.trim())}` : '';
+  return getJson<Report>(`/api/report${q}`);
 }

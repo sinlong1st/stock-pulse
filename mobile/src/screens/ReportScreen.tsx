@@ -1,30 +1,46 @@
 import { Feather } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { Segmented } from '../components/Segmented';
 import { fetchReport } from '../data/api';
 import { Report } from '../data/types';
 import { useTheme } from '../theme/ThemeContext';
 import { changeColor, formatChange, sentiment as sentimentOf } from '../theme/semantics';
+
+const WHOLE = 'Whole watchlist';
+const SINGLE = 'Single stock';
 
 export function ReportScreen() {
   const { colors } = useTheme();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scope, setScope] = useState<string>(WHOLE);
+  const [ticker, setTicker] = useState('');
 
   const generate = async () => {
     setLoading(true);
     setError(null);
     try {
-      setReport(await fetchReport());
+      setReport(await fetchReport(scope === SINGLE ? ticker : undefined));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Couldn’t generate the briefing.');
     } finally {
       setLoading(false);
     }
   };
+
+  const canGenerate = scope === WHOLE || ticker.trim().length > 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -39,6 +55,26 @@ export function ReportScreen() {
           ) : undefined
         }
       />
+
+      {/* scope control */}
+      <View style={styles.control}>
+        <Segmented options={[WHOLE, SINGLE]} value={scope} onChange={setScope} />
+        {scope === SINGLE && (
+          <TextInput
+            value={ticker}
+            onChangeText={setTicker}
+            placeholder="Ticker or company, e.g. WDC or Tesla"
+            placeholderTextColor={colors.faint}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            onSubmitEditing={() => canGenerate && generate()}
+            style={[
+              styles.input,
+              { color: colors.text, backgroundColor: colors.surface, borderColor: colors.dividerStrong },
+            ]}
+          />
+        )}
+      </View>
 
       {loading ? (
         <View style={styles.center}>
@@ -59,9 +95,10 @@ export function ReportScreen() {
           <Feather name="bar-chart-2" size={34} color={colors.muted} />
           <Text style={[styles.centerTitle, { color: colors.text }]}>Today’s briefing</Text>
           <Text style={[styles.centerBody, { color: colors.muted }]}>
-            An AI analyst reads the latest news and tells you what matters for your watchlist.
+            An AI analyst reads the latest news and tells you what matters
+            {scope === SINGLE ? ' for that stock.' : ' for your watchlist.'}
           </Text>
-          <GenerateButton label="Generate briefing" onPress={generate} />
+          <GenerateButton label="Generate briefing" onPress={generate} disabled={!canGenerate} />
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
@@ -127,10 +164,22 @@ export function ReportScreen() {
   );
 }
 
-function GenerateButton({ label, onPress }: { label: string; onPress: () => void }) {
+function GenerateButton({
+  label,
+  onPress,
+  disabled,
+}: {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
   const { colors } = useTheme();
   return (
-    <Pressable onPress={onPress} style={[styles.cta, { backgroundColor: colors.accent }]}>
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={[styles.cta, { backgroundColor: colors.accent, opacity: disabled ? 0.4 : 1 }]}
+    >
       <Text style={[styles.ctaText, { color: colors.onAccent }]}>{label}</Text>
       <Feather name="chevron-right" size={16} color={colors.onAccent} />
     </Pressable>
@@ -138,6 +187,8 @@ function GenerateButton({ label, onPress }: { label: string; onPress: () => void
 }
 
 const styles = StyleSheet.create({
+  control: { paddingHorizontal: 16, paddingVertical: 10, gap: 10 },
+  input: { borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontWeight: '600' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
   centerTitle: { fontSize: 20, fontWeight: '900' },
   centerBody: { fontSize: 13, textAlign: 'center', lineHeight: 19, maxWidth: 260 },
