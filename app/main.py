@@ -10,6 +10,7 @@ from apscheduler.triggers.cron import CronTrigger
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
 
 from app import __version__
 from app.alerts import (
@@ -25,6 +26,7 @@ from app.api.report import build_report as build_mobile_report
 from app.api.watchlist import build_watchlist
 from app.collectors import build_all_collectors, collect_from
 from app.commands import build_command_handlers
+from app.commands.symbols import resolve_symbol
 from app.config import get_settings, resolve_briefing_timezone, resolve_timezone
 from app.db import (
     AlertRepository,
@@ -51,8 +53,9 @@ from app.logging_config import configure_logging
 from app.pipeline.classifier import ClassificationError, build_classifier
 from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
-from app.prefs import resolve_language
+from app.prefs import SUPPORTED_LANGUAGES, resolve_language, set_language
 from app.prices import maybe_eval_price_client, maybe_price_client
+from app.watchlist import add_ticker, remove_ticker
 from app.web import render_alerts_page, render_evaluation_page, render_news_page
 
 logger = logging.getLogger("stockpulse")
@@ -274,6 +277,67 @@ async def api_report(
     """Generate a briefing on-demand and return it as JSON (one OpenAI call)."""
     settings = _require_mobile_api(authorization)
     return await build_mobile_report(settings, query=q)
+
+
+class LanguageBody(BaseModel):
+    code: str
+
+
+class WatchBody(BaseModel):
+    query: str
+
+
+@app.get("/api/settings")
+def api_settings(authorization: str | None = Header(default=None)) -> dict:
+    """Current language + the supported options, for the app's Settings screen."""
+    settings = _require_mobile_api(authorization)
+    current = resolve_language(settings)
+    name_to_code = {name: code for code, name in SUPPORTED_LANGUAGES.items()}
+    return {
+        "language": current,
+        "languageCode": name_to_code.get(current),
+        "languages": [{"code": c, "name": n} for c, n in SUPPORTED_LANGUAGES.items()],
+    }
+
+
+@app.post("/api/settings/language")
+def api_set_language(body: LanguageBody, authorization: str | None = Header(default=None)) -> dict:
+    """Switch the output language (en/vi). Same effect as the /language command."""
+    _require_mobile_api(authorization)
+    code = body.code.strip().lower()
+    if code not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=400, detail=f"Unsupported language '{body.code}'.")
+    name = SUPPORTED_LANGUAGES[code]
+    set_language(name)
+    return {"language": name, "languageCode": code}
+
+
+@app.post("/api/watchlist")
+async def api_watch_add(body: WatchBody, authorization: str | None = Header(default=None)) -> dict:
+    """Add a stock by ticker or company name (resolved via Yahoo)."""
+    settings = _require_mobile_api(authorization)
+    query = body.query.strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="Empty query.")
+    resolved = await resolve_symbol(query, settings=settings)
+    if resolved is None:
+        return {"added": False, "reason": f"Couldn't find a stock for '{query}'."}
+    symbol, name = resolved
+    added = add_ticker(symbol, [name] if name and name != symbol else [])
+    return {
+        "added": added,
+        "ticker": symbol,
+        "name": name,
+        "reason": None if added else f"Already watching {symbol}.",
+    }
+
+
+@app.delete("/api/watchlist/{ticker}")
+def api_watch_remove(ticker: str, authorization: str | None = Header(default=None)) -> dict:
+    """Remove a ticker from the watchlist."""
+    _require_mobile_api(authorization)
+    removed = remove_ticker(ticker)
+    return {"removed": removed, "ticker": ticker.strip().upper()}
 
 
 @app.get("/", response_class=HTMLResponse)

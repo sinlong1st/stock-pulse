@@ -1,7 +1,8 @@
 import { Feather } from '@expo/vector-icons';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
+import { fetchSettings, Language, setLanguage, usingMockData } from '../data/api';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useTheme } from '../theme/ThemeContext';
 import { checkForUpdate, versionLabel } from '../updates';
@@ -42,6 +43,42 @@ async function onCheckUpdate() {
 
 export function SettingsScreen() {
   const { colors, mode, toggle } = useTheme();
+  const [language, setLang] = useState('English');
+  const [languages, setLanguages] = useState<Language[]>([]);
+
+  useEffect(() => {
+    if (usingMockData) return;
+    fetchSettings()
+      .then((s) => {
+        setLang(s.language);
+        setLanguages(s.languages);
+      })
+      .catch(() => {});
+  }, []);
+
+  const changeLanguage = () => {
+    const opts = languages.length
+      ? languages
+      : [
+          { code: 'en', name: 'English' },
+          { code: 'vi', name: 'Vietnamese' },
+        ];
+    Alert.alert('Output language', 'Applies to alerts and briefings.', [
+      ...opts.map((l) => ({
+        text: l.name,
+        onPress: async () => {
+          try {
+            const r = await setLanguage(l.code);
+            setLang(r.language);
+          } catch (e) {
+            Alert.alert('Couldn’t change language', e instanceof Error ? e.message : '');
+          }
+        },
+      })),
+      { text: 'Cancel', style: 'cancel' as const },
+    ]);
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader kicker="ACCOUNT" title="Settings" />
@@ -61,7 +98,7 @@ export function SettingsScreen() {
         </View>
 
         <SectionLabel>PREFERENCES</SectionLabel>
-        <Row label="Language" value="English" />
+        <Row label="Language" value={language} onPress={changeLanguage} />
         <Row label="Quiet hours" value="10 PM – 7 AM" />
         <Row label="Briefing schedule" value="Daily · 8:00 AM" />
         {/* live theme toggle */}

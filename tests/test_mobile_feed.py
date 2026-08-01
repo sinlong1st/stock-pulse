@@ -241,3 +241,48 @@ async def test_build_report_handles_no_result(monkeypatch) -> None:
     out = await report_api.build_report(Settings(_env_file=None))
     assert out["sections"] == []
     assert out["note"] == "no OpenAI key"
+
+
+# --- settings + watchlist mutation endpoints -------------------------------
+
+
+def test_settings_get_and_set_language(monkeypatch) -> None:
+    monkeypatch.setattr(main, "set_language", lambda name: None)
+    with _client_with(monkeypatch, enabled=True, token="s3cret") as client:
+        h = {"Authorization": "Bearer s3cret"}
+        got = client.get("/api/settings", headers=h)
+        assert got.status_code == 200
+        assert {"code": "en", "name": "English"} in got.json()["languages"]
+
+        ok = client.post("/api/settings/language", json={"code": "vi"}, headers=h)
+        assert ok.status_code == 200 and ok.json()["language"] == "Vietnamese"
+
+        bad = client.post("/api/settings/language", json={"code": "fr"}, headers=h)
+        assert bad.status_code == 400
+    config.get_settings.cache_clear()
+
+
+def test_watch_add_and_remove_endpoints(monkeypatch) -> None:
+    async def fake_resolve(query, *, settings, transport=None):
+        return ("TSLA", "Tesla, Inc.") if query.lower() == "tesla" else None
+
+    monkeypatch.setattr(main, "resolve_symbol", fake_resolve)
+    monkeypatch.setattr(main, "add_ticker", lambda symbol, aliases=None: True)
+    monkeypatch.setattr(main, "remove_ticker", lambda ticker: True)
+
+    with _client_with(monkeypatch, enabled=True, token="s3cret") as client:
+        h = {"Authorization": "Bearer s3cret"}
+        added = client.post("/api/watchlist", json={"query": "tesla"}, headers=h)
+        assert added.status_code == 200 and added.json() == {
+            "added": True,
+            "ticker": "TSLA",
+            "name": "Tesla, Inc.",
+            "reason": None,
+        }
+
+        miss = client.post("/api/watchlist", json={"query": "zzz"}, headers=h)
+        assert miss.json()["added"] is False
+
+        removed = client.request("DELETE", "/api/watchlist/tsla", headers=h)
+        assert removed.status_code == 200 and removed.json()["removed"] is True
+    config.get_settings.cache_clear()

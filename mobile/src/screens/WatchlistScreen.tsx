@@ -1,10 +1,20 @@
 import { Feather } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SentimentPill } from '../components/SentimentPill';
-import { fetchWatchlist } from '../data/api';
+import { addWatch, fetchWatchlist, removeWatch } from '../data/api';
 import { WatchRow } from '../data/types';
 import { useTheme } from '../theme/ThemeContext';
 import { changeColor, formatChange } from '../theme/semantics';
@@ -15,6 +25,9 @@ export function WatchlistScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [query, setQuery] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -34,17 +47,87 @@ export function WatchlistScreen() {
     load();
   }, [load]);
 
+  const submitAdd = async () => {
+    if (!query.trim() || busy) return;
+    setBusy(true);
+    try {
+      const res = await addWatch(query.trim());
+      if (res.added) {
+        setQuery('');
+        setAdding(false);
+        await load(true);
+      } else {
+        Alert.alert('Not added', res.reason ?? 'Could not add that stock.');
+      }
+    } catch (e) {
+      Alert.alert('Couldn’t add', e instanceof Error ? e.message : '');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmRemove = (w: WatchRow) => {
+    Alert.alert(`Remove ${w.ticker}?`, w.name ?? '', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await removeWatch(w.ticker);
+            await load(true);
+          } catch (e) {
+            Alert.alert('Couldn’t remove', e instanceof Error ? e.message : '');
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader
         kicker={rows.length ? `${rows.length} STOCKS` : 'WATCHLIST'}
         title="Watchlist"
         right={
-          <View style={[styles.add, { backgroundColor: colors.accent }]}>
-            <Feather name="plus" size={20} color={colors.onAccent} />
-          </View>
+          <Pressable
+            onPress={() => setAdding((v) => !v)}
+            style={[styles.add, { backgroundColor: adding ? colors.surface2 : colors.accent }]}
+          >
+            <Feather name={adding ? 'x' : 'plus'} size={20} color={adding ? colors.text : colors.onAccent} />
+          </Pressable>
         }
       />
+
+      {adding && (
+        <View style={styles.addBar}>
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Ticker or company, e.g. tesla"
+            placeholderTextColor={colors.faint}
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoFocus
+            onSubmitEditing={submitAdd}
+            style={[
+              styles.input,
+              { color: colors.text, backgroundColor: colors.surface, borderColor: colors.dividerStrong },
+            ]}
+          />
+          <Pressable
+            onPress={submitAdd}
+            disabled={busy || !query.trim()}
+            style={[styles.addBtn, { backgroundColor: colors.accent, opacity: busy || !query.trim() ? 0.4 : 1 }]}
+          >
+            {busy ? (
+              <ActivityIndicator size="small" color={colors.onAccent} />
+            ) : (
+              <Text style={[styles.addBtnText, { color: colors.onAccent }]}>Add</Text>
+            )}
+          </Pressable>
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.center}>
@@ -63,7 +146,11 @@ export function WatchlistScreen() {
           }
         >
           {rows.map((w) => (
-            <View key={w.ticker} style={[styles.row, { borderBottomColor: colors.divider }]}>
+            <Pressable
+              key={w.ticker}
+              onLongPress={() => confirmRemove(w)}
+              style={[styles.row, { borderBottomColor: colors.divider }]}
+            >
               <View style={{ flex: 1 }}>
                 <View style={styles.tickerRow}>
                   <Text style={[styles.ticker, { color: colors.text }]}>{w.ticker}</Text>
@@ -81,10 +168,10 @@ export function WatchlistScreen() {
                   <Text style={[styles.chg, { color: colors.faint }]}>—</Text>
                 )}
               </View>
-            </View>
+            </Pressable>
           ))}
           <Text style={[styles.footer, { color: colors.faint }]}>
-            {rows[0]?.fresh ? `AS OF ${rows[0].fresh}` : 'PULL TO REFRESH'}
+            LONG-PRESS A ROW TO REMOVE · PULL TO REFRESH
           </Text>
         </ScrollView>
       )}
@@ -94,6 +181,10 @@ export function WatchlistScreen() {
 
 const styles = StyleSheet.create({
   add: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+  addBar: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
+  input: { flex: 1, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontWeight: '600' },
+  addBtn: { paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
+  addBtnText: { fontSize: 14, fontWeight: '800' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
   errorText: { fontSize: 13, textAlign: 'center', lineHeight: 19, maxWidth: 260 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 2 },

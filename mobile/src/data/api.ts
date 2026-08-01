@@ -11,10 +11,21 @@ export const usingMockData = !API_BASE_URL;
 
 const base = () => API_BASE_URL.replace(/\/+$/, '');
 
-async function getJson<T>(path: string): Promise<T> {
+function requireBackend() {
+  if (!API_BASE_URL) throw new Error('No backend configured (running on sample data).');
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${base()}${path}`, { headers: { Authorization: `Bearer ${API_TOKEN}` } });
+    res = await fetch(`${base()}${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        'Content-Type': 'application/json',
+        ...(init?.headers ?? {}),
+      },
+    });
   } catch {
     throw new Error(`Can't reach ${base()} — is Tailscale ON and the URL right?`);
   }
@@ -26,6 +37,8 @@ async function getJson<T>(path: string): Promise<T> {
   }
   return (await res.json()) as T;
 }
+
+const getJson = <T>(path: string) => request<T>(path);
 
 export async function fetchFeed(limit = 30): Promise<Alert[]> {
   if (!API_BASE_URL) return mockAlerts;
@@ -45,4 +58,39 @@ export async function fetchReport(query?: string): Promise<Report> {
   if (!API_BASE_URL) return mockReport;
   const q = query?.trim() ? `?q=${encodeURIComponent(query.trim())}` : '';
   return getJson<Report>(`/api/report${q}`);
+}
+
+// --- settings + watchlist mutations ---------------------------------------
+
+export type Language = { code: string; name: string };
+export type SettingsInfo = { language: string; languageCode: string | null; languages: Language[] };
+
+export async function fetchSettings(): Promise<SettingsInfo> {
+  requireBackend();
+  return getJson<SettingsInfo>('/api/settings');
+}
+
+export async function setLanguage(code: string): Promise<{ language: string }> {
+  requireBackend();
+  return request<{ language: string }>('/api/settings/language', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+}
+
+export type AddResult = { added: boolean; ticker?: string; name?: string; reason?: string | null };
+
+export async function addWatch(query: string): Promise<AddResult> {
+  requireBackend();
+  return request<AddResult>('/api/watchlist', {
+    method: 'POST',
+    body: JSON.stringify({ query }),
+  });
+}
+
+export async function removeWatch(ticker: string): Promise<{ removed: boolean }> {
+  requireBackend();
+  return request<{ removed: boolean }>(`/api/watchlist/${encodeURIComponent(ticker)}`, {
+    method: 'DELETE',
+  });
 }
