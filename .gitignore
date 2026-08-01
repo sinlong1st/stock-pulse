@@ -30,6 +30,9 @@ briefing_memory.json
 # Runtime user prefs, e.g. the /language choice (runtime state, not config)
 runtime_prefs.json
 
+# Registered push notification tokens (runtime state, not config)
+push_tokens.json
+
 # Testing / tooling caches
 .pytest_cache/
 .ruff_cache/

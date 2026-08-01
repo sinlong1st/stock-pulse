@@ -94,3 +94,11 @@ export async function removeWatch(ticker: string): Promise<{ removed: boolean }>
     method: 'DELETE',
   });
 }
+
+export async function registerPushToken(token: string, platform?: string): Promise<void> {
+  requireBackend();
+  await request('/api/push/register', {
+    method: 'POST',
+    body: JSON.stringify({ token, platform }),
+  });
+}

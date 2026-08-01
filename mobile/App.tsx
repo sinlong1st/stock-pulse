@@ -1,11 +1,12 @@
 import { DefaultTheme, NavigationContainer, Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { Tabs } from './src/navigation/Tabs';
 import { RootStackParamList } from './src/navigation/types';
+import { registerForPush } from './src/push';
 import { AlertDetailScreen } from './src/screens/AlertDetailScreen';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 
@@ -13,6 +14,10 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function Root() {
   const { colors, mode } = useTheme();
+
+  useEffect(() => {
+    registerForPush();
+  }, []);
 
   const navTheme: Theme = {
     ...DefaultTheme,

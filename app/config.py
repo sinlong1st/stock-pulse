@@ -163,6 +163,13 @@ class Settings(BaseSettings):
     mobile_api_enabled: bool = False
     mobile_api_token: str = ""
 
+    # Push notifications (Expo Push API). `push_enabled` gates sending pushes in
+    # the alert flow; the register/test endpoints work regardless (for setup).
+    # In Docker, push_tokens_file is redirected into the ./data volume.
+    push_enabled: bool = False
+    push_tokens_file: str = "push_tokens.json"
+    expo_access_token: str = ""  # optional; enables Expo's enhanced push security
+
 
 @lru_cache
 def get_settings() -> Settings:

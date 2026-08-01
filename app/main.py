@@ -55,6 +55,8 @@ from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
 from app.prefs import SUPPORTED_LANGUAGES, resolve_language, set_language
 from app.prices import maybe_eval_price_client, maybe_price_client
+from app.push.notifier import send_push
+from app.push.store import add_token, list_tokens, remove_token
 from app.watchlist import add_ticker, remove_ticker
 from app.web import render_alerts_page, render_evaluation_page, render_news_page
 
@@ -338,6 +340,48 @@ def api_watch_remove(ticker: str, authorization: str | None = Header(default=Non
     _require_mobile_api(authorization)
     removed = remove_ticker(ticker)
     return {"removed": removed, "ticker": ticker.strip().upper()}
+
+
+class PushTokenBody(BaseModel):
+    token: str
+    platform: str | None = None
+
+
+@app.post("/api/push/register")
+def api_push_register(
+    body: PushTokenBody, authorization: str | None = Header(default=None)
+) -> dict:
+    """Register this device's Expo push token."""
+    _require_mobile_api(authorization)
+    if not body.token.strip():
+        raise HTTPException(status_code=400, detail="Empty token.")
+    added = add_token(body.token.strip())
+    return {"registered": True, "new": added}
+
+
+@app.post("/api/push/unregister")
+def api_push_unregister(
+    body: PushTokenBody, authorization: str | None = Header(default=None)
+) -> dict:
+    """Forget a device's push token (e.g. on sign-out)."""
+    _require_mobile_api(authorization)
+    removed = remove_token(body.token.strip())
+    return {"removed": removed}
+
+
+@app.post("/api/push/test")
+async def api_push_test(authorization: str | None = Header(default=None)) -> dict:
+    """Send a test notification to all registered devices (verify the path)."""
+    settings = _require_mobile_api(authorization)
+    tokens = list_tokens(settings)
+    sent = await send_push(
+        tokens,
+        title="StockPulse",
+        body="🔔 Test notification — push is working.",
+        data={"type": "test"},
+        settings=settings,
+    )
+    return {"tokens": len(tokens), "sent": sent}
 
 
 @app.get("/", response_class=HTMLResponse)
