@@ -1,8 +1,10 @@
 # StockPulse — Push Notifications Plan
 
-**Status:** proposal / design only. No code yet. This plans **native push
-notifications** for the mobile app — an alert on your phone even when the app is
-closed, the mobile-native equivalent of the Telegram pings you already get.
+**Status:** **A–C shipped** (plumbing + FCM). Test pushes work via
+`POST /api/push/test`. **Real-news pushes need Step E** (wiring push into the
+alert flow) — not built yet. This plans **native push notifications** for the
+mobile app — an alert on your phone even when the app is closed, the
+mobile-native equivalent of the Telegram pings you already get.
 
 > Scope note: this is a **single-user** design (matches where the app is today —
 > your phone, your backend, over Tailscale). It's built so it becomes per-user
@@ -42,23 +44,42 @@ backend already has a per-alert *channel* concept, so push slots in beside it.
 
 ---
 
-## 3. The one real prerequisite — FCM (Android)
+## 3. The one real prerequisite — FCM (Android)  ✅ done
 
 A standalone app (your EAS-built APK) needs **Firebase Cloud Messaging**
-configured for Android delivery. One-time setup, ~15 min:
+configured for Android delivery. One-time setup, ~15 min.
 
+> ⚠️ **Two different JSON files — don't mix them up** (this is the confusing part):
+> - **`google-services.json`** → lives in your **app** (`mobile/`), referenced by
+>   `app.json`. Identifies the app to Firebase.
+> - **Service-account key** → uploaded to **EAS**, lets Expo *send* pushes for you.
+>   A different file, from a different place in the Firebase console.
+
+**Steps:**
 1. **Firebase project** — create one at <https://console.firebase.google.com>.
 2. **Add an Android app** with the package name **`com.ndtai2202.stockpulse`**
    (from `mobile/app.json`).
-3. **Download `google-services.json`** → drop it in `mobile/`.
-4. **Point the app at it** — in `app.json`:
-   `"android": { "googleServicesFile": "./google-services.json" }`.
-5. **Service-account key for Expo** — Firebase → Project settings → *Service
-   accounts* → **Generate new private key** (a JSON file).
-6. **Upload it to EAS** — `eas credentials` → Android → *Push Notifications: FCM
-   V1* → upload that JSON. (Lets Expo's push service send on your behalf.)
-7. **Rebuild the APK** — adding push is a **native** change, so it needs a fresh
-   `eas build -p android --profile preview` (not an OTA update). Install it once.
+3. **Download `google-services.json`** → drop it in `mobile/`, and reference it in
+   `app.json`: `"android": { "googleServicesFile": "./google-services.json" }`.
+4. **Generate the service-account key** — Firebase → ⚙️ **Project settings** →
+   **Service accounts** tab → **Generate new private key** → downloads a `.json`
+   (its contents start with `{"type": "service_account", ...}`). Keep it private;
+   **don't commit it.**
+5. **Upload it to EAS:** `eas credentials` → **Android** → **Google Service
+   Account** → **"Push Notifications (FCM V1)"** →
+   **"Set up a Google Service Account Key…"** → give it the path to the JSON from
+   step 4.
+   - ⚠️ **Do NOT pick "Push Notifications (Legacy)"** — that's the old FCM Legacy
+     API, **shut down by Google in June 2024**. It won't deliver.
+   - ⚠️ **"Set up…"**, not **"Select an existing…"** — "existing" only lists keys
+     already on EAS (you have none the first time). "Set up" is the one that
+     *uploads* your downloaded file.
+6. **Rebuild the APK** — adding push is a **native** change, so it needs a fresh
+   `eas build -p android --profile preview` (**not** an OTA update). Install it
+   once. Credentials attach to the *project*, so the `preview` profile is correct.
+
+**Verify:** open the app → grant the notification prompt (this registers the
+token) → `POST /api/push/test` on the server → 🔔 (see §7).
 
 > **iOS** additionally needs an **Apple Developer account** ($99/yr) for APNs.
 > Deferred — Android first.
@@ -139,15 +160,16 @@ All gated by the existing `MOBILE_API_ENABLED` (the endpoints live under `/api`)
 
 | Step | Piece | Needs FCM? | Status |
 |---|---|---|---|
-| A | Backend: token storage + `send_push` (Expo API) + register/test endpoints + tests | no | ⬜ |
-| B | Mobile: `expo-notifications`, permission, get token, register, Android channel | no (token works without) | ⬜ |
-| C | **FCM setup** (Firebase + EAS credentials) + rebuild APK | **yes** | ⬜ |
-| D | Verify with `POST /api/push/test` on the real device | yes | ⬜ |
-| E | Wire push into the alert send path (quiet hours + threshold) + deep link on tap | yes | ⬜ |
+| A | Backend: token storage + `send_push` (Expo API) + register/test endpoints + tests | no | ✅ done |
+| B | Mobile: `expo-notifications`, permission, get token, register, Android channel | no | ✅ done |
+| C | **FCM setup** (Firebase + EAS credentials) + rebuild APK | **yes** | ✅ done |
+| D | Verify with `POST /api/push/test` on the real device | yes | ⬜ verify |
+| E | Wire push into the alert send path (quiet hours + threshold) + deep link on tap | yes | ⬜ next |
 | F | (later) iOS: Apple Developer account + APNs | — | ⬜ |
 
-A–B can be built and even partially verified (token registration) **before** the
-FCM setup; real delivery lights up at C–D.
+A–C are shipped. `POST /api/push/test` should now fire a real notification (D).
+**Step E is what turns real news into a push** — until then, only test pushes
+fire.
 
 ---
 
