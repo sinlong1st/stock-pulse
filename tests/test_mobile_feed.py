@@ -61,9 +61,9 @@ def _classify(session, *, title, category="TICKER", relevant=True, tickers=None)
 # --- build_feed ------------------------------------------------------------
 
 
-def test_build_feed_shapes_items(session) -> None:
+async def test_build_feed_shapes_items(session) -> None:
     _classify(session, title="Nvidia slips")
-    feed = build_feed(session, limit=10)
+    feed = await build_feed(session, Settings(_env_file=None), limit=10, price_client=None)
     assert len(feed) == 1
     item = feed[0]
     assert item["summary"] == "Nvidia slips summary"
@@ -76,7 +76,7 @@ def test_build_feed_shapes_items(session) -> None:
     assert item["source"] == "Reuters"
 
 
-def test_build_feed_skips_unclassified_and_irrelevant(session) -> None:
+async def test_build_feed_skips_unclassified_and_irrelevant(session) -> None:
     _classify(session, title="Relevant one")
     _classify(session, title="Noise", relevant=False)
     ArticleRepository(session).add(
@@ -89,13 +89,13 @@ def test_build_feed_skips_unclassified_and_irrelevant(session) -> None:
         )
     )
     session.commit()
-    feed = build_feed(session, limit=10)
+    feed = await build_feed(session, Settings(_env_file=None), limit=10, price_client=None)
     assert [i["summary"] for i in feed] == ["Relevant one summary"]
 
 
-def test_build_feed_maps_other_category_to_sector(session) -> None:
+async def test_build_feed_maps_other_category_to_sector(session) -> None:
     _classify(session, title="Macro-ish", category="OTHER")
-    feed = build_feed(session, limit=10)
+    feed = await build_feed(session, Settings(_env_file=None), limit=10, price_client=None)
     assert feed[0]["category"] == "SECTOR"
 
 
@@ -124,7 +124,10 @@ def test_feed_endpoint_401_without_token(monkeypatch) -> None:
 
 
 def test_feed_endpoint_200_with_token(monkeypatch) -> None:
-    monkeypatch.setattr(main, "build_feed", lambda session, limit=30: [])
+    async def _fake_feed(session, settings, limit=30):
+        return []
+
+    monkeypatch.setattr(main, "build_feed", _fake_feed)
     with _client_with(monkeypatch, enabled=True, token="s3cret") as client:
         res = client.get("/api/feed", headers={"Authorization": "Bearer s3cret"})
         assert res.status_code == 200

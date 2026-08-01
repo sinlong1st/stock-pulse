@@ -246,16 +246,16 @@ def _require_mobile_api(authorization: str | None):
 
 
 @app.get("/api/feed")
-def api_feed(limit: int = 30, authorization: str | None = Header(default=None)) -> dict:
+async def api_feed(limit: int = 30, authorization: str | None = Header(default=None)) -> dict:
     """Read-only feed for the mobile app: recent classified articles as JSON.
 
     Off unless `MOBILE_API_ENABLED=true`, and requires
     `Authorization: Bearer <MOBILE_API_TOKEN>`. Reads only — it does not affect
     the news/alert/Telegram pipeline.
     """
-    _require_mobile_api(authorization)
+    settings = _require_mobile_api(authorization)
     with SessionLocal() as session:
-        alerts = build_feed(session, limit=min(max(limit, 1), 100))
+        alerts = await build_feed(session, settings, limit=min(max(limit, 1), 100))
     return {"alerts": alerts, "generated_at": datetime.now(UTC).isoformat()}
 
 

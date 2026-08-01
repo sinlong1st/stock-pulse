@@ -7,7 +7,7 @@ export type Category = 'MACRO' | 'TICKER' | 'SECTOR';
 export type PriceSnapshot = {
   symbol: string;
   price: string; // pre-formatted for display, e.g. "118.44"
-  changePct: number; // signed, vs open
+  changePct?: number | null; // signed, vs open (may be absent outside session)
   fresh: string; // "LIVE" or "AS OF FRI 13:00 PDT"
 };
 

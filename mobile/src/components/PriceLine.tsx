@@ -13,9 +13,11 @@ export function PriceLine({ price }: { price: PriceSnapshot }) {
     <View style={styles.row}>
       <Text style={[styles.sym, { color: colors.text }]}>{price.symbol}</Text>
       <Text style={[styles.px, { color: colors.text }]}>{price.price}</Text>
-      <Text style={[styles.chg, { color: changeColor(colors, price.changePct) }]}>
-        {formatChange(price.changePct)}
-      </Text>
+      {price.changePct != null ? (
+        <Text style={[styles.chg, { color: changeColor(colors, price.changePct) }]}>
+          {formatChange(price.changePct)}
+        </Text>
+      ) : null}
       <View style={styles.fresh}>
         {isLive && <View style={[styles.dot, { backgroundColor: colors.bull }]} />}
         <Text style={[styles.freshText, { color: colors.faint }]}>{price.fresh}</Text>
