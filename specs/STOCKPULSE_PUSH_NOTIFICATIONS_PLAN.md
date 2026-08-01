@@ -1,10 +1,12 @@
 # StockPulse — Push Notifications Plan
 
-**Status:** **A–C shipped** (plumbing + FCM). Test pushes work via
-`POST /api/push/test`. **Real-news pushes need Step E** (wiring push into the
-alert flow) — not built yet. This plans **native push notifications** for the
-mobile app — an alert on your phone even when the app is closed, the
-mobile-native equivalent of the Telegram pings you already get.
+**Status:** **A–E shipped** — push works end-to-end. Test pushes fire via
+`POST /api/push/test`, and **real news now pushes** (gated by `PUSH_ENABLED`,
+mirroring the Telegram send + quiet-hours). Remaining: iOS (F) and a
+deep-link-to-the-exact-alert nicety (tapping currently just opens the app). This
+documents **native push notifications** for the mobile app — an alert on your
+phone even when the app is closed, the mobile-native equivalent of the Telegram
+pings you already get.
 
 > Scope note: this is a **single-user** design (matches where the app is today —
 > your phone, your backend, over Tailscale). It's built so it becomes per-user
@@ -164,12 +166,13 @@ All gated by the existing `MOBILE_API_ENABLED` (the endpoints live under `/api`)
 | B | Mobile: `expo-notifications`, permission, get token, register, Android channel | no | ✅ done |
 | C | **FCM setup** (Firebase + EAS credentials) + rebuild APK | **yes** | ✅ done |
 | D | Verify with `POST /api/push/test` on the real device | yes | ⬜ verify |
-| E | Wire push into the alert send path (quiet hours + threshold) + deep link on tap | yes | ⬜ next |
-| F | (later) iOS: Apple Developer account + APNs | — | ⬜ |
+| E | Wire push into the alert send path (quiet hours + threshold) | yes | ✅ done |
+| F | (later) iOS: Apple Developer account + APNs; deep-link tap → exact alert | — | ⬜ |
 
-A–C are shipped. `POST /api/push/test` should now fire a real notification (D).
-**Step E is what turns real news into a push** — until then, only test pushes
-fire.
+A–E are shipped. Turn it on with **`PUSH_ENABLED=true`** on the server; every
+alert that goes to Telegram now also pushes (same quiet-hours + importance
+gating). Tapping a notification opens the app; jumping to the *exact* alert
+(needs a `GET /api/feed/{id}` + a navigation ref) is the remaining nicety.
 
 ---
 

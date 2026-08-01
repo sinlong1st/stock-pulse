@@ -16,6 +16,8 @@ from app.alerts.policy import IMPORTANCE_ORDER
 from app.alerts.telegram import Notifier, NotifierError
 from app.db.repository import AlertRepository, ArticleRepository, ClassificationRepository
 from app.prices import PriceClient, price_context_line
+from app.push.messages import alert_push
+from app.push.notifier import send_push
 
 logger = logging.getLogger("stockpulse.alerts.router")
 
@@ -38,11 +40,17 @@ async def send_pending_alerts(
     quiet_now: bool = False,
     quiet_min_importance: str = "CRITICAL",
     price_client: PriceClient | None = None,
+    push_tokens: list[str] | None = None,
 ) -> DeliveryResult:
     """Send up to `limit` pending alerts and persist their delivery status.
 
     During quiet hours (`quiet_now`), alerts below `quiet_min_importance`
     are held: left PENDING and counted, not sent.
+
+    When `push_tokens` is given, each alert that goes out also fires a push
+    notification to those devices (best-effort; a push failure never affects the
+    alert's SENT status). Push mirrors what's sent, so it inherits the same
+    quiet-hours + importance gating.
     """
     alert_repo = AlertRepository(session)
     article_repo = ArticleRepository(session)
@@ -98,6 +106,15 @@ async def send_pending_alerts(
 
         alert_repo.mark_sent(alert)
         sent += 1
+
+        if push_tokens:
+            title, body = alert_push(classification)
+            await send_push(
+                push_tokens,
+                title=title,
+                body=body,
+                data={"type": "alert", "alertId": alert.id, "articleId": alert.article_id},
+            )
 
     session.commit()
     logger.info(

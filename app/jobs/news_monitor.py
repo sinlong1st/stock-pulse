@@ -42,6 +42,7 @@ from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
 from app.prefs import resolve_language
 from app.prices import PriceClient, maybe_eval_price_client, maybe_price_client
+from app.push.store import list_tokens
 from app.watchlist import get_watchlist_config
 
 logger = logging.getLogger("stockpulse.jobs.news_monitor")
@@ -229,6 +230,7 @@ async def run_news_monitor(
                     quiet_now=is_quiet_now(settings),
                     quiet_min_importance=settings.quiet_hours_min_importance,
                     price_client=maybe_price_client(settings),
+                    push_tokens=list_tokens(settings) if settings.push_enabled else None,
                 )
             summary.alerts_sent = delivery.sent
             summary.alerts_failed = delivery.failed

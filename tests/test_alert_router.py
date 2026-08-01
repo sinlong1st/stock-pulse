@@ -93,3 +93,44 @@ async def test_unknown_channel_is_marked_failed(session) -> None:
     result = await send_pending_alerts(session, {})
     assert result.failed == 1
     assert AlertRepository(session).count_by_status(STATUS_FAILED) == 1
+
+
+async def test_push_fires_for_sent_alert(session, monkeypatch) -> None:
+    import app.alerts.router as router
+
+    calls: list[dict] = []
+
+    async def fake_send_push(tokens, *, title, body, data=None, **kwargs):
+        calls.append({"tokens": tokens, "title": title, "body": body, "data": data})
+        return len(tokens)
+
+    monkeypatch.setattr(router, "send_push", fake_send_push)
+
+    _seed_pending_alert(session)
+    result = await send_pending_alerts(
+        session, {CHANNEL_TELEGRAM: _FakeNotifier()}, push_tokens=["ExponentPushToken[z]"]
+    )
+
+    assert result.sent == 1
+    assert len(calls) == 1
+    assert calls[0]["tokens"] == ["ExponentPushToken[z]"]
+    assert "HIGH" in calls[0]["title"] and "QQQ" in calls[0]["title"]
+    assert calls[0]["body"] == "s"
+    assert calls[0]["data"]["type"] == "alert"
+
+
+async def test_no_push_without_tokens(session, monkeypatch) -> None:
+    import app.alerts.router as router
+
+    called = False
+
+    async def fake_send_push(*args, **kwargs):
+        nonlocal called
+        called = True
+        return 0
+
+    monkeypatch.setattr(router, "send_push", fake_send_push)
+
+    _seed_pending_alert(session)
+    await send_pending_alerts(session, {CHANNEL_TELEGRAM: _FakeNotifier()})  # no push_tokens
+    assert called is False

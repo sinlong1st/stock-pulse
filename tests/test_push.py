@@ -6,8 +6,36 @@ from fastapi.testclient import TestClient
 import app.config as config
 import app.main as main
 from app.config import Settings
+from app.models.classification import ClassificationResult
 from app.push import store
+from app.push.messages import alert_push
 from app.push.notifier import _EXPO_PUSH_URL, send_push
+
+
+def _cls(**kw) -> ClassificationResult:
+    base = dict(
+        is_market_relevant=True,
+        importance="HIGH",
+        category="TICKER",
+        sentiment="BEARISH",
+        related_tickers=["NVDA"],
+        summary="Nvidia slips on curbs",
+        why_it_matters="w",
+        should_alert=True,
+    )
+    base.update(kw)
+    return ClassificationResult(**base)
+
+
+def test_alert_push_title_and_body() -> None:
+    title, body = alert_push(_cls())
+    assert title == "🔴 HIGH · NVDA"
+    assert body == "Nvidia slips on curbs"
+
+
+def test_alert_push_falls_back_to_category_without_tickers() -> None:
+    title, _ = alert_push(_cls(related_tickers=[], category="MACRO", sentiment="NEUTRAL"))
+    assert title == "⚪ HIGH · MACRO"
 
 # --- token store -----------------------------------------------------------
 

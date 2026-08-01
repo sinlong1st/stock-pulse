@@ -469,6 +469,7 @@ async def send_alerts(limit: int = 20) -> dict:
             include_link=settings.alert_include_link,
             language=resolve_language(settings),
             price_client=maybe_price_client(settings),
+            push_tokens=list_tokens(settings) if settings.push_enabled else None,
         )
     return {"processed": result.processed, "sent": result.sent, "failed": result.failed}
 
