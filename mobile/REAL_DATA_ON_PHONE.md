@@ -1,50 +1,65 @@
-# Getting real data onto your phone — step by step
+# Real data on your phone — a follow-along walkthrough
 
-Two problems to solve, and this guide does both safely:
+Follow top to bottom. After each step there's a **✅ Checkpoint** — don't move on
+until it passes. If a checkpoint fails, see **Troubleshooting** at the bottom.
 
-1. **Reach** — your phone (on cellular/Wi-Fi) needs to talk to your droplet,
-   **without exposing the droplet to the public internet** (it has powerful
-   unauthenticated endpoints like `POST /run` you must never make public).
-   → We use **Tailscale**, a private network just for your own devices.
-2. **Code** — the installed app needs the new fetch code + config.
-   → We build the APK **once** with over-the-air updates enabled, then push
-   future changes with `eas update` (no reinstalling).
+**What you'll end up with:** your real StockPulse alerts on your phone, reached
+over a private network (Tailscale) — nothing exposed to the public internet.
+
+**Before you start, have:**
+- SSH access to your droplet (the one running StockPulse).
+- Your phone.
+- The `mobile/` project on your computer (`npm install` already run).
 
 ---
 
-## Part A — Enable the API on the droplet (one-time)
-
-If you haven't already (from the deploy instructions):
+## Step 1 — Turn on the API on the droplet
 
 ```bash
 ssh user@your-droplet-ip
 cd ~/stock-pulse
 git pull
-openssl rand -hex 24          # copy this token
-nano .env                     # add the two lines below, paste the token
-#   MOBILE_API_ENABLED=true
-#   MOBILE_API_TOKEN=<token>
+openssl rand -hex 24          # 👈 COPY this token somewhere; you'll reuse it
+nano .env
+```
+Add these two lines to `.env` (paste your token), then save (`Ctrl+O`, Enter, `Ctrl+X`):
+```
+MOBILE_API_ENABLED=true
+MOBILE_API_TOKEN=<paste-your-token>
+```
+Rebuild:
+```bash
 docker compose up -d --build
-# verify:
-curl -H "Authorization: Bearer <token>" http://127.0.0.1:8000/api/feed
 ```
 
-The app stays bound to `127.0.0.1` — **nothing is public**. Tailscale (next)
-reaches it privately.
+**✅ Checkpoint 1** — on the droplet, this returns JSON (not an error):
+```bash
+curl -H "Authorization: Bearer <your-token>" http://127.0.0.1:8000/api/feed
+```
+You should see `{"alerts":[...],"generated_at":"..."}`. (Empty `alerts` is fine —
+it just means no fresh classified news yet.)
 
 ---
 
-## Part B — Tailscale: a private network for your devices
+## Step 2 — Install Tailscale on the droplet
 
-### On the droplet
 ```bash
 curl -fsSL https://tailscale.com/install.sh | sh
 sudo tailscale up
 ```
-It prints a URL — open it in a browser and log in (Google/GitHub/email). The
-droplet is now on your private "tailnet".
+It prints a URL — open it in any browser and log in (Google/GitHub/email). That
+account is your private network ("tailnet").
 
-Then expose the local app **over the tailnet only**, with automatic HTTPS:
+**✅ Checkpoint 2** — this prints an IP like `100.x.y.z` and your machine name:
+```bash
+tailscale ip -4
+tailscale status
+```
+
+---
+
+## Step 3 — Expose the app over the tailnet (private, HTTPS)
+
 ```bash
 sudo tailscale serve --bg 8000
 ```
@@ -52,88 +67,91 @@ It prints a URL like:
 ```
 https://your-droplet.tailXXXX.ts.net/
 ```
-That URL:
-- works **only** from devices logged into *your* Tailscale account,
-- is **not** reachable from the public internet,
-- is **HTTPS**, so your token isn't sent in the clear.
+👉 **Copy that URL.** It's reachable **only by your own devices**, never the
+public internet, and it's HTTPS.
 
-> If it says HTTPS isn't enabled, open the Tailscale admin console → **DNS** →
-> enable **MagicDNS** and **HTTPS Certificates**, then re-run the command.
+> If it complains that HTTPS isn't enabled: open the Tailscale **admin console →
+> DNS**, enable **MagicDNS** and **HTTPS Certificates**, then re-run the command.
 
-### On your phone
-- Install **Tailscale** from the Play Store, log in with the **same account**.
-- Toggle it **on**. Your phone can now reach `https://your-droplet.tailXXXX.ts.net`.
-
-Quick test: open that URL (with `/health`) in your phone's browser —
-`https://your-droplet.tailXXXX.ts.net/health` should return
-`{"status":"ok",...}`.
-
----
-
-## Part C — Build the APK once (with OTA enabled)
-
-The project is now configured for OTA updates (`expo-updates` + a `runtimeVersion`
-+ update URL in `app.json`, and a `preview` channel in `eas.json`). Build once so
-the installed app knows how to fetch updates:
-
+**✅ Checkpoint 3** — still on the droplet:
 ```bash
-cd mobile
-# point the app at your tailnet URL + token FIRST (see Part E), then:
-eas login                                   # if not already
-eas build -p android --profile preview
+curl https://your-droplet.tailXXXX.ts.net/health
 ```
-Install the resulting APK on your phone (open the link it prints, download, tap).
-**From now on you rarely rebuild** — see Part D.
+returns `{"status":"ok",...}`.
 
 ---
 
-## Part D — Push changes without reinstalling (the payoff)
+## Step 4 — Put your phone on the tailnet
 
-Any time you change the app's JavaScript/UI (including `config.ts`):
+- Install **Tailscale** from the Play Store.
+- Log in with the **same account** as the droplet.
+- Toggle Tailscale **ON**.
 
-```bash
-cd mobile
-eas update --branch preview --message "point at tailnet + tweak feed"
+**✅ Checkpoint 4** — in your **phone's browser**, open:
 ```
-Open the app on your phone — it pulls the update on the next launch. No new APK,
-no store, no reinstall. (Channel `preview` and branch `preview` auto-link because
-they share a name.)
-
-Rebuild the APK **only** when you change native things (new native module, app
-icon, SDK bump).
+https://your-droplet.tailXXXX.ts.net/health
+```
+You should see `{"status":"ok",...}`. 🎉 Your phone can now reach your droplet
+privately.
 
 ---
 
-## Part E — Point the app at your droplet
+## Step 5 — Point the app at it
 
-You set this **once**, in a gitignored env file (so the token never touches git).
-Create `mobile/.env.local` (copy from `.env.example`):
+On your computer, in the `mobile/` folder, create `.env.local` (copy from
+`.env.example`) with your URL + token:
 ```
 EXPO_PUBLIC_API_BASE_URL=https://your-droplet.tailXXXX.ts.net
-EXPO_PUBLIC_API_TOKEN=<the same MOBILE_API_TOKEN>
+EXPO_PUBLIC_API_TOKEN=<the same token from Step 1>
 ```
-Local dev (`npm start` / `npm run web`) and `eas update` read this automatically.
-For a cloud `eas build`, set the same two as EAS environment variables once:
+This file is gitignored — the token stays off git, and you set it **once**.
+
+**✅ Checkpoint 5** — quick sanity in the browser (Tailscale on your computer too,
+or you're on the same network): run `npm run web` in `mobile/` and the Feed loads
+real alerts, header no longer says "SAMPLE DATA".
+
+---
+
+## Step 6 — Build the APK once (with OTA)
+
+For a cloud build, register the two values with EAS once, then build:
 ```bash
+cd mobile
+eas login
 eas env:create --name EXPO_PUBLIC_API_BASE_URL --value https://your-droplet.tailXXXX.ts.net --environment preview
 eas env:create --name EXPO_PUBLIC_API_TOKEN   --value <token> --environment preview
+eas build -p android --profile preview
 ```
-Then rebuild (Part C) or `eas update` (Part D). Open the app → the **Feed** shows
-your real StockPulse alerts, pull-to-refresh works, "SAMPLE DATA" is gone.
+When it finishes, open the link it prints **on your phone**, download the APK, tap
+to install.
 
-> You do **not** re-enter the token each time — it lives in `.env.local` (and, for
-> cloud builds, in EAS). Set it once per environment.
+**✅ Checkpoint 6** — open the app (Tailscale ON). The Feed shows your **real
+alerts**. Done. 🎉
+
+---
+
+## Step 7 (from now on) — update without reinstalling
+
+Change any UI/JS and push it over the air:
+```bash
+cd mobile
+eas update --branch preview --message "what changed"
+```
+Reopen the app on your phone — it pulls the update on next launch. Rebuild the APK
+only for native changes (icon, SDK bump, new native module).
 
 ---
 
 ## Troubleshooting
 
-- **Feed empty ("All caught up")** — backend has no market-relevant classified
-  articles yet. Trigger a run or wait for the scheduler, then pull-to-refresh.
-- **Can't reach the URL on the phone** — is Tailscale toggled **on**? Is the
-  phone logged into the same account? Try `/health` in the phone browser first.
-- **401** — `API_TOKEN` in `config.ts` must exactly match `MOBILE_API_TOKEN`
-  in the droplet `.env`.
-- **Update didn't show** — fully close and reopen the app; `eas update` applies
-  on next launch, and only to builds with the same `runtimeVersion` (app version).
-```
+| Symptom | Fix |
+|---|---|
+| Checkpoint 1 fails (curl error) | Container didn't rebuild, or `.env` typo. `docker compose logs -f`. |
+| Checkpoint 1 returns `401` | Token in the curl header ≠ `MOBILE_API_TOKEN` in `.env`. |
+| Checkpoint 3/4: "HTTPS not enabled" | Enable MagicDNS + HTTPS certs in the Tailscale admin console. |
+| Checkpoint 4 fails on phone | Tailscale toggled **on**? Same account as the droplet? |
+| App shows `401` | `EXPO_PUBLIC_API_TOKEN` in `.env.local`/EAS ≠ server token. |
+| Feed says "All caught up" | Backend has no fresh classified news. Trigger a run or wait, pull-to-refresh. |
+| `eas update` didn't show | Fully close & reopen the app; updates apply on next launch. |
+
+Stuck at a checkpoint? Tell me the number and what you saw — I'll help.
