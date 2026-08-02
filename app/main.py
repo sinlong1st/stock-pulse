@@ -54,6 +54,7 @@ from app.logging_config import configure_logging
 from app.pipeline.classifier import ClassificationError, build_classifier
 from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
+from app.prediction.service import build_prediction
 from app.prefs import (
     SUPPORTED_LANGUAGES,
     push_delivery_enabled,
@@ -295,6 +296,19 @@ def api_evaluation(authorization: str | None = Header(default=None)) -> dict:
     _require_mobile_api(authorization)
     with SessionLocal() as session:
         return build_evaluation(session)
+
+
+@app.get("/api/predict")
+async def api_predict(
+    q: str | None = None, authorization: str | None = Header(default=None)
+) -> dict:
+    """Forward-looking AI read for one stock (on-demand, one OpenAI call)."""
+    settings = _require_mobile_api(authorization)
+    if not settings.prediction_enabled:
+        raise HTTPException(status_code=404, detail="Not found")
+    if not q or not q.strip():
+        raise HTTPException(status_code=400, detail="Missing ?q=<ticker or name>")
+    return await build_prediction(settings, query=q)
 
 
 class LanguageBody(BaseModel):
