@@ -115,7 +115,10 @@ export const mockPrediction = {
   series: {
     closes: [72, 74, 71, 69, 70, 68, 66, 67, 65, 63, 64, 62, 60, 61, 63, 64, 66, 65, 66, 65.2],
     volumes: [12, 9, 14, 20, 11, 8, 25, 13, 10, 30, 12, 9, 18, 7, 22, 14, 11, 9, 16, 13],
-    dates: [],
+    dates: Array.from({ length: 20 }, (_, i) => {
+      const d = new Date(2026, 6, 1 + i);
+      return d.toISOString().slice(0, 10);
+    }),
   },
   strategy: {
     id: 'default',

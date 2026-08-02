@@ -4,7 +4,7 @@
  */
 import * as Updates from 'expo-updates';
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.2.0';
 
 /** A short, human-readable label for the running build/update. */
 export function versionLabel(): string {

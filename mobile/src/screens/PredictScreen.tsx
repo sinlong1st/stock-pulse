@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MiniBars } from '../components/MiniBars';
+import { PriceChart } from '../components/PriceChart';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Segmented } from '../components/Segmented';
 import { fetchPrediction, fetchSettings, Lean, Prediction, PredictionHorizon, usingMockData } from '../data/api';
@@ -210,13 +211,15 @@ export function PredictScreen() {
                 </Text>
                 <Segmented options={['1W', '1M', '3M', '6M']} value={range} onChange={setRange} />
               </View>
-              <MiniBars
+              <PriceChart
                 values={pred.series.closes.slice(-RANGES[range])}
-                color={colors.accent}
-                lastColor={colors.accentInk}
-                height={64}
+                dates={pred.series.dates?.slice(-RANGES[range])}
+                height={128}
               />
-              <Text style={[styles.chartLabel, { color: colors.muted, marginTop: 14 }]}>
+              <Text style={[styles.chartHint, { color: colors.faint }]}>
+                {t('Drag across the chart to read any point', 'Kéo trên biểu đồ để xem từng điểm')}
+              </Text>
+              <Text style={[styles.chartLabel, { color: colors.muted, marginTop: 10 }]}>
                 {t('VOLUME', 'KHỐI LƯỢNG')}
               </Text>
               <MiniBars values={pred.series.volumes.slice(-RANGES[range])} color={colors.faint} height={36} />
@@ -346,6 +349,7 @@ const styles = StyleSheet.create({
   chartBlock: { marginBottom: 16 },
   chartHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' },
   chartLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  chartHint: { fontSize: 9, fontWeight: '700', marginTop: 4, textAlign: 'center' },
   chartVal: { fontSize: 13, fontWeight: '800', fontVariant: ['tabular-nums'] },
   chips: { flexDirection: 'row', gap: 8 },
   chip: { paddingHorizontal: 9, paddingVertical: 4 },
