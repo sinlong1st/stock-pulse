@@ -8,10 +8,17 @@ exactly like `ClassificationResult` / `BriefingResult`.
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 Lean = Literal["bounce", "dip", "hold"]
 Confidence = Literal["low", "medium", "high"]
+EntryAssessment = Literal["good", "fair", "wait"]
+
+_ENTRY_SYNONYMS = {
+    "buy": "good", "attractive": "good", "cheap": "good", "strong": "good", "yes": "good",
+    "ok": "fair", "neutral": "fair", "reasonable": "fair", "hold": "fair",
+    "avoid": "wait", "overpriced": "wait", "expensive": "wait", "patience": "wait", "no": "wait",
+}
 
 _LEAN_SYNONYMS = {
     "up": "bounce", "bullish": "bounce", "rise": "bounce", "rebound": "bounce", "bull": "bounce",
@@ -46,6 +53,23 @@ class HorizonRead(BaseModel):
         return v
 
 
+class EntryRead(BaseModel):
+    """The AI's read on whether the *current* price is a good entry."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    assessment: EntryAssessment = "fair"
+    note: str = ""  # e.g. "Fair here; a better entry sits near the $58 support."
+
+    @field_validator("assessment", mode="before")
+    @classmethod
+    def _norm(cls, v: object) -> object:
+        if isinstance(v, str):
+            s = v.strip().lower()
+            return _ENTRY_SYNONYMS.get(s, s)
+        return v
+
+
 class PredictionRead(BaseModel):
     """The AI narrative layer (validated). Numbers come from signals separately."""
 
@@ -53,6 +77,7 @@ class PredictionRead(BaseModel):
 
     horizons: list[HorizonRead] = []
     drivers: list[str] = []
+    entry: EntryRead = Field(default_factory=EntryRead)
 
     @field_validator("drivers", mode="before")
     @classmethod

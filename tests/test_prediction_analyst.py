@@ -47,7 +47,9 @@ def test_user_message_layers_strategy_facts_news() -> None:
     msg = _user_message(
         ticker="WDC",
         name="Western Digital",
+        price=120.0,
         signals=_SIGNALS,
+        support_zones=[100.0, 110.0],
         news_lines=["Nvidia deal", "Memory prices firm"],
         horizons=["1w", "1mo", "3mo"],
         strategy=Strategy(id="x", name="X", body="MY CUSTOM STRATEGY"),
@@ -55,6 +57,7 @@ def test_user_message_layers_strategy_facts_news() -> None:
     assert "STRATEGY" in msg and "MY CUSTOM STRATEGY" in msg
     assert "FACTS (authoritative)" in msg and "cheap" in msg and "down" in msg
     assert "Nvidia deal" in msg
+    assert "Support levels" in msg and "$100.00" in msg
     assert "1w, 1mo, 3mo" in msg
 
 

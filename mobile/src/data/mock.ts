@@ -107,9 +107,15 @@ export const mockPrediction = {
     { horizon: '3mo', lean: 'bounce' as const, confidence: 'low' as const, rationale: 'Value could firm up if memory pricing improves.' },
   ],
   drivers: ['Downward price trend', 'Middle of 6-month range', 'Thin fresh news'],
+  entry: {
+    assessment: 'fair' as const,
+    note: 'Fair here, but a better entry sits nearer the $60 support if it dips.',
+  },
+  supportZones: [60.0, 63.0],
   series: {
     closes: [72, 74, 71, 69, 70, 68, 66, 67, 65, 63, 64, 62, 60, 61, 63, 64, 66, 65, 66, 65.2],
     volumes: [12, 9, 14, 20, 11, 8, 25, 13, 10, 30, 12, 9, 18, 7, 22, 14, 11, 9, 16, 13],
+    dates: [],
   },
   strategy: {
     id: 'default',

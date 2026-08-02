@@ -55,7 +55,9 @@ async def test_build_prediction_assembles(monkeypatch) -> None:
     assert out["strategy"]["id"] == "default" and out["strategy"]["body"]  # incl. body for the modal
     assert out["price"] == "110.00"  # fell back to the last bar close
     assert out["series"]["closes"] == [100, 120, 140, 130, 110]  # for the app's charts
-    assert len(out["series"]["volumes"]) == 5
+    assert len(out["series"]["volumes"]) == 5 and len(out["series"]["dates"]) == 5
+    assert out["supportZones"] == [99.0]  # lows = close*0.99 → min 99.0
+    assert out["entry"] == {"assessment": "fair", "note": ""}  # default from the fake analyst
 
 
 async def test_build_prediction_unknown_ticker(monkeypatch) -> None:

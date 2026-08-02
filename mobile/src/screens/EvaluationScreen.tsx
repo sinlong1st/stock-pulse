@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SentimentPill } from '../components/SentimentPill';
 import { EvalReport, EvalStat, fetchEvaluation } from '../data/api';
@@ -30,6 +31,7 @@ function Bar({ label, stat, color }: { label: string; stat: EvalStat; color: str
 
 export function EvaluationScreen({ navigation }: Props) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [report, setReport] = useState<EvalReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +71,7 @@ export function EvaluationScreen({ navigation }: Props) {
           </Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 28 }} showsVerticalScrollIndicator={false}>
           {/* headline */}
           <View style={[styles.headline, { borderBottomColor: colors.divider }]}>
             <Text style={[styles.hLabel, { color: colors.muted }]}>DIRECTIONAL ACCURACY</Text>

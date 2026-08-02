@@ -48,6 +48,18 @@ async def _current_price(ticker: str, settings: Settings) -> tuple[float | None,
     return snap.price, fresh
 
 
+def _support_zones(bars: list) -> list[float]:
+    """Grounded support levels from real price lows: the ~1-month low and the
+    full-window low (deduped, ascending). Not advice — reference points."""
+    lows = [b.low for b in bars if getattr(b, "low", None)]
+    if not lows:
+        return []
+    window_low = round(min(lows), 2)
+    one_month = bars[-21:] if len(bars) >= 21 else bars
+    month_low = round(min(b.low for b in one_month if b.low), 2)
+    return sorted({window_low, month_low})
+
+
 async def _news_lines(target: FocusTarget, settings: Settings) -> list[str]:
     try:
         collectors = build_focus_collectors(target, settings)
@@ -84,11 +96,13 @@ async def build_prediction(
     if price is None and bars:
         price = bars[-1].close
     signals = compute_signals(bars, price, range_months=months)
-    recent = bars[-90:]  # a compact series for the app's charts
+    recent = bars[-130:]  # a series for the app's charts (sliced by range client-side)
     series = {
         "closes": [round(b.close, 2) for b in recent],
         "volumes": [round(b.volume) for b in recent],
+        "dates": [b.t.date().isoformat() for b in recent],
     }
+    support_zones = _support_zones(bars)
 
     news = await _news_lines(target, settings)
     horizons = [h.strip() for h in settings.prediction_horizons.split(",") if h.strip()]
@@ -97,7 +111,8 @@ async def build_prediction(
         analyst = analyst or build_analyst(settings)
         read = await analyst.analyze(
             ticker=ticker, name=name, signals=signals, news_lines=news,
-            horizons=horizons, strategy=strategy, language=language,
+            horizons=horizons, price=price, support_zones=support_zones,
+            strategy=strategy, language=language,
         )
     except PredictionError as exc:
         logger.warning("Prediction analysis failed: %s", exc)
@@ -117,6 +132,8 @@ async def build_prediction(
         "trend": signals.trend,
         "enoughHistory": signals.enough_history,
         "series": series,
+        "supportZones": support_zones,
+        "entry": {"assessment": read.entry.assessment, "note": read.entry.note},
         "horizons": [
             {
                 "horizon": h.horizon,

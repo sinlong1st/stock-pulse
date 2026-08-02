@@ -168,8 +168,10 @@ export type Prediction = {
   enoughHistory?: boolean;
   horizons?: PredictionHorizon[];
   drivers?: string[];
+  entry?: { assessment: 'good' | 'fair' | 'wait'; note: string };
+  supportZones?: number[];
   strategy?: { id: string; name: string; body: string };
-  series?: { closes: number[]; volumes: number[] };
+  series?: { closes: number[]; volumes: number[]; dates?: string[] };
   disclaimer?: string;
 };
 

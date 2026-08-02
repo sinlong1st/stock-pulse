@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ImportanceMeter } from '../components/ImportanceMeter';
 import { SentimentPill } from '../components/SentimentPill';
@@ -13,6 +14,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'AlertDetail'>;
 
 export function AlertDetailScreen({ route, navigation }: Props) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { alert } = route.params;
 
   return (
@@ -25,7 +27,10 @@ export function AlertDetailScreen({ route, navigation }: Props) {
         <Text style={[styles.topbarTitle, { color: colors.text }]}>Alert</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 28 }]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* meta */}
         <View style={styles.metaRow}>
           <ImportanceMeter level={alert.importance} />

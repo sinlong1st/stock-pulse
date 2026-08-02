@@ -12,11 +12,23 @@ import {
   View,
 } from 'react-native';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { MiniBars } from '../components/MiniBars';
+import { Segmented } from '../components/Segmented';
 import { fetchPrediction, Lean, Prediction, PredictionHorizon } from '../data/api';
 import { RootStackParamList } from '../navigation/types';
 import { ThemeColors } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
+
+const RANGES: Record<string, number> = { '1W': 5, '1M': 21, '3M': 63, '6M': 130 };
+const ENTRY_LABEL = { good: 'GOOD ENTRY', fair: 'FAIR', wait: 'WAIT' } as const;
+
+function entryColor(c: ThemeColors, a: 'good' | 'fair' | 'wait') {
+  if (a === 'good') return c.bull;
+  if (a === 'wait') return c.bear;
+  return c.neutral;
+}
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Predict'>;
 
@@ -43,11 +55,13 @@ function overallLean(horizons?: PredictionHorizon[]): Lean {
 
 export function PredictScreen({ navigation }: Props) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [pred, setPred] = useState<Prediction | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modal, setModal] = useState(false);
+  const [range, setRange] = useState('3M');
 
   const run = async () => {
     if (!query.trim()) return;
@@ -114,7 +128,10 @@ export function PredictScreen({ navigation }: Props) {
           </Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 28 }]}
+          showsVerticalScrollIndicator={false}
+        >
           {/* header */}
           <View style={styles.head}>
             <Text style={[styles.ticker, { color: colors.text }]}>{pred.ticker}</Text>
@@ -140,18 +157,52 @@ export function PredictScreen({ navigation }: Props) {
             );
           })()}
 
-          {/* charts */}
+          {/* entry advice */}
+          {pred.entry ? (
+            <View style={[styles.entry, { borderColor: colors.divider }]}>
+              <View style={styles.entryTop}>
+                <Text style={[styles.entryLabel, { color: colors.muted }]}>IS THIS A GOOD ENTRY?</Text>
+                <View style={[styles.entryBadge, { backgroundColor: entryColor(colors, pred.entry.assessment) + '22' }]}>
+                  <Text style={[styles.entryBadgeText, { color: entryColor(colors, pred.entry.assessment) }]}>
+                    {ENTRY_LABEL[pred.entry.assessment]}
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.entryNote, { color: colors.text }]}>{pred.entry.note}</Text>
+              {pred.supportZones?.length ? (
+                <View style={styles.supportRow}>
+                  <Text style={[styles.supportLabel, { color: colors.muted }]}>SUPPORT</Text>
+                  {pred.supportZones.map((s) => (
+                    <View key={s} style={[styles.supportChip, { borderColor: colors.dividerStrong }]}>
+                      <Text style={[styles.supportChipText, { color: colors.text }]}>${s.toFixed(2)}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
+          {/* charts with range selector */}
           {pred.series?.closes?.length ? (
             <View style={styles.chartBlock}>
               <View style={styles.chartHead}>
-                <Text style={[styles.chartLabel, { color: colors.muted }]}>PRICE · 6MO</Text>
-                {pred.price ? (
-                  <Text style={[styles.chartVal, { color: colors.text }]}>${pred.price}</Text>
-                ) : null}
+                <Text style={[styles.chartLabel, { color: colors.muted }]}>
+                  PRICE {pred.price ? `· $${pred.price}` : ''}
+                </Text>
+                <Segmented
+                  options={['1W', '1M', '3M', '6M']}
+                  value={range}
+                  onChange={setRange}
+                />
               </View>
-              <MiniBars values={pred.series.closes} color={colors.accent} lastColor={colors.accentInk} height={64} />
+              <MiniBars
+                values={pred.series.closes.slice(-RANGES[range])}
+                color={colors.accent}
+                lastColor={colors.accentInk}
+                height={64}
+              />
               <Text style={[styles.chartLabel, { color: colors.muted, marginTop: 14 }]}>VOLUME</Text>
-              <MiniBars values={pred.series.volumes} color={colors.faint} height={36} />
+              <MiniBars values={pred.series.volumes.slice(-RANGES[range])} color={colors.faint} height={36} />
             </View>
           ) : null}
 
@@ -262,8 +313,18 @@ const styles = StyleSheet.create({
   headlineRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
   headlineGlyph: { fontSize: 30, fontWeight: '900' },
   headlineLean: { fontSize: 34, fontWeight: '900', letterSpacing: -1 },
+  entry: { borderWidth: 1, padding: 14, marginBottom: 16, gap: 8 },
+  entryTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  entryLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  entryBadge: { paddingHorizontal: 10, paddingVertical: 4 },
+  entryBadgeText: { fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
+  entryNote: { fontSize: 14, lineHeight: 20, fontWeight: '600' },
+  supportRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 2 },
+  supportLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
+  supportChip: { borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
+  supportChipText: { fontSize: 11, fontWeight: '800', fontVariant: ['tabular-nums'] },
   chartBlock: { marginBottom: 16 },
-  chartHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  chartHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' },
   chartLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
   chartVal: { fontSize: 13, fontWeight: '800', fontVariant: ['tabular-nums'] },
   chips: { flexDirection: 'row', gap: 8 },
