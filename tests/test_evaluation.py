@@ -45,6 +45,27 @@ class _FakePriceClient(PriceClient):
         return None
 
 
+class _SnapshotClient(PriceClient):
+    """A client whose snapshot carries a controllable last-trade time."""
+
+    def __init__(self, price: float, price_time: datetime) -> None:
+        self.price = price
+        self.price_time = price_time
+
+    async def latest_price(self, ticker: str) -> float | None:
+        return self.price
+
+    async def change_today(self, ticker: str):  # pragma: no cover - unused here
+        return None
+
+    async def snapshot(self, ticker: str):
+        from app.prices import PriceSnapshot
+
+        return PriceSnapshot(
+            ticker=ticker, price=self.price, price_time=self.price_time, open=None, prev_close=None
+        )
+
+
 @pytest.fixture
 def session():
     engine = create_engine("sqlite:///:memory:", future=True)
@@ -112,6 +133,45 @@ async def test_records_one_prediction_per_ticker_and_horizon(session) -> None:
     repo = PredictionRepository(session)
     assert repo.count() == 4
     assert repo.count_by_status(PRED_PENDING) == 4
+
+
+async def test_defers_scoring_when_market_closed_then_scores(session) -> None:
+    """Weekend/closed market: score deferred until a fresh post-horizon trade."""
+    class_id, article_id = _seed_classification(session, ["NVDA"])
+    await record_predictions(
+        session,
+        classification_id=class_id,
+        article_id=article_id,
+        result=_classification(["NVDA"]),
+        price_client=_FakePriceClient({"NVDA": 100.0}),  # baseline 100
+        horizons=["1d"],
+        watchlist=WATCHLIST,
+    )
+    session.commit()
+
+    repo = PredictionRepository(session)
+    pred = repo.list_due(datetime.now(tz=UTC) + timedelta(days=9), limit=10)[0]
+    deadline = pred.evaluate_after
+    if deadline.tzinfo is None:
+        deadline = deadline.replace(tzinfo=UTC)
+
+    # 1) Due, but the last trade is BEFORE the deadline (market closed) → defer.
+    stale = _SnapshotClient(price=110.0, price_time=deadline - timedelta(hours=2))
+    s1 = await evaluate_predictions(
+        session, price_client=stale, threshold_pct=0.5, max_move_pct=40.0,
+        now=deadline + timedelta(hours=1),
+    )
+    assert s1.deferred == 1 and s1.evaluated == 0
+    assert repo.count_by_status(PRED_PENDING) == 1  # still pending
+
+    # 2) A real trade prints after the deadline → now it scores (+10% → HIT).
+    fresh = _SnapshotClient(price=110.0, price_time=deadline + timedelta(minutes=30))
+    s2 = await evaluate_predictions(
+        session, price_client=fresh, threshold_pct=0.5, max_move_pct=40.0,
+        now=deadline + timedelta(hours=1),
+    )
+    assert s2.evaluated == 1 and s2.hits == 1
+    assert repo.count_by_status(PRED_EVALUATED) == 1
 
 
 async def test_only_watchlist_tickers_are_recorded(session) -> None:

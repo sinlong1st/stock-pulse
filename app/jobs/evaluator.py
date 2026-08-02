@@ -37,15 +37,17 @@ async def run_evaluation(
             price_client=client,
             threshold_pct=settings.evaluation_move_threshold_pct,
             max_move_pct=settings.evaluation_max_move_pct,
+            stale_grace_days=settings.evaluation_stale_grace_days,
         )
 
     logger.info(
-        "Evaluation run -- evaluated=%d hits=%d misses=%d flats=%d skipped=%d",
+        "Evaluation run -- evaluated=%d hits=%d misses=%d flats=%d skipped=%d deferred=%d",
         summary.evaluated,
         summary.hits,
         summary.misses,
         summary.flats,
         summary.skipped,
+        summary.deferred,
     )
     return summary
 

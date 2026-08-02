@@ -77,6 +77,7 @@ class EvalSummary:
     misses: int = 0
     flats: int = 0
     skipped: int = 0
+    deferred: int = 0  # market closed at the horizon — retry on the next trading day
 
 
 def _accuracy(hits: int, misses: int) -> float | None:
@@ -241,6 +242,12 @@ def build_evaluation_report(session: Session, *, recent_limit: int = 15) -> Eval
     )
 
 
+def _as_utc(dt: datetime | None) -> datetime | None:
+    if dt is None:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
+
+
 async def evaluate_predictions(
     session: Session,
     *,
@@ -249,24 +256,47 @@ async def evaluate_predictions(
     max_move_pct: float,
     limit: int = 200,
     now: datetime | None = None,
+    stale_grace_days: int = 4,
 ) -> EvalSummary:
     """Score predictions whose horizon has passed.
 
-    Fetches the current price, computes the return vs the baseline, and
-    records HIT/MISS/FLAT. Predictions with missing prices or an
-    implausibly large move (likely bad free-feed data) are marked SKIPPED
-    so they don't pollute the stats.
+    Fetches the price, computes the return vs the baseline, and records
+    HIT/MISS/FLAT. Two guards keep the stats honest:
+
+    - **Market closed:** if the last trade printed at/before the horizon
+      deadline (weekend, holiday, after hours), there is no real post-horizon
+      price yet — the prediction is left PENDING and retried on the next
+      trading day (up to `stale_grace_days`, after which it's skipped).
+    - **Bad data:** missing prices or an implausibly large move are SKIPPED.
     """
     repo = PredictionRepository(session)
     now = now or datetime.now(tz=UTC)
     summary = EvalSummary()
 
     for prediction in repo.list_due(now, limit=limit):
+        price: float | None = None
+        price_time: datetime | None = None
         try:
-            price = await price_client.latest_price(prediction.ticker)
+            snap = await price_client.snapshot(prediction.ticker)
+            if snap is not None:
+                price, price_time = snap.price, _as_utc(snap.price_time)
+            else:  # client without snapshot support — fall back, no freshness check
+                price = await price_client.latest_price(prediction.ticker)
         except Exception:
             logger.debug("Horizon price lookup failed for %s", prediction.ticker, exc_info=True)
-            price = None
+
+        # Market closed at the horizon: the newest trade is not after the
+        # deadline. Defer (retry later) unless we've waited past the grace.
+        deadline = _as_utc(prediction.evaluate_after)
+        overdue = now - deadline if deadline else timedelta(0)
+        if price_time is not None and deadline is not None and price_time <= deadline:
+            if overdue <= timedelta(days=stale_grace_days):
+                summary.deferred += 1
+                continue
+            # Waited long enough with no fresh trade (e.g. delisted) — skip.
+            repo.mark_skipped(prediction)
+            summary.skipped += 1
+            continue
 
         if not price or price <= 0 or not prediction.baseline_price:
             repo.mark_skipped(prediction)

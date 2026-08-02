@@ -99,6 +99,10 @@ class Settings(BaseSettings):
     evaluation_move_threshold_pct: float = 0.5  # ±band that counts as "flat"
     evaluation_max_move_pct: float = 40.0  # bigger => treat as bad data, skip
     evaluation_check_interval_minutes: int = 15
+    # Don't score against a stale price (market closed — weekend/holiday/after
+    # hours): defer until a real post-horizon trade prints. Give up after this
+    # many days so a delisted ticker can't stay PENDING forever.
+    evaluation_stale_grace_days: int = 4
     # Daily self-evaluation digest to Telegram (hour is in TIMEZONE).
     evaluation_digest_enabled: bool = False
     evaluation_digest_hour: int = 8

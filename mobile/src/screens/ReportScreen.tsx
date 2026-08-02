@@ -1,4 +1,6 @@
 import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,6 +16,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Segmented } from '../components/Segmented';
 import { fetchReport } from '../data/api';
 import { Report } from '../data/types';
+import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeContext';
 import { changeColor, formatChange, sentiment as sentimentOf } from '../theme/semantics';
 
@@ -22,6 +25,7 @@ const SINGLE = 'Single stock';
 
 export function ReportScreen() {
   const { colors } = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,11 +52,16 @@ export function ReportScreen() {
         kicker="BRIEFING"
         title="Report"
         right={
-          report && !loading ? (
-            <Pressable onPress={generate} hitSlop={10}>
-              <Feather name="refresh-cw" size={20} color={colors.text} />
+          <View style={styles.headerIcons}>
+            {report && !loading ? (
+              <Pressable onPress={generate} hitSlop={10}>
+                <Feather name="refresh-cw" size={20} color={colors.text} />
+              </Pressable>
+            ) : null}
+            <Pressable onPress={() => navigation.navigate('Evaluation')} hitSlop={10}>
+              <Feather name="target" size={20} color={colors.text} />
             </Pressable>
-          ) : undefined
+          </View>
         }
       />
 
@@ -187,6 +196,7 @@ function GenerateButton({
 }
 
 const styles = StyleSheet.create({
+  headerIcons: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   control: { paddingHorizontal: 16, paddingVertical: 10, gap: 10 },
   input: { borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontWeight: '600' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
