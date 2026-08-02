@@ -87,3 +87,17 @@ export const mockReport: Report = {
   watchlist: mockWatchlist,
   note: null,
 };
+
+export const mockEvaluation = {
+  totalEvaluated: 128,
+  accuracyPct: 74,
+  pending: 9,
+  bullish: { accuracyPct: 81, hits: 46, misses: 11, total: 61, avgReturnPct: 2.4 },
+  bearish: { accuracyPct: 69, hits: 29, misses: 13, total: 48, avgReturnPct: -1.8 },
+  recent: [
+    { ticker: 'MSFT', sentiment: 'BULLISH' as const, horizon: '5d', returnPct: 4.1, outcome: 'HIT' },
+    { ticker: 'NVDA', sentiment: 'BEARISH' as const, horizon: '5d', returnPct: -3.2, outcome: 'HIT' },
+    { ticker: 'WDC', sentiment: 'BULLISH' as const, horizon: '1d', returnPct: -0.6, outcome: 'MISS' },
+    { ticker: 'MU', sentiment: 'NEUTRAL' as const, horizon: '5d', returnPct: 0.2, outcome: 'FLAT' },
+  ],
+};

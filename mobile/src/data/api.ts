@@ -3,8 +3,8 @@
  * config.ts; otherwise returns bundled mock data so the app always renders.
  */
 import { API_BASE_URL, API_TOKEN } from '../config';
-import { mockAlerts, mockReport, mockWatchlist } from './mock';
-import { Alert, Report, WatchRow } from './types';
+import { mockAlerts, mockEvaluation, mockReport, mockWatchlist } from './mock';
+import { Alert, Report, Sentiment, WatchRow } from './types';
 
 /** True when no backend is configured (the app is showing sample data). */
 export const usingMockData = !API_BASE_URL;
@@ -120,6 +120,33 @@ export async function removeWatch(ticker: string): Promise<{ removed: boolean }>
   return request<{ removed: boolean }>(`/api/watchlist/${encodeURIComponent(ticker)}`, {
     method: 'DELETE',
   });
+}
+
+export type EvalStat = {
+  accuracyPct: number | null;
+  hits: number;
+  misses: number;
+  total: number;
+  avgReturnPct: number | null;
+};
+export type EvalReport = {
+  totalEvaluated: number;
+  accuracyPct: number | null;
+  pending: number;
+  bullish: EvalStat;
+  bearish: EvalStat;
+  recent: {
+    ticker: string;
+    sentiment: Sentiment;
+    horizon: string;
+    returnPct: number | null;
+    outcome: string;
+  }[];
+};
+
+export async function fetchEvaluation(): Promise<EvalReport> {
+  if (!API_BASE_URL) return mockEvaluation;
+  return getJson<EvalReport>('/api/evaluation');
 }
 
 export async function registerPushToken(token: string, platform?: string): Promise<void> {

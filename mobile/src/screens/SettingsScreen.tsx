@@ -1,4 +1,6 @@
 import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
@@ -12,6 +14,7 @@ import {
   usingMockData,
 } from '../data/api';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeContext';
 import { checkForUpdate, versionLabel } from '../updates';
 
@@ -83,6 +86,7 @@ async function onCheckUpdate() {
 
 export function SettingsScreen() {
   const { colors, mode, toggle } = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [language, setLang] = useState('English');
   const [languages, setLanguages] = useState<Language[]>([]);
   const [channels, setChannels] = useState<Channels | null>(null);
@@ -199,6 +203,7 @@ export function SettingsScreen() {
         </View>
 
         <SectionLabel>ACCOUNT</SectionLabel>
+        <Row label="AI accuracy" onPress={() => navigation.navigate('Evaluation')} />
         <Row label="Manage subscription" onPress={() => {}} />
         <Row label="Check for updates" onPress={onCheckUpdate} />
         <Row label="Sign out" onPress={() => {}} />

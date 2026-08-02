@@ -8,6 +8,7 @@ import { Tabs } from './src/navigation/Tabs';
 import { RootStackParamList } from './src/navigation/types';
 import { registerForPush } from './src/push';
 import { AlertDetailScreen } from './src/screens/AlertDetailScreen';
+import { EvaluationScreen } from './src/screens/EvaluationScreen';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -40,6 +41,7 @@ function Root() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Tabs" component={Tabs} />
           <Stack.Screen name="AlertDetail" component={AlertDetailScreen} />
+          <Stack.Screen name="Evaluation" component={EvaluationScreen} />
         </Stack.Navigator>
       </SafeAreaView>
     </NavigationContainer>

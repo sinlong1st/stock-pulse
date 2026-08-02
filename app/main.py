@@ -21,6 +21,7 @@ from app.alerts import (
     send_pending_alerts,
 )
 from app.alerts.telegram_listener import build_command_listener
+from app.api.evaluation import build_evaluation
 from app.api.feed import build_feed
 from app.api.report import build_report as build_mobile_report
 from app.api.watchlist import build_watchlist
@@ -286,6 +287,14 @@ async def api_report(
     """Generate a briefing on-demand and return it as JSON (one OpenAI call)."""
     settings = _require_mobile_api(authorization)
     return await build_mobile_report(settings, query=q)
+
+
+@app.get("/api/evaluation")
+def api_evaluation(authorization: str | None = Header(default=None)) -> dict:
+    """Self-evaluation report (AI directional accuracy) for the app."""
+    _require_mobile_api(authorization)
+    with SessionLocal() as session:
+        return build_evaluation(session)
 
 
 class LanguageBody(BaseModel):

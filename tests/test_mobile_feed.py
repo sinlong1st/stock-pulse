@@ -262,6 +262,46 @@ def test_settings_get_and_set_language(monkeypatch) -> None:
     config.get_settings.cache_clear()
 
 
+def test_evaluation_endpoint_maps_report(monkeypatch) -> None:
+    import app.api.evaluation as eval_api
+    from app.evaluation import EvaluationReport, RecentItem, SentimentStat
+
+    def _s(label):
+        return SentimentStat(
+            label, total=2, hits=1, misses=1, flats=0, accuracy_pct=50.0, avg_return_pct=1.0
+        )
+
+    report = EvaluationReport(
+        total_evaluated=4,
+        hits=2,
+        misses=2,
+        flats=0,
+        accuracy_pct=50.0,
+        bullish=_s("Bullish"),
+        bearish=_s("Bearish"),
+        by_importance=[],
+        recent=[RecentItem("NVDA", "BEARISH", "5d", -3.2, "HIT")],
+        pending=3,
+    )
+    monkeypatch.setattr(eval_api, "build_evaluation_report", lambda session: report)
+    monkeypatch.setattr(main, "build_evaluation", eval_api.build_evaluation)
+
+    with _client_with(monkeypatch, enabled=True, token="s3cret") as client:
+        res = client.get("/api/evaluation", headers={"Authorization": "Bearer s3cret"})
+        assert res.status_code == 200
+        body = res.json()
+        assert body["totalEvaluated"] == 4 and body["pending"] == 3
+        assert body["bullish"]["accuracyPct"] == 50.0
+        assert body["recent"][0] == {
+            "ticker": "NVDA",
+            "sentiment": "BEARISH",
+            "horizon": "5d",
+            "returnPct": -3.2,
+            "outcome": "HIT",
+        }
+    config.get_settings.cache_clear()
+
+
 def test_settings_channels_and_toggle(monkeypatch) -> None:
     monkeypatch.setattr(main, "set_flag", lambda k, v: None)
     with _client_with(monkeypatch, enabled=True, token="s3cret") as client:
