@@ -61,6 +61,13 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     openai_base_url: str = "https://api.openai.com/v1"
+
+    # AI prediction (forward-looking, on-demand). See AI_PREDICTION_PLAN.
+    prediction_enabled: bool = False
+    prediction_horizons: str = "1w,1mo,3mo"  # what the AI reads over
+    prediction_model: str = "gpt-4o-mini"
+    prediction_range_months: int = 6  # window for the discount/trend signals
+    prediction_cache_minutes: int = 180  # reuse a recent read for the same ticker
     # Language for AI-written summary + why-it-matters (e.g. "English",
     # "Vietnamese"). Alerts inherit this since they use those fields.
     output_language: str = "English"
