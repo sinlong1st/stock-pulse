@@ -1,5 +1,4 @@
 import { Feather } from '@expo/vector-icons';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,13 +13,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MiniBars } from '../components/MiniBars';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { Segmented } from '../components/Segmented';
 import { fetchPrediction, fetchSettings, Lean, Prediction, PredictionHorizon, usingMockData } from '../data/api';
-import { RootStackParamList } from '../navigation/types';
 import { ThemeColors } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
-
-type Props = NativeStackScreenProps<RootStackParamList, 'Predict'>;
 
 const RANGES: Record<string, number> = { '1W': 5, '1M': 21, '3M': 63, '6M': 130 };
 // [en, vi]
@@ -54,7 +51,7 @@ function overallLean(horizons?: PredictionHorizon[]): Lean {
   return (['bounce', 'dip', 'hold'] as Lean[]).reduce((a, b) => (score[b] > score[a] ? b : a), 'hold');
 }
 
-export function PredictScreen({ navigation }: Props) {
+export function PredictScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
@@ -93,10 +90,7 @@ export function PredictScreen({ navigation }: Props) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <View style={[styles.topbar, { borderBottomColor: colors.dividerStrong }]}>
-        <Feather name="arrow-left" size={22} color={colors.text} onPress={() => navigation.goBack()} />
-        <Text style={[styles.topbarTitle, { color: colors.text }]}>{t('Predict', 'Dự đoán')}</Text>
-      </View>
+      <ScreenHeader kicker={t('AI · FORWARD-LOOKING', 'AI · DỰ BÁO')} title={t('Predict', 'Dự đoán')} />
 
       <View style={styles.inputRow}>
         <TextInput

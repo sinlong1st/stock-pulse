@@ -3,6 +3,7 @@ import { BottomTabNavigationOptions, createBottomTabNavigator } from '@react-nav
 import React from 'react';
 
 import { FeedScreen } from '../screens/FeedScreen';
+import { PredictScreen } from '../screens/PredictScreen';
 import { ReportScreen } from '../screens/ReportScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { WatchlistScreen } from '../screens/WatchlistScreen';
@@ -14,6 +15,7 @@ type IconName = React.ComponentProps<typeof Feather>['name'];
 const ICONS: Record<string, IconName> = {
   Feed: 'list',
   Report: 'bar-chart-2',
+  Predict: 'compass',
   Watchlist: 'eye',
   Settings: 'sliders',
 };
@@ -38,6 +40,7 @@ export function Tabs() {
     <Tab.Navigator screenOptions={screenOptions}>
       <Tab.Screen name="Feed" component={FeedScreen} />
       <Tab.Screen name="Report" component={ReportScreen} />
+      <Tab.Screen name="Predict" component={PredictScreen} />
       <Tab.Screen name="Watchlist" component={WatchlistScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>

@@ -9,7 +9,6 @@ import { RootStackParamList } from './src/navigation/types';
 import { registerForPush } from './src/push';
 import { AlertDetailScreen } from './src/screens/AlertDetailScreen';
 import { EvaluationScreen } from './src/screens/EvaluationScreen';
-import { PredictScreen } from './src/screens/PredictScreen';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -43,7 +42,6 @@ function Root() {
           <Stack.Screen name="Tabs" component={Tabs} />
           <Stack.Screen name="AlertDetail" component={AlertDetailScreen} />
           <Stack.Screen name="Evaluation" component={EvaluationScreen} />
-          <Stack.Screen name="Predict" component={PredictScreen} />
         </Stack.Navigator>
       </SafeAreaView>
     </NavigationContainer>

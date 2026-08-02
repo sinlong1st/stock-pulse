@@ -58,9 +58,6 @@ export function ReportScreen() {
                 <Feather name="refresh-cw" size={20} color={colors.text} />
               </Pressable>
             ) : null}
-            <Pressable onPress={() => navigation.navigate('Predict')} hitSlop={10}>
-              <Feather name="compass" size={20} color={colors.text} />
-            </Pressable>
             <Pressable onPress={() => navigation.navigate('Evaluation')} hitSlop={10}>
               <Feather name="target" size={20} color={colors.text} />
             </Pressable>
