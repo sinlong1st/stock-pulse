@@ -3,7 +3,7 @@
  * config.ts; otherwise returns bundled mock data so the app always renders.
  */
 import { API_BASE_URL, API_TOKEN } from '../config';
-import { mockAlerts, mockEvaluation, mockReport, mockWatchlist } from './mock';
+import { mockAlerts, mockEvaluation, mockPrediction, mockReport, mockWatchlist } from './mock';
 import { Alert, Report, Sentiment, WatchRow } from './types';
 
 /** True when no backend is configured (the app is showing sample data). */
@@ -147,6 +147,34 @@ export type EvalReport = {
 export async function fetchEvaluation(): Promise<EvalReport> {
   if (!API_BASE_URL) return mockEvaluation;
   return getJson<EvalReport>('/api/evaluation');
+}
+
+export type Lean = 'bounce' | 'dip' | 'hold';
+export type PredictionHorizon = {
+  horizon: string;
+  lean: Lean;
+  confidence: 'low' | 'medium' | 'high';
+  rationale: string;
+};
+export type Prediction = {
+  ok: boolean;
+  reason?: string;
+  ticker?: string;
+  name?: string;
+  price?: string | null;
+  priceFresh?: string | null;
+  discount?: { level: 'cheap' | 'fair' | 'rich'; vsRangeNote: string; note: string };
+  trend?: 'up' | 'down' | 'sideways';
+  enoughHistory?: boolean;
+  horizons?: PredictionHorizon[];
+  drivers?: string[];
+  strategy?: { id: string; name: string; body: string };
+  disclaimer?: string;
+};
+
+export async function fetchPrediction(query: string): Promise<Prediction> {
+  if (!API_BASE_URL) return mockPrediction;
+  return getJson<Prediction>(`/api/predict?q=${encodeURIComponent(query.trim())}`);
 }
 
 export async function registerPushToken(token: string, platform?: string): Promise<void> {

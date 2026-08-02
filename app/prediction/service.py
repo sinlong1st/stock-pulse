@@ -121,7 +121,7 @@ async def build_prediction(
             for h in read.horizons
         ],
         "drivers": read.drivers,
-        "strategy": {"id": strategy.id, "name": strategy.name},
+        "strategy": {"id": strategy.id, "name": strategy.name, "body": strategy.body},
         "generatedAt": datetime.now(UTC).isoformat(),
         "disclaimer": "AI opinion — not investment advice.",
     }

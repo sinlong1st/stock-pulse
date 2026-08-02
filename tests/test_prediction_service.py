@@ -52,7 +52,7 @@ async def test_build_prediction_assembles(monkeypatch) -> None:
     assert out["discount"]["level"] in {"cheap", "fair", "rich"}
     assert out["trend"] in {"up", "down", "sideways"}
     assert out["horizons"][0]["lean"] == "bounce"
-    assert out["strategy"] == {"id": "default", "name": "StockPulse Balanced"}
+    assert out["strategy"]["id"] == "default" and out["strategy"]["body"]  # incl. body for the modal
     assert out["price"] == "110.00"  # fell back to the last bar close
 
 

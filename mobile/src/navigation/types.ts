@@ -5,4 +5,5 @@ export type RootStackParamList = {
   Tabs: undefined;
   AlertDetail: { alert: Alert };
   Evaluation: undefined;
+  Predict: undefined;
 };

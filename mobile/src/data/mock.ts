@@ -88,6 +88,33 @@ export const mockReport: Report = {
   note: null,
 };
 
+export const mockPrediction = {
+  ok: true,
+  ticker: 'WDC',
+  name: 'Western Digital',
+  price: '65.20',
+  priceFresh: 'AS OF FRI 13:00 PDT',
+  discount: {
+    level: 'fair' as const,
+    vsRangeNote: '18% above the 6-month low, 30% below the high',
+    note: 'Near the middle of its 6-month range.',
+  },
+  trend: 'down' as const,
+  enoughHistory: true,
+  horizons: [
+    { horizon: '1w', lean: 'hold' as const, confidence: 'low' as const, rationale: 'No fresh catalyst; likely range-bound near term.' },
+    { horizon: '1mo', lean: 'dip' as const, confidence: 'medium' as const, rationale: 'The downtrend may persist while it sits mid-range.' },
+    { horizon: '3mo', lean: 'bounce' as const, confidence: 'low' as const, rationale: 'Value could firm up if memory pricing improves.' },
+  ],
+  drivers: ['Downward price trend', 'Middle of 6-month range', 'Thin fresh news'],
+  strategy: {
+    id: 'default',
+    name: 'StockPulse Balanced',
+    body: 'Weigh recent news, the price trend, and where the price sits in its range. A big discount can set up a bounce, but a falling trend can keep falling. Prefer "hold" with low confidence when signals conflict.',
+  },
+  disclaimer: 'AI opinion — not investment advice.',
+};
+
 export const mockEvaluation = {
   totalEvaluated: 128,
   accuracyPct: 74,
