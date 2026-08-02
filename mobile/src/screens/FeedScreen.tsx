@@ -70,6 +70,7 @@ export function FeedScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader
+        showLogo
         kicker={usingMockData ? 'STOCKPULSE · SAMPLE DATA' : 'STOCKPULSE'}
         title="Feed"
         right={

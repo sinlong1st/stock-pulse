@@ -11,6 +11,7 @@ import {
   setLanguage,
   usingMockData,
 } from '../data/api';
+import { Logo } from '../components/Logo';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useTheme } from '../theme/ThemeContext';
 import { checkForUpdate, versionLabel } from '../updates';
@@ -204,7 +205,10 @@ export function SettingsScreen() {
         <Row label="Sign out" onPress={() => {}} />
         <Row label="Delete account" danger onPress={() => {}} />
 
-        <Text style={[styles.version, { color: colors.faint }]}>{versionLabel()}</Text>
+        <View style={styles.brandRow}>
+          <Logo size={13} color={colors.faint} />
+          <Text style={[styles.version, { color: colors.faint }]}>StockPulse · {versionLabel()}</Text>
+        </View>
         <Text style={[styles.disclaimer, { color: colors.faint }]}>
           AI-generated summaries. Not investment advice.
         </Text>
@@ -226,6 +230,7 @@ const styles = StyleSheet.create({
   rowLabel: { flex: 1, fontSize: 13.5, fontWeight: '700' },
   rowValue: { fontSize: 12 },
   hint: { fontSize: 10.5, marginTop: 2 },
-  version: { fontSize: 10, fontWeight: '700', paddingHorizontal: 16, paddingTop: 20 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingTop: 20 },
+  version: { fontSize: 10, fontWeight: '700' },
   disclaimer: { fontSize: 10, fontWeight: '600', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 20 },
 });
