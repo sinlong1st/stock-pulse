@@ -67,6 +67,12 @@
   bullish/bearish calls against real price moves.
 - **Runs from your pocket.** Manage the watchlist and switch language
   (English / Tiếng Việt) straight from Telegram — changes take effect live.
+- **A native mobile app, too.** A React Native (Expo) app in
+  [`mobile/`](mobile/) — Feed, on-demand Report, Watchlist, Settings, AI-accuracy,
+  and **push notifications** — talking to the same backend over a token-guarded
+  JSON API (`/api/*`). Telegram and push are independent, toggleable channels, so
+  the app can be your primary surface with Telegram as backup (or off). See
+  [`mobile/README.md`](mobile/README.md).
 - **Cheap and low-maintenance.** A single always-on container on a small VPS,
   designed to run for under **$10/month**.
 
@@ -299,7 +305,10 @@ Development proceeds one phase at a time (see the technical plan):
 9. Market briefing + on-demand /report ✅ (web search deferred)
 10. Manage watchlist from Telegram (/watch /unwatch) ✅
 11. Docker deploy ✅ · CI (todo)
+12. Mobile app (Expo) + JSON API ✅ · push notifications ✅ · channel toggles ✅
 
-Deferred / ideas: briefing **web search** (let the model pull news itself,
+Deferred / ideas: **AI prediction** (forward-looking 1w/1mo/3mo read —
+[spec](specs/STOCKPULSE_AI_PREDICTION_PLAN.md)); multi-user / sign-in
+([spec](specs/STOCKPULSE_MOBILE_APP_PLAN.md)); briefing **web search** (let the model pull news itself,
 `BRIEFING_WEB_SEARCH_ENABLED`); AI-fallback name resolution for `/watch` typos;
 GitHub Actions CI.

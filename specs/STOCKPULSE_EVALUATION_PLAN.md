@@ -251,13 +251,34 @@ EVALUATION_DIGEST_ENABLED=false    # daily Telegram summary
 | A | Quiet hours | ✅ done |
 | B | Alpaca price client + (optional) price-in-alerts | ✅ done |
 | C | Prediction recording + baseline capture | ✅ done |
-| D | Evaluation job + scoring (tolerance band + bad-data guard) | ✅ done |
-| E | `/evaluation` dashboard + daily Telegram digest | ✅ done |
+| D | Evaluation job + scoring (tolerance band + bad-data guard + market-closed defer) | ✅ done |
+| E | `/evaluation` dashboard + daily Telegram digest (+ mobile screen) | ✅ done |
 
 Decisions made along the way: tolerance band default **±0.5%**; horizons via
 `EVALUATION_HORIZONS` (default `1d`); implausible moves (> `EVALUATION_MAX_MOVE_PCT`,
 default 40%) are skipped as bad free-feed data; the dashboard and digest are
 localized by `OUTPUT_LANGUAGE`.
+
+### How horizons + market hours actually work (implemented)
+
+Horizons are **calendar-time** timedeltas (`parse_horizon`: `"1d"` → 1 day) —
+*not* a market calendar. To avoid scoring against a frozen weekend/holiday price,
+the scorer is **freshness-aware** ([`evaluate_predictions`](../app/evaluation.py)):
+
+- It reads the ticker's **last-trade timestamp** (`snapshot().price_time`). If the
+  newest trade printed **at or before** the horizon deadline (`evaluate_after`) —
+  i.e. the market was closed the whole time (weekend, holiday, after-hours) —
+  there's no real post-horizon price yet, so the prediction is **left PENDING and
+  retried on the next trading day**. This handles weekends *and* holidays *and*
+  after-hours with no hardcoded calendar.
+- A grace cap (`EVALUATION_STALE_GRACE_DAYS`, default **4**) means a delisted /
+  never-trading ticker is eventually **SKIPPED** instead of deferring forever.
+- Clients without `snapshot()` support fall back to `latest_price` (no freshness
+  check) — the old behavior, so nothing regresses.
+- Runs log a `deferred=N` count alongside evaluated/hits/misses/flats/skipped.
+
+Net effect: a Friday call with a 1-day horizon is scored against **Monday's** real
+price, not Friday's frozen close.
 
 Note: start **C** as early as possible even before the report exists —
 accuracy stats are only meaningful after days/weeks of collected data, so the
