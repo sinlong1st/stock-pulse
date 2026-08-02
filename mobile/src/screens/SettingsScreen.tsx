@@ -2,7 +2,15 @@ import { Feather } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
-import { fetchSettings, Language, setLanguage, usingMockData } from '../data/api';
+import {
+  BriefingInfo,
+  Channels,
+  fetchSettings,
+  Language,
+  setChannel,
+  setLanguage,
+  usingMockData,
+} from '../data/api';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useTheme } from '../theme/ThemeContext';
 import { checkForUpdate, versionLabel } from '../updates';
@@ -28,8 +36,41 @@ function Row({
     <Pressable onPress={onPress} style={[styles.row, { borderTopColor: colors.divider }]}>
       <Text style={[styles.rowLabel, { color: danger ? colors.accent : colors.text }]}>{label}</Text>
       {value ? <Text style={[styles.rowValue, { color: colors.muted }]}>{value}</Text> : null}
-      {!danger && <Feather name="chevron-right" size={16} color={colors.faint} />}
+      {!danger && !value?.length && onPress ? (
+        <Feather name="chevron-right" size={16} color={colors.faint} />
+      ) : null}
     </Pressable>
+  );
+}
+
+function ToggleRow({
+  label,
+  hint,
+  value,
+  onValueChange,
+  disabled,
+}: {
+  label: string;
+  hint?: string;
+  value: boolean;
+  onValueChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.row, { borderTopColor: colors.divider, opacity: disabled ? 0.55 : 1 }]}>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.rowLabel, { color: colors.text }]}>{label}</Text>
+        {hint ? <Text style={[styles.hint, { color: colors.faint }]}>{hint}</Text> : null}
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        disabled={disabled}
+        trackColor={{ true: colors.accent, false: colors.dividerStrong }}
+        thumbColor={colors.onAccent}
+      />
+    </View>
   );
 }
 
@@ -38,13 +79,14 @@ async function onCheckUpdate() {
   if (r === 'current') Alert.alert('Up to date', 'You’re on the latest version.');
   else if (r === 'dev') Alert.alert('Dev mode', 'OTA updates only apply in a real (EAS) build.');
   else if (r === 'error') Alert.alert('Couldn’t check', 'Try again in a moment.');
-  // 'downloading' reloads the app automatically.
 }
 
 export function SettingsScreen() {
   const { colors, mode, toggle } = useTheme();
   const [language, setLang] = useState('English');
   const [languages, setLanguages] = useState<Language[]>([]);
+  const [channels, setChannels] = useState<Channels | null>(null);
+  const [briefing, setBriefing] = useState<BriefingInfo | null>(null);
 
   useEffect(() => {
     if (usingMockData) return;
@@ -52,6 +94,8 @@ export function SettingsScreen() {
       .then((s) => {
         setLang(s.language);
         setLanguages(s.languages);
+        setChannels(s.channels);
+        setBriefing(s.briefing);
       })
       .catch(() => {});
   }, []);
@@ -79,6 +123,24 @@ export function SettingsScreen() {
     ]);
   };
 
+  const toggleChannel = async (which: 'telegram' | 'push', next: boolean) => {
+    if (!channels) return;
+    const prev = channels;
+    setChannels({ ...channels, [which]: { ...channels[which], enabled: next } });
+    try {
+      await setChannel(which, next);
+    } catch (e) {
+      setChannels(prev); // revert
+      Alert.alert('Couldn’t update', e instanceof Error ? e.message : '');
+    }
+  };
+
+  const briefingValue = briefing
+    ? briefing.enabled
+      ? `Daily · ${briefing.morningAt}`
+      : 'Off'
+    : '—';
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader kicker="ACCOUNT" title="Settings" />
@@ -97,11 +159,35 @@ export function SettingsScreen() {
           </View>
         </View>
 
+        <SectionLabel>NOTIFICATIONS</SectionLabel>
+        <ToggleRow
+          label="Push to this phone"
+          hint="Alerts on your lock screen"
+          value={channels?.push.enabled ?? false}
+          onValueChange={(v) => toggleChannel('push', v)}
+        />
+        <ToggleRow
+          label="Telegram"
+          hint={channels?.telegram.configured ? 'Also send alerts to Telegram' : 'Not set up on the server'}
+          value={channels?.telegram.enabled ?? false}
+          onValueChange={(v) => toggleChannel('telegram', v)}
+          disabled={!channels?.telegram.configured}
+        />
+
         <SectionLabel>PREFERENCES</SectionLabel>
         <Row label="Language" value={language} onPress={changeLanguage} />
-        <Row label="Quiet hours" value="10 PM – 7 AM" />
-        <Row label="Briefing schedule" value="Daily · 8:00 AM" />
-        {/* live theme toggle */}
+        <Row
+          label="Briefing schedule"
+          value={briefingValue}
+          onPress={() =>
+            Alert.alert(
+              'Briefing schedule',
+              briefing
+                ? `Morning ${briefing.morningAt}, then every ${briefing.intradayEveryHours}h until ${briefing.intradayUntil}, wrap ${briefing.wrapAt} (${briefing.timezone}).\n\nEdited on the server for now.`
+                : '',
+            )
+          }
+        />
         <View style={[styles.row, { borderTopColor: colors.divider }]}>
           <Text style={[styles.rowLabel, { color: colors.text }]}>Dark theme</Text>
           <Switch
@@ -112,12 +198,11 @@ export function SettingsScreen() {
           />
         </View>
 
-        <SectionLabel>INTEGRATIONS &amp; ACCOUNT</SectionLabel>
-        <Row label="Link Telegram" value="✓ @jreyes" />
-        <Row label="Manage subscription" />
+        <SectionLabel>ACCOUNT</SectionLabel>
+        <Row label="Manage subscription" onPress={() => {}} />
         <Row label="Check for updates" onPress={onCheckUpdate} />
-        <Row label="Sign out" />
-        <Row label="Delete account" danger />
+        <Row label="Sign out" onPress={() => {}} />
+        <Row label="Delete account" danger onPress={() => {}} />
 
         <Text style={[styles.version, { color: colors.faint }]}>{versionLabel()}</Text>
         <Text style={[styles.disclaimer, { color: colors.faint }]}>
@@ -140,6 +225,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 13, borderTopWidth: 1 },
   rowLabel: { flex: 1, fontSize: 13.5, fontWeight: '700' },
   rowValue: { fontSize: 12 },
+  hint: { fontSize: 10.5, marginTop: 2 },
   version: { fontSize: 10, fontWeight: '700', paddingHorizontal: 16, paddingTop: 20 },
   disclaimer: { fontSize: 10, fontWeight: '600', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 20 },
 });

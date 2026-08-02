@@ -63,7 +63,26 @@ export async function fetchReport(query?: string): Promise<Report> {
 // --- settings + watchlist mutations ---------------------------------------
 
 export type Language = { code: string; name: string };
-export type SettingsInfo = { language: string; languageCode: string | null; languages: Language[] };
+export type Channels = {
+  telegram: { enabled: boolean; configured: boolean };
+  push: { enabled: boolean };
+};
+export type BriefingInfo = {
+  enabled: boolean;
+  timezone: string;
+  morningAt: string;
+  intradayEveryHours: number;
+  intradayUntil: string;
+  wrapAt: string;
+  editable: boolean;
+};
+export type SettingsInfo = {
+  language: string;
+  languageCode: string | null;
+  languages: Language[];
+  channels: Channels;
+  briefing: BriefingInfo;
+};
 
 export async function fetchSettings(): Promise<SettingsInfo> {
   requireBackend();
@@ -75,6 +94,14 @@ export async function setLanguage(code: string): Promise<{ language: string }> {
   return request<{ language: string }>('/api/settings/language', {
     method: 'POST',
     body: JSON.stringify({ code }),
+  });
+}
+
+export async function setChannel(channel: 'telegram' | 'push', enabled: boolean): Promise<void> {
+  requireBackend();
+  await request('/api/settings/channels', {
+    method: 'POST',
+    body: JSON.stringify({ channel, enabled }),
   });
 }
 

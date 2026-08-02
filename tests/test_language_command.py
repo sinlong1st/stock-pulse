@@ -82,6 +82,15 @@ async def test_cmd_language_sets_english(tmp_path) -> None:
     assert "Language set to English" in reply
 
 
+def test_flag_get_set_roundtrip(tmp_path) -> None:
+    from app.prefs import get_flag, set_flag
+
+    s = Settings(_env_file=None, prefs_file=str(tmp_path / "p.json"))
+    assert get_flag("telegram_enabled", True, s) is True  # default when unset
+    set_flag("telegram_enabled", False, path=s.prefs_file)
+    assert get_flag("telegram_enabled", True, s) is False
+
+
 def test_registry_includes_language_command() -> None:
     async def report_handler(args):
         return None

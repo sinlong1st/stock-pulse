@@ -53,7 +53,14 @@ from app.logging_config import configure_logging
 from app.pipeline.classifier import ClassificationError, build_classifier
 from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
-from app.prefs import SUPPORTED_LANGUAGES, resolve_language, set_language
+from app.prefs import (
+    SUPPORTED_LANGUAGES,
+    push_delivery_enabled,
+    resolve_language,
+    set_flag,
+    set_language,
+    telegram_delivery_enabled,
+)
 from app.prices import maybe_eval_price_client, maybe_price_client
 from app.push.notifier import send_push
 from app.push.store import add_token, list_tokens, remove_token
@@ -291,15 +298,52 @@ class WatchBody(BaseModel):
 
 @app.get("/api/settings")
 def api_settings(authorization: str | None = Header(default=None)) -> dict:
-    """Current language + the supported options, for the app's Settings screen."""
+    """Everything the app's Settings screen shows: language, delivery channels,
+    and the (read-only) briefing schedule."""
     settings = _require_mobile_api(authorization)
     current = resolve_language(settings)
     name_to_code = {name: code for code, name in SUPPORTED_LANGUAGES.items()}
+    telegram_configured = bool(settings.telegram_bot_token and settings.telegram_chat_id)
     return {
         "language": current,
         "languageCode": name_to_code.get(current),
         "languages": [{"code": c, "name": n} for c, n in SUPPORTED_LANGUAGES.items()],
+        "channels": {
+            "telegram": {
+                "enabled": telegram_delivery_enabled(settings),
+                "configured": telegram_configured,
+            },
+            "push": {"enabled": push_delivery_enabled(settings)},
+        },
+        "briefing": {
+            "enabled": settings.briefing_enabled,
+            "timezone": settings.briefing_timezone,
+            "morningAt": settings.briefing_morning_at,
+            "intradayEveryHours": settings.briefing_intraday_every_hours,
+            "intradayUntil": settings.briefing_intraday_until,
+            "wrapAt": settings.briefing_wrap_at,
+            "editable": False,  # scheduled server-side; app editing not wired yet
+        },
     }
+
+
+class ChannelBody(BaseModel):
+    channel: str  # "telegram" | "push"
+    enabled: bool
+
+
+@app.post("/api/settings/channels")
+def api_set_channel(body: ChannelBody, authorization: str | None = Header(default=None)) -> dict:
+    """Toggle a delivery channel (telegram/push) on or off at runtime."""
+    _require_mobile_api(authorization)
+    channel = body.channel.strip().lower()
+    if channel == "telegram":
+        set_flag("telegram_enabled", body.enabled)
+    elif channel == "push":
+        set_flag("push_enabled", body.enabled)
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown channel '{body.channel}'.")
+    return {"channel": channel, "enabled": body.enabled}
 
 
 @app.post("/api/settings/language")
@@ -469,7 +513,8 @@ async def send_alerts(limit: int = 20) -> dict:
             include_link=settings.alert_include_link,
             language=resolve_language(settings),
             price_client=maybe_price_client(settings),
-            push_tokens=list_tokens(settings) if settings.push_enabled else None,
+            push_tokens=list_tokens(settings) if push_delivery_enabled(settings) else None,
+            telegram_enabled=telegram_delivery_enabled(settings),
         )
     return {"processed": result.processed, "sent": result.sent, "failed": result.failed}
 

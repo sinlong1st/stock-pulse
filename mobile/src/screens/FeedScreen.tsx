@@ -2,7 +2,16 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { AlertCard } from '../components/AlertCard';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -15,13 +24,15 @@ import { useTheme } from '../theme/ThemeContext';
 const FILTERS = ['All', 'Watchlist', 'Macro'] as const;
 
 export function FeedScreen() {
-  const { colors, toggle } = useTheme();
+  const { colors } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [filter, setFilter] = useState<string>('All');
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [query, setQuery] = useState('');
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -43,10 +54,18 @@ export function FeedScreen() {
   }, [load]);
 
   const data = useMemo(() => {
-    if (filter === 'Macro') return alerts.filter((a) => a.category === 'MACRO');
-    if (filter === 'Watchlist') return alerts.filter((a) => a.tickers.length > 0);
-    return alerts;
-  }, [alerts, filter]);
+    let rows = alerts;
+    if (filter === 'Macro') rows = rows.filter((a) => a.category === 'MACRO');
+    else if (filter === 'Watchlist') rows = rows.filter((a) => a.tickers.length > 0);
+
+    const q = query.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter((a) =>
+        [a.summary, a.why, a.source, ...a.tickers].join(' ').toLowerCase().includes(q),
+      );
+    }
+    return rows;
+  }, [alerts, filter, query]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -55,7 +74,15 @@ export function FeedScreen() {
         title="Feed"
         right={
           <View style={styles.icons}>
-            <Feather name="search" size={21} color={colors.text} onPress={toggle} />
+            <Feather
+              name={searching ? 'x' : 'search'}
+              size={21}
+              color={colors.text}
+              onPress={() => {
+                setSearching((v) => !v);
+                if (searching) setQuery('');
+              }}
+            />
             <View>
               <Feather name="bell" size={21} color={colors.text} />
               <View style={[styles.badge, { backgroundColor: colors.accent, borderColor: colors.bg }]} />
@@ -64,9 +91,29 @@ export function FeedScreen() {
         }
       />
 
-      <View style={styles.filterRow}>
-        <Segmented options={[...FILTERS]} value={filter} onChange={setFilter} />
-      </View>
+      {searching ? (
+        <View style={[styles.searchRow, { borderColor: colors.dividerStrong, backgroundColor: colors.surface }]}>
+          <Feather name="search" size={16} color={colors.muted} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search tickers, keywords…"
+            placeholderTextColor={colors.faint}
+            autoFocus
+            autoCorrect={false}
+            style={[styles.searchInput, { color: colors.text }]}
+          />
+          {query ? (
+            <Pressable onPress={() => setQuery('')} hitSlop={8}>
+              <Feather name="x-circle" size={16} color={colors.faint} />
+            </Pressable>
+          ) : null}
+        </View>
+      ) : (
+        <View style={styles.filterRow}>
+          <Segmented options={[...FILTERS]} value={filter} onChange={setFilter} />
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.center}>
@@ -81,10 +128,12 @@ export function FeedScreen() {
         </View>
       ) : data.length === 0 ? (
         <View style={styles.center}>
-          <Feather name="bell" size={34} color={colors.muted} />
-          <Text style={[styles.centerTitle, { color: colors.text }]}>All caught up</Text>
+          <Feather name={query ? 'search' : 'bell'} size={34} color={colors.muted} />
+          <Text style={[styles.centerTitle, { color: colors.text }]}>
+            {query ? 'No matches' : 'All caught up'}
+          </Text>
           <Text style={[styles.centerBody, { color: colors.muted }]}>
-            No alerts that matter right now. Pull to refresh.
+            {query ? `Nothing matches “${query.trim()}”.` : 'No alerts that matter right now. Pull to refresh.'}
           </Text>
         </View>
       ) : (
@@ -108,6 +157,17 @@ const styles = StyleSheet.create({
   icons: { flexDirection: 'row', gap: 16, alignItems: 'center' },
   badge: { position: 'absolute', top: -1, right: -1, width: 8, height: 8, borderWidth: 1.5 },
   filterRow: { paddingHorizontal: 16, paddingVertical: 10 },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+  },
+  searchInput: { flex: 1, fontSize: 14, fontWeight: '600', padding: 0 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
   centerText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
   centerTitle: { fontSize: 20, fontWeight: '900' },

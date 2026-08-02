@@ -134,3 +134,36 @@ async def test_no_push_without_tokens(session, monkeypatch) -> None:
     _seed_pending_alert(session)
     await send_pending_alerts(session, {CHANNEL_TELEGRAM: _FakeNotifier()})  # no push_tokens
     assert called is False
+
+
+async def test_telegram_off_push_still_delivers(session, monkeypatch) -> None:
+    """App-primary: Telegram disabled, push on → alert is still delivered."""
+    import app.alerts.router as router
+
+    calls: list = []
+
+    async def fake_send_push(tokens, **kwargs):
+        calls.append(tokens)
+        return len(tokens)
+
+    monkeypatch.setattr(router, "send_push", fake_send_push)
+    tg = _FakeNotifier()
+
+    _seed_pending_alert(session)
+    result = await send_pending_alerts(
+        session,
+        {CHANNEL_TELEGRAM: tg},
+        telegram_enabled=False,
+        push_tokens=["ExponentPushToken[z]"],
+    )
+
+    assert result.sent == 1 and result.failed == 0
+    assert tg.sent == []  # telegram was skipped
+    assert calls == [["ExponentPushToken[z]"]]
+    assert AlertRepository(session).count_by_status(STATUS_SENT) == 1
+
+
+async def test_no_channel_enabled_marks_failed(session) -> None:
+    _seed_pending_alert(session)
+    result = await send_pending_alerts(session, {}, telegram_enabled=False)  # nothing on
+    assert result.failed == 1

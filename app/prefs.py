@@ -66,6 +66,40 @@ def set_language(name: str, *, path: str | Path | None = None) -> None:
     logger.info("Output language set to %s.", name)
 
 
+def get_flag(key: str, default: bool, settings=None) -> bool:
+    """Read a boolean runtime pref, falling back to `default` if unset."""
+    settings = settings or get_settings()
+    val = _load(str(settings.prefs_file)).get(key)
+    return val if isinstance(val, bool) else default
+
+
+def set_flag(key: str, value: bool, *, path: str | Path | None = None) -> None:
+    """Persist a boolean runtime pref and clear the cache."""
+    path = Path(path or get_settings().prefs_file)
+    prefs = dict(_load(str(path)))
+    prefs[key] = bool(value)
+    _write(prefs, path)
+    _load.cache_clear()
+    logger.info("Runtime pref %s set to %s.", key, value)
+
+
+def telegram_delivery_enabled(settings=None) -> bool:
+    """Whether the user wants alerts on Telegram (the app toggle; default on).
+
+    This is only the *preference* — whether Telegram is actually configured
+    (creds present / a notifier exists) is checked separately at the send site.
+    """
+    settings = settings or get_settings()
+    return get_flag("telegram_enabled", True, settings)
+
+
+def push_delivery_enabled(settings=None) -> bool:
+    """Whether alerts should push to the app. Defaults to PUSH_ENABLED; the
+    app's toggle (runtime pref) overrides."""
+    settings = settings or get_settings()
+    return get_flag("push_enabled", settings.push_enabled, settings)
+
+
 def _write(data: dict, path: Path) -> None:
     content = json.dumps(data, ensure_ascii=False, indent=2)
     tmp = path.with_suffix(path.suffix + ".tmp")

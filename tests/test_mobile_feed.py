@@ -262,6 +262,26 @@ def test_settings_get_and_set_language(monkeypatch) -> None:
     config.get_settings.cache_clear()
 
 
+def test_settings_channels_and_toggle(monkeypatch) -> None:
+    monkeypatch.setattr(main, "set_flag", lambda k, v: None)
+    with _client_with(monkeypatch, enabled=True, token="s3cret") as client:
+        h = {"Authorization": "Bearer s3cret"}
+        got = client.get("/api/settings", headers=h).json()
+        assert "telegram" in got["channels"] and "push" in got["channels"]
+        assert got["briefing"]["editable"] is False
+
+        ok = client.post(
+            "/api/settings/channels", json={"channel": "push", "enabled": False}, headers=h
+        )
+        assert ok.status_code == 200 and ok.json() == {"channel": "push", "enabled": False}
+
+        bad = client.post(
+            "/api/settings/channels", json={"channel": "sms", "enabled": True}, headers=h
+        )
+        assert bad.status_code == 400
+    config.get_settings.cache_clear()
+
+
 def test_watch_add_and_remove_endpoints(monkeypatch) -> None:
     async def fake_resolve(query, *, settings, transport=None):
         return ("TSLA", "Tesla, Inc.") if query.lower() == "tesla" else None

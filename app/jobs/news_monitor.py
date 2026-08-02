@@ -40,7 +40,7 @@ from app.evaluation import horizons_from_settings, record_predictions
 from app.pipeline.classifier import ClassificationError, Classifier, build_classifier
 from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
-from app.prefs import resolve_language
+from app.prefs import push_delivery_enabled, resolve_language, telegram_delivery_enabled
 from app.prices import PriceClient, maybe_eval_price_client, maybe_price_client
 from app.push.store import list_tokens
 from app.watchlist import get_watchlist_config
@@ -219,18 +219,21 @@ async def run_news_monitor(
             summary.alerts_created = analyzed.alerts_created
             summary.predictions_created = analyzed.predictions_created
 
-        if notifier is not None:
+        telegram_on = telegram_delivery_enabled(settings) and notifier is not None
+        push_tokens = list_tokens(settings) if push_delivery_enabled(settings) else None
+        if telegram_on or push_tokens:
             with session_factory() as session:
                 delivery = await send_pending_alerts(
                     session,
-                    {CHANNEL_TELEGRAM: notifier},
+                    {CHANNEL_TELEGRAM: notifier} if notifier is not None else {},
                     limit=settings.max_alerts_per_run,
                     include_link=settings.alert_include_link,
                     language=resolve_language(settings),
                     quiet_now=is_quiet_now(settings),
                     quiet_min_importance=settings.quiet_hours_min_importance,
                     price_client=maybe_price_client(settings),
-                    push_tokens=list_tokens(settings) if settings.push_enabled else None,
+                    push_tokens=push_tokens,
+                    telegram_enabled=telegram_on,
                 )
             summary.alerts_sent = delivery.sent
             summary.alerts_failed = delivery.failed

@@ -41,6 +41,7 @@ async def send_pending_alerts(
     quiet_min_importance: str = "CRITICAL",
     price_client: PriceClient | None = None,
     push_tokens: list[str] | None = None,
+    telegram_enabled: bool = True,
 ) -> DeliveryResult:
     """Send up to `limit` pending alerts and persist their delivery status.
 
@@ -67,12 +68,6 @@ async def send_pending_alerts(
             held += 1  # deferred; stays PENDING for a later send
             continue
 
-        notifier = notifiers.get(alert.channel)
-        if notifier is None:
-            alert_repo.mark_failed(alert, f"No notifier for channel '{alert.channel}'")
-            failed += 1
-            continue
-
         article = article_repo.get(alert.article_id)
         classification = classification_repo.get_for(alert.article_id)
         if article is None or classification is None:
@@ -80,33 +75,36 @@ async def send_pending_alerts(
             failed += 1
             continue
 
-        price_line = None
-        if price_client is not None and classification.related_tickers:
+        delivered = False
+        telegram_error: str | None = None
+
+        # Channel 1 — Telegram (the alert's channel). Optional per settings.
+        notifier = notifiers.get(alert.channel) if telegram_enabled else None
+        if notifier is not None:
+            price_line = None
+            if price_client is not None and classification.related_tickers:
+                try:
+                    move = await price_client.change_today(classification.related_tickers[0])
+                    if move is not None:
+                        price_line = price_context_line(move, language)
+                except Exception:  # price is best-effort; never block an alert
+                    logger.debug("Price lookup failed for alert %s", alert.id, exc_info=True)
+            message = format_alert_message(
+                article,
+                classification,
+                include_link=include_link,
+                language=language,
+                price_line=price_line,
+            )
             try:
-                move = await price_client.change_today(classification.related_tickers[0])
-                if move is not None:
-                    price_line = price_context_line(move, language)
-            except Exception:  # price is best-effort; never block an alert
-                logger.debug("Price lookup failed for alert %s", alert.id, exc_info=True)
+                await notifier.send(message)
+                delivered = True
+            except NotifierError as exc:
+                telegram_error = str(exc)
+                logger.warning("Alert %s telegram send failed: %s", alert.id, exc)
 
-        message = format_alert_message(
-            article,
-            classification,
-            include_link=include_link,
-            language=language,
-            price_line=price_line,
-        )
-        try:
-            await notifier.send(message)
-        except NotifierError as exc:
-            logger.warning("Alert %s failed: %s", alert.id, exc)
-            alert_repo.mark_failed(alert, str(exc))
-            failed += 1
-            continue
-
-        alert_repo.mark_sent(alert)
-        sent += 1
-
+        # Channel 2 — app push (independent, best-effort). Dispatch counts as
+        # delivery so an alert isn't stuck PENDING when Telegram is off.
         if push_tokens:
             title, body = alert_push(classification)
             await send_push(
@@ -115,6 +113,14 @@ async def send_pending_alerts(
                 body=body,
                 data={"type": "alert", "alertId": alert.id, "articleId": alert.article_id},
             )
+            delivered = True
+
+        if delivered:
+            alert_repo.mark_sent(alert)
+            sent += 1
+        else:
+            alert_repo.mark_failed(alert, telegram_error or "No delivery channel enabled")
+            failed += 1
 
     session.commit()
     logger.info(
