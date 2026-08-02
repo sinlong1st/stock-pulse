@@ -169,9 +169,10 @@ export type Prediction = {
   horizons?: PredictionHorizon[];
   drivers?: string[];
   entry?: { assessment: 'good' | 'fair' | 'wait'; note: string };
-  supportZones?: number[];
+  support?: { near: number | null; long: number | null };
   strategy?: { id: string; name: string; body: string };
   series?: { closes: number[]; volumes: number[]; dates?: string[] };
+  language?: string;
   disclaimer?: string;
 };
 

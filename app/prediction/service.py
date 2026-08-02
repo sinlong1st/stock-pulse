@@ -15,6 +15,7 @@ from app.config import Settings, get_settings, resolve_briefing_timezone
 from app.prediction.analyst import PredictionError, build_analyst
 from app.prediction.signals import compute_signals, fetch_bars
 from app.prediction.strategies import DEFAULT_STRATEGY, Strategy
+from app.prefs import resolve_language
 from app.prices import maybe_briefing_price_client, price_freshness
 
 logger = logging.getLogger("stockpulse.prediction.service")
@@ -48,16 +49,18 @@ async def _current_price(ticker: str, settings: Settings) -> tuple[float | None,
     return snap.price, fresh
 
 
-def _support_zones(bars: list) -> list[float]:
-    """Grounded support levels from real price lows: the ~1-month low and the
-    full-window low (deduped, ascending). Not advice — reference points."""
+def _support_levels(bars: list) -> dict:
+    """Grounded support from real price lows: a NEAR level (the last ~2 weeks'
+    low — the closest floor) and a LONG-term level (the full-window low — the
+    structural floor). Not advice — reference points."""
     lows = [b.low for b in bars if getattr(b, "low", None)]
     if not lows:
-        return []
-    window_low = round(min(lows), 2)
-    one_month = bars[-21:] if len(bars) >= 21 else bars
-    month_low = round(min(b.low for b in one_month if b.low), 2)
-    return sorted({window_low, month_low})
+        return {"near": None, "long": None}
+    near_window = bars[-10:] if len(bars) >= 10 else bars
+    return {
+        "near": round(min(b.low for b in near_window if b.low), 2),
+        "long": round(min(lows), 2),
+    }
 
 
 async def _news_lines(target: FocusTarget, settings: Settings) -> list[str]:
@@ -80,10 +83,12 @@ async def build_prediction(
     query: str,
     strategy: Strategy = DEFAULT_STRATEGY,
     analyst=None,
-    language: str = "English",
+    language: str | None = None,
 ) -> dict:
     """Produce the prediction JSON (spec §2), or `{ok: False, reason}` on failure."""
     settings = settings or get_settings()
+    language = language or resolve_language(settings)
+    vi = language.strip().lower() == "vietnamese"
 
     target = await _resolve(query, settings)
     if not target.ticker:
@@ -102,7 +107,7 @@ async def build_prediction(
         "volumes": [round(b.volume) for b in recent],
         "dates": [b.t.date().isoformat() for b in recent],
     }
-    support_zones = _support_zones(bars)
+    support = _support_levels(bars)
 
     news = await _news_lines(target, settings)
     horizons = [h.strip() for h in settings.prediction_horizons.split(",") if h.strip()]
@@ -111,7 +116,7 @@ async def build_prediction(
         analyst = analyst or build_analyst(settings)
         read = await analyst.analyze(
             ticker=ticker, name=name, signals=signals, news_lines=news,
-            horizons=horizons, price=price, support_zones=support_zones,
+            horizons=horizons, price=price, support=support,
             strategy=strategy, language=language,
         )
     except PredictionError as exc:
@@ -132,7 +137,7 @@ async def build_prediction(
         "trend": signals.trend,
         "enoughHistory": signals.enough_history,
         "series": series,
-        "supportZones": support_zones,
+        "support": support,
         "entry": {"assessment": read.entry.assessment, "note": read.entry.note},
         "horizons": [
             {
@@ -145,6 +150,11 @@ async def build_prediction(
         ],
         "drivers": read.drivers,
         "strategy": {"id": strategy.id, "name": strategy.name, "body": strategy.body},
+        "language": language,
         "generatedAt": datetime.now(UTC).isoformat(),
-        "disclaimer": "AI opinion — not investment advice.",
+        "disclaimer": (
+            "Nhận định của AI — không phải lời khuyên đầu tư."
+            if vi
+            else "AI opinion — not investment advice."
+        ),
     }
