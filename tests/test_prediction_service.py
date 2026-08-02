@@ -54,6 +54,8 @@ async def test_build_prediction_assembles(monkeypatch) -> None:
     assert out["horizons"][0]["lean"] == "bounce"
     assert out["strategy"]["id"] == "default" and out["strategy"]["body"]  # incl. body for the modal
     assert out["price"] == "110.00"  # fell back to the last bar close
+    assert out["series"]["closes"] == [100, 120, 140, 130, 110]  # for the app's charts
+    assert len(out["series"]["volumes"]) == 5
 
 
 async def test_build_prediction_unknown_ticker(monkeypatch) -> None:

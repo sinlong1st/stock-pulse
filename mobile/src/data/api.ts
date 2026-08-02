@@ -169,6 +169,7 @@ export type Prediction = {
   horizons?: PredictionHorizon[];
   drivers?: string[];
   strategy?: { id: string; name: string; body: string };
+  series?: { closes: number[]; volumes: number[] };
   disclaimer?: string;
 };
 

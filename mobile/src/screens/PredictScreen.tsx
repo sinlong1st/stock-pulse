@@ -12,7 +12,8 @@ import {
   View,
 } from 'react-native';
 
-import { fetchPrediction, Lean, Prediction } from '../data/api';
+import { MiniBars } from '../components/MiniBars';
+import { fetchPrediction, Lean, Prediction, PredictionHorizon } from '../data/api';
 import { RootStackParamList } from '../navigation/types';
 import { ThemeColors } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
@@ -29,6 +30,15 @@ function signalColor(c: ThemeColors, kind: 'cheap' | 'rich' | 'fair' | 'up' | 'd
   if (kind === 'cheap' || kind === 'up') return c.bull;
   if (kind === 'rich' || kind === 'down') return c.bear;
   return c.neutral;
+}
+
+/** Confidence-weighted vote across the horizons → one headline lean. */
+function overallLean(horizons?: PredictionHorizon[]): Lean {
+  if (!horizons?.length) return 'hold';
+  const w = { low: 1, medium: 2, high: 3 } as const;
+  const score: Record<Lean, number> = { bounce: 0, dip: 0, hold: 0 };
+  for (const h of horizons) score[h.lean] += w[h.confidence] ?? 1;
+  return (['bounce', 'dip', 'hold'] as Lean[]).reduce((a, b) => (score[b] > score[a] ? b : a), 'hold');
 }
 
 export function PredictScreen({ navigation }: Props) {
@@ -115,6 +125,35 @@ export function PredictScreen({ navigation }: Props) {
               </Text>
             ) : null}
           </View>
+
+          {/* big headline read */}
+          {(() => {
+            const m = leanMeta(colors, overallLean(pred.horizons));
+            return (
+              <View style={[styles.headline, { backgroundColor: m.bg }]}>
+                <Text style={[styles.headlineKicker, { color: m.fg }]}>AI READ · NEXT 1–3 MONTHS</Text>
+                <View style={styles.headlineRow}>
+                  <Text style={[styles.headlineGlyph, { color: m.fg }]}>{m.glyph}</Text>
+                  <Text style={[styles.headlineLean, { color: m.fg }]}>{m.label}</Text>
+                </View>
+              </View>
+            );
+          })()}
+
+          {/* charts */}
+          {pred.series?.closes?.length ? (
+            <View style={styles.chartBlock}>
+              <View style={styles.chartHead}>
+                <Text style={[styles.chartLabel, { color: colors.muted }]}>PRICE · 6MO</Text>
+                {pred.price ? (
+                  <Text style={[styles.chartVal, { color: colors.text }]}>${pred.price}</Text>
+                ) : null}
+              </View>
+              <MiniBars values={pred.series.closes} color={colors.accent} lastColor={colors.accentInk} height={64} />
+              <Text style={[styles.chartLabel, { color: colors.muted, marginTop: 14 }]}>VOLUME</Text>
+              <MiniBars values={pred.series.volumes} color={colors.faint} height={36} />
+            </View>
+          ) : null}
 
           {/* discount + trend chips */}
           <View style={styles.chips}>
@@ -218,6 +257,15 @@ const styles = StyleSheet.create({
   ticker: { fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
   name: { fontSize: 12, marginTop: 1 },
   price: { fontSize: 15, fontWeight: '800', marginTop: 6, fontVariant: ['tabular-nums'] },
+  headline: { paddingVertical: 14, paddingHorizontal: 16, marginBottom: 14 },
+  headlineKicker: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  headlineRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
+  headlineGlyph: { fontSize: 30, fontWeight: '900' },
+  headlineLean: { fontSize: 34, fontWeight: '900', letterSpacing: -1 },
+  chartBlock: { marginBottom: 16 },
+  chartHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  chartLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  chartVal: { fontSize: 13, fontWeight: '800', fontVariant: ['tabular-nums'] },
   chips: { flexDirection: 'row', gap: 8 },
   chip: { paddingHorizontal: 9, paddingVertical: 4 },
   chipText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },

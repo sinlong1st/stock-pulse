@@ -84,6 +84,11 @@ async def build_prediction(
     if price is None and bars:
         price = bars[-1].close
     signals = compute_signals(bars, price, range_months=months)
+    recent = bars[-90:]  # a compact series for the app's charts
+    series = {
+        "closes": [round(b.close, 2) for b in recent],
+        "volumes": [round(b.volume) for b in recent],
+    }
 
     news = await _news_lines(target, settings)
     horizons = [h.strip() for h in settings.prediction_horizons.split(",") if h.strip()]
@@ -111,6 +116,7 @@ async def build_prediction(
         },
         "trend": signals.trend,
         "enoughHistory": signals.enough_history,
+        "series": series,
         "horizons": [
             {
                 "horizon": h.horizon,
