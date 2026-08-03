@@ -16,6 +16,7 @@ import { MiniBars } from '../components/MiniBars';
 import { PriceChart } from '../components/PriceChart';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Segmented } from '../components/Segmented';
+import { WatchlistPicker } from '../components/WatchlistPicker';
 import { fetchPrediction, Lean, Prediction, PredictionHorizon } from '../data/api';
 import { useI18n } from '../i18n/LanguageContext';
 import { ThemeColors } from '../theme/tokens';
@@ -39,6 +40,38 @@ function entryColor(c: ThemeColors, a: 'good' | 'fair' | 'wait') {
   if (a === 'good') return c.bull;
   if (a === 'wait') return c.bear;
   return c.neutral;
+}
+
+/** Prefer the full list; fall back to the single level older payloads carry. */
+function supportList(levels?: number[], single?: number | null): number[] {
+  if (levels?.length) return levels;
+  return single != null ? [single] : [];
+}
+
+function SupportRow({ label, levels }: { label: string; levels: number[] }) {
+  const { colors } = useTheme();
+  if (!levels.length) return null;
+  return (
+    <View style={styles.supportRow}>
+      <Text style={[styles.supportKind, { color: colors.faint }]}>{label}</Text>
+      {levels.map((level, i) => (
+        <View
+          key={`${level}-${i}`}
+          style={[
+            styles.supportChip,
+            // The closest floor is the one that matters most — lead with it.
+            { borderColor: i === 0 ? colors.dividerStrong : colors.divider },
+          ]}
+        >
+          <Text
+            style={[styles.supportVal, { color: i === 0 ? colors.text : colors.muted }]}
+          >
+            ${level.toFixed(2)}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
 }
 
 function overallLean(horizons?: PredictionHorizon[]): Lean {
@@ -86,6 +119,10 @@ export function PredictScreen() {
     [query, t],
   );
 
+  // Up to three levels each; older payloads only carry the single near/long.
+  const nearSupport = supportList(pred?.support?.nearLevels, pred?.support?.near);
+  const longSupport = supportList(pred?.support?.longLevels, pred?.support?.long);
+
   // Chrome re-renders instantly via t(), but the narrative (entry note, rationales,
   // drivers, disclaimer) is written server-side — re-ask so it catches up too.
   const fetchedLang = useRef(language);
@@ -121,6 +158,18 @@ export function PredictScreen() {
             <Text style={[styles.goText, { color: colors.onAccent }]}>{t('predict.go')}</Text>
           )}
         </Pressable>
+      </View>
+
+      <View style={styles.picker}>
+        <WatchlistPicker
+          selected={query}
+          onPick={(tk) => {
+            // Tapping a ticker you already track should just go — filling the
+            // box and making you press Predict again is a pointless second step.
+            setQuery(tk);
+            run(tk);
+          }}
+        />
       </View>
 
       {error ? (
@@ -177,21 +226,11 @@ export function PredictScreen() {
                 </View>
               </View>
               <Text style={[styles.entryNote, { color: colors.text }]}>{pred.entry.note}</Text>
-              {pred.support?.near || pred.support?.long ? (
-                <View style={styles.supportRow}>
+              {nearSupport.length || longSupport.length ? (
+                <View style={styles.supportBlock}>
                   <Text style={[styles.supportLabel, { color: colors.muted }]}>{t('predict.support')}</Text>
-                  {pred.support?.near ? (
-                    <View style={[styles.supportChip, { borderColor: colors.dividerStrong }]}>
-                      <Text style={[styles.supportKind, { color: colors.faint }]}>{t('predict.supportNear')}</Text>
-                      <Text style={[styles.supportVal, { color: colors.text }]}>${pred.support.near.toFixed(2)}</Text>
-                    </View>
-                  ) : null}
-                  {pred.support?.long ? (
-                    <View style={[styles.supportChip, { borderColor: colors.dividerStrong }]}>
-                      <Text style={[styles.supportKind, { color: colors.faint }]}>{t('predict.supportLong')}</Text>
-                      <Text style={[styles.supportVal, { color: colors.text }]}>${pred.support.long.toFixed(2)}</Text>
-                    </View>
-                  ) : null}
+                  <SupportRow label={t('predict.supportNear')} levels={nearSupport} />
+                  <SupportRow label={t('predict.supportLong')} levels={longSupport} />
                 </View>
               ) : null}
             </View>
@@ -304,7 +343,8 @@ export function PredictScreen() {
 const styles = StyleSheet.create({
   topbar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingTop: 6, paddingBottom: 12, borderBottomWidth: 2 },
   topbarTitle: { fontSize: 14, fontWeight: '800' },
-  inputRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
+  inputRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
+  picker: { paddingLeft: 16, paddingBottom: 10 },
   input: { flex: 1, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontWeight: '600' },
   go: { paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', minWidth: 84 },
   goText: { fontSize: 14, fontWeight: '800' },
@@ -327,10 +367,11 @@ const styles = StyleSheet.create({
   entryBadge: { paddingHorizontal: 10, paddingVertical: 4 },
   entryBadgeText: { fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
   entryNote: { fontSize: 14, lineHeight: 21, fontWeight: '600' },
-  supportRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 2 },
+  supportBlock: { gap: 6, marginTop: 2 },
+  supportRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   supportLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
   supportChip: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
-  supportKind: { fontSize: 9, fontWeight: '800', letterSpacing: 0.3 },
+  supportKind: { fontSize: 9, fontWeight: '800', letterSpacing: 0.3, width: 52 },
   supportVal: { fontSize: 11, fontWeight: '800', fontVariant: ['tabular-nums'] },
   chartBlock: { marginBottom: 16 },
   chartHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' },

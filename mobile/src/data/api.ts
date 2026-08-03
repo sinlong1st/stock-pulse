@@ -169,7 +169,14 @@ export type Prediction = {
   horizons?: PredictionHorizon[];
   drivers?: string[];
   entry?: { assessment: 'good' | 'fair' | 'wait'; note: string };
-  support?: { near: number | null; long: number | null };
+  // near/long are the closest level of each (kept for older payloads);
+  // nearLevels/longLevels carry up to three, closest first.
+  support?: {
+    near: number | null;
+    long: number | null;
+    nearLevels?: number[];
+    longLevels?: number[];
+  };
   strategy?: { id: string; name: string; body: string };
   series?: { closes: number[]; volumes: number[]; dates?: string[] };
   language?: string;

@@ -38,10 +38,19 @@ def _latest_sentiment_by_ticker(session: Session, *, scan: int = 300) -> dict[st
     return out
 
 
-async def build_watchlist(settings: Settings, *, session: Session | None = None) -> list[dict]:
+async def build_watchlist(
+    settings: Settings,
+    *,
+    session: Session | None = None,
+    tickers: list[str] | None = None,
+) -> list[dict]:
     """Return each watchlist ticker with its name, a best-effort price, and
-    (when a DB session is given) its most-recent sentiment."""
+    (when a DB session is given) its most-recent sentiment.
+
+    ``tickers`` overrides the watchlist — used by the focused single-stock
+    report, which prices just that one stock (on your watchlist or not)."""
     config = get_watchlist_config()
+    wanted = list(tickers) if tickers is not None else list(config.tickers)
     client = maybe_briefing_price_client(settings)
     tz = resolve_briefing_timezone(settings)
     now = datetime.now(tz=UTC)
@@ -73,4 +82,4 @@ async def build_watchlist(settings: Settings, *, session: Session | None = None)
             row["fresh"] = price_freshness(snap.price_time, now=now, tz_name=tz).upper()
         return row
 
-    return list(await asyncio.gather(*[one(t) for t in config.tickers]))
+    return list(await asyncio.gather(*[one(t) for t in wanted]))

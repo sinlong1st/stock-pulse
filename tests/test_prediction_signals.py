@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 
-from app.prediction.signals import compute_signals, fetch_bars
+from app.prediction.signals import compute_signals, fetch_bars, support_levels
 from app.prices import Bar
 
 
@@ -15,6 +15,42 @@ def _bars(closes: list[float]) -> list[Bar]:
         Bar(t=t0 + timedelta(days=i), open=c, high=c * 1.01, low=c * 0.99, close=c, volume=1000)
         for i, c in enumerate(closes)
     ]
+
+
+# --- support_levels --------------------------------------------------------
+
+
+def test_support_levels_finds_three_swing_lows() -> None:
+    # Three clear troughs at 90 / 80 / 70 (lows are 1% under the close).
+    bars = _bars([100, 110, 90, 100, 110, 80, 90, 100, 110, 70, 80, 90, 120])
+    assert support_levels(bars, price=120.0) == [89.1, 79.2, 69.3]  # closest first
+
+
+def test_support_levels_ignores_levels_above_the_price() -> None:
+    bars = _bars([100, 110, 90, 100, 110, 80, 90, 100, 110, 70, 80, 90, 120])
+    # At $85 the 89.1 floor is overhead resistance, not support.
+    assert support_levels(bars, price=85.0) == [79.2, 69.3]
+
+
+def test_support_levels_merges_near_identical_floors() -> None:
+    # Troughs at 90 and 90.5 are the same floor — the closer one wins and the
+    # other is dropped rather than listed as a second level.
+    bars = _bars([100, 110, 90, 100, 110, 90.5, 100, 110, 70, 80, 90, 120])
+    levels = support_levels(bars, price=120.0)
+    assert levels[0] == 89.59  # the 90.5 trough, nearest the price
+    assert len([v for v in levels if 88.0 < v < 91.0]) == 1
+
+
+def test_support_levels_below_every_low_falls_back_to_deepest() -> None:
+    bars = _bars([100, 110, 90, 100, 110, 80, 90, 100])
+    # Price has broken under the whole window — name the deepest floors instead
+    # of returning nothing.
+    levels = support_levels(bars, price=50.0)
+    assert levels and all(v > 50.0 for v in levels)
+
+
+def test_support_levels_empty_without_bars() -> None:
+    assert support_levels([], price=100.0) == []
 
 
 # --- compute_signals -------------------------------------------------------

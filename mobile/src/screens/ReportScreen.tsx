@@ -14,6 +14,7 @@ import {
 
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Segmented } from '../components/Segmented';
+import { WatchlistPicker } from '../components/WatchlistPicker';
 import { fetchReport } from '../data/api';
 import { Report } from '../data/types';
 import { useI18n } from '../i18n/LanguageContext';
@@ -76,19 +77,22 @@ export function ReportScreen() {
           renderLabel={(v) => t(v === WHOLE ? 'report.whole' : 'report.single')}
         />
         {scope === SINGLE && (
-          <TextInput
-            value={ticker}
-            onChangeText={setTicker}
-            placeholder={t('report.tickerPlaceholder')}
-            placeholderTextColor={colors.faint}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            onSubmitEditing={() => canGenerate && generate()}
-            style={[
-              styles.input,
-              { color: colors.text, backgroundColor: colors.surface, borderColor: colors.dividerStrong },
-            ]}
-          />
+          <>
+            <TextInput
+              value={ticker}
+              onChangeText={setTicker}
+              placeholder={t('report.tickerPlaceholder')}
+              placeholderTextColor={colors.faint}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              onSubmitEditing={() => canGenerate && generate()}
+              style={[
+                styles.input,
+                { color: colors.text, backgroundColor: colors.surface, borderColor: colors.dividerStrong },
+              ]}
+            />
+            <WatchlistPicker selected={ticker} onPick={setTicker} />
+          </>
         )}
       </View>
 

@@ -13,7 +13,7 @@ from app.briefing.retrieval import retrieve_fresh_news
 from app.commands.symbols import resolve_symbol
 from app.config import Settings, get_settings, resolve_briefing_timezone
 from app.prediction.analyst import PredictionError, build_analyst
-from app.prediction.signals import compute_signals, fetch_bars
+from app.prediction.signals import compute_signals, fetch_bars, support_levels
 from app.prediction.strategies import DEFAULT_STRATEGY, Strategy
 from app.prefs import resolve_language
 from app.prices import maybe_briefing_price_client, price_freshness
@@ -49,17 +49,28 @@ async def _current_price(ticker: str, settings: Settings) -> tuple[float | None,
     return snap.price, fresh
 
 
-def _support_levels(bars: list) -> dict:
-    """Grounded support from real price lows: a NEAR level (the last ~2 weeks'
-    low — the closest floor) and a LONG-term level (the full-window low — the
-    structural floor). Not advice — reference points."""
-    lows = [b.low for b in bars if getattr(b, "low", None)]
-    if not lows:
-        return {"near": None, "long": None}
-    near_window = bars[-10:] if len(bars) >= 10 else bars
+_NEAR_WINDOW_BARS = 21  # ~1 trading month — enough swing lows to name three
+
+
+def _support_levels(bars: list, price: float | None) -> dict:
+    """Grounded support from real price lows: up to three NEAR levels (the last
+    ~month of swing lows — the closest floors) and three LONG-term levels (swing
+    lows across the whole window — the structural floors). Closest first.
+
+    `near`/`long` stay as the single closest level of each so older app builds
+    keep working; `nearLevels`/`longLevels` carry the full list.
+    """
+    if not bars:
+        return {"near": None, "long": None, "nearLevels": [], "longLevels": []}
+
+    near_window = bars[-_NEAR_WINDOW_BARS:] if len(bars) >= _NEAR_WINDOW_BARS else bars
+    near = support_levels(near_window, price)
+    long = support_levels(bars, price)
     return {
-        "near": round(min(b.low for b in near_window if b.low), 2),
-        "long": round(min(lows), 2),
+        "near": near[0] if near else None,
+        "long": long[0] if long else None,
+        "nearLevels": near,
+        "longLevels": long,
     }
 
 
@@ -107,7 +118,7 @@ async def build_prediction(
         "volumes": [round(b.volume) for b in recent],
         "dates": [b.t.date().isoformat() for b in recent],
     }
-    support = _support_levels(bars)
+    support = _support_levels(bars, price)
 
     news = await _news_lines(target, settings)
     horizons = [h.strip() for h in settings.prediction_horizons.split(",") if h.strip()]

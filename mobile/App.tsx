@@ -1,10 +1,11 @@
 import { DefaultTheme, NavigationContainer, Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-import { LanguageProvider } from './src/i18n/LanguageContext';
+import { LanguageProvider, useI18n } from './src/i18n/LanguageContext';
 import { Tabs } from './src/navigation/Tabs';
 import { RootStackParamList } from './src/navigation/types';
 import { registerForPush } from './src/push';
@@ -13,6 +14,21 @@ import { EvaluationScreen } from './src/screens/EvaluationScreen';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// Hold the native splash ourselves so the first frame is already in the right
+// language. Rejections are ignored: the splash may already be gone on reload.
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+/** Keeps the splash up until the language config has resolved. */
+function SplashGate({ children }: { children: React.ReactNode }) {
+  const { ready } = useI18n();
+
+  useEffect(() => {
+    if (ready) SplashScreen.hideAsync().catch(() => {});
+  }, [ready]);
+
+  return ready ? <>{children}</> : null;
+}
 
 function Root() {
   const { colors, mode } = useTheme();
@@ -54,7 +70,9 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <LanguageProvider>
-          <Root />
+          <SplashGate>
+            <Root />
+          </SplashGate>
         </LanguageProvider>
       </ThemeProvider>
     </SafeAreaProvider>

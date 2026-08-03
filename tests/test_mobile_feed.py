@@ -243,6 +243,76 @@ async def test_build_report_handles_no_result(monkeypatch) -> None:
     assert out["note"] == "no OpenAI key"
 
 
+async def _report_with(monkeypatch, *, focus_ticker, symbol=None, wl_rows=None):
+    """Wire build_report so only the resolution + price-scoping path is exercised."""
+    from types import SimpleNamespace
+
+    import app.api.report as report_api
+    from app.briefing.focus import FocusTarget
+
+    async def fake_run_report(query=None, *, deliver=True, settings=None):
+        return SimpleNamespace(result=None, skipped_reason=None)
+
+    seen: dict = {}
+
+    async def fake_wl(settings, *, tickers=None, session=None):
+        seen["tickers"] = tickers
+        rows = wl_rows if wl_rows is not None else [{"ticker": "NVDA", "name": "Nvidia"}]
+        return rows if tickers is None else [r for r in rows if r["ticker"] in tickers]
+
+    async def fake_symbol(q, *, settings):
+        return symbol
+
+    monkeypatch.setattr(report_api, "run_report", fake_run_report)
+    monkeypatch.setattr(report_api, "build_watchlist", fake_wl)
+    monkeypatch.setattr(
+        report_api, "resolve_focus", lambda q: FocusTarget(q, focus_ticker, None, q)
+    )
+    monkeypatch.setattr(report_api, "resolve_symbol", fake_symbol)
+    return report_api, seen
+
+
+async def test_single_stock_report_prices_only_that_stock(monkeypatch) -> None:
+    report_api, seen = await _report_with(
+        monkeypatch,
+        focus_ticker="NVDA",
+        wl_rows=[{"ticker": "NVDA", "name": "Nvidia"}, {"ticker": "MU", "name": "Micron"}],
+    )
+    out = await report_api.build_report(Settings(_env_file=None), query="nvda")
+    assert seen["tickers"] == ["NVDA"]
+    assert [r["ticker"] for r in out["watchlist"]] == ["NVDA"]  # not the whole watchlist
+
+
+async def test_whole_watchlist_report_still_prices_everything(monkeypatch) -> None:
+    report_api, seen = await _report_with(
+        monkeypatch,
+        focus_ticker="NVDA",
+        wl_rows=[{"ticker": "NVDA", "name": "Nvidia"}, {"ticker": "MU", "name": "Micron"}],
+    )
+    out = await report_api.build_report(Settings(_env_file=None))
+    assert seen["tickers"] is None
+    assert [r["ticker"] for r in out["watchlist"]] == ["NVDA", "MU"]
+
+
+async def test_single_stock_report_prices_off_watchlist_name(monkeypatch) -> None:
+    # Not on the watchlist, so resolve_focus misses and the symbol search wins.
+    report_api, _ = await _report_with(
+        monkeypatch,
+        focus_ticker=None,
+        symbol=("TSLA", "Tesla"),
+        wl_rows=[{"ticker": "TSLA", "name": "TSLA"}],
+    )
+    out = await report_api.build_report(Settings(_env_file=None), query="tesla")
+    assert [r["ticker"] for r in out["watchlist"]] == ["TSLA"]
+    assert out["watchlist"][0]["name"] == "Tesla"  # named from the resolved symbol
+
+
+async def test_single_stock_report_unresolvable_shows_no_prices(monkeypatch) -> None:
+    report_api, _ = await _report_with(monkeypatch, focus_ticker=None, symbol=None)
+    out = await report_api.build_report(Settings(_env_file=None), query="not a stock")
+    assert out["watchlist"] == []  # better than showing an unrelated watchlist
+
+
 # --- settings + watchlist mutation endpoints -------------------------------
 
 

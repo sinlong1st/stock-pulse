@@ -105,6 +105,59 @@ def _trend(closes: list[float], *, short: int = 10, long: int = 30, band: float 
     return "sideways"
 
 
+def _pivot_lows(bars: list[Bar], *, k: int = 2) -> list[float]:
+    """Swing lows: bars whose low is the lowest within `k` bars either side.
+
+    These are floors the price actually turned at, which is what makes them
+    usable as support — unlike an arbitrary percentile of the range.
+    """
+    out: list[float] = []
+    for i in range(k, len(bars) - k):
+        low = bars[i].low
+        if low is None:
+            continue
+        window = [b.low for b in bars[i - k : i + k + 1] if b.low is not None]
+        if window and low <= min(window):
+            out.append(low)
+    return out
+
+
+def _distinct(levels: list[float], *, count: int, band: float = 0.015) -> list[float]:
+    """Keep up to `count` levels, dropping any within `band` of one already kept
+    — two floors 0.5% apart are the same floor, not two separate levels."""
+    out: list[float] = []
+    for level in levels:
+        if level <= 0:
+            continue
+        if all(abs(level - kept) / kept > band for kept in out):
+            out.append(round(level, 2))
+        if len(out) == count:
+            break
+    return out
+
+
+def support_levels(bars: list[Bar], price: float | None, *, count: int = 3) -> list[float]:
+    """Up to `count` grounded support levels below `price`, closest first.
+
+    Built from real swing lows plus the window floor. If the price has broken
+    below everything in the window there is no support left to name, so we fall
+    back to the lowest distinct lows rather than inventing a number.
+    """
+    lows = [b.low for b in bars if b.low is not None]
+    if not lows:
+        return []
+
+    candidates = _pivot_lows(bars)
+    candidates.append(min(lows))  # the structural floor always counts
+
+    below = sorted((c for c in candidates if price and c < price), reverse=True)
+    levels = _distinct(below, count=count)
+    if levels:
+        return levels
+    # Price is at/below every low we know of — offer the deepest floors instead.
+    return _distinct(sorted(set(candidates)), count=count)
+
+
 def compute_signals(bars: list[Bar], price: float | None, *, range_months: int = 3) -> Signals:
     """Turn real bars + the current price into discount + trend signals."""
     closes = [b.close for b in bars if b.close is not None]

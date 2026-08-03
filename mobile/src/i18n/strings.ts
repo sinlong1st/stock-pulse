@@ -114,6 +114,9 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   'set.checkErr': { en: 'Couldn’t check', vi: 'Không kiểm tra được' },
   'set.checkErrBody': { en: 'Try again in a moment.', vi: 'Thử lại sau giây lát.' },
 
+  // watchlist quick-picker (Report + Predict)
+  'picker.label': { en: 'FROM YOUR WATCHLIST', vi: 'TỪ DANH MỤC CỦA BẠN' },
+
   // predict
   'predict.kicker': { en: 'AI · FORWARD-LOOKING', vi: 'AI · DỰ BÁO' },
   'predict.title': { en: 'Predict', vi: 'Dự đoán' },
