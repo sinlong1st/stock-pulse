@@ -114,6 +114,47 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   'set.checkErr': { en: 'Couldn’t check', vi: 'Không kiểm tra được' },
   'set.checkErrBody': { en: 'Try again in a moment.', vi: 'Thử lại sau giây lát.' },
 
+  // predict
+  'predict.kicker': { en: 'AI · FORWARD-LOOKING', vi: 'AI · DỰ BÁO' },
+  'predict.title': { en: 'Predict', vi: 'Dự đoán' },
+  'predict.go': { en: 'Predict', vi: 'Dự đoán' },
+  'predict.placeholder': { en: 'Ticker or company, e.g. WDC', vi: 'Mã hoặc tên, vd WDC' },
+  'predict.genErr': { en: 'Couldn’t generate a read.', vi: 'Không tạo được nhận định.' },
+  'predict.emptyTitle': { en: 'Forward-looking read', vi: 'Dự đoán xu hướng' },
+  'predict.emptyBody': {
+    en: 'Enter a stock and the AI gives a 1-week / 1-month / 3-month lean, grounded in real price signals + news. Speculative — not investment advice.',
+    vi: 'Nhập một mã, AI đưa ra xu hướng 1 tuần / 1 tháng / 3 tháng dựa trên tín hiệu giá thực + tin tức. Chỉ tham khảo — không phải lời khuyên đầu tư.',
+  },
+  'predict.headline': { en: 'AI READ · NEXT 1–3 MONTHS', vi: 'AI ĐÁNH GIÁ · 1–3 THÁNG TỚI' },
+  'predict.entryQ': { en: 'IS THIS A GOOD ENTRY?', vi: 'ĐÂY CÓ PHẢI GIÁ TỐT ĐỂ MUA?' },
+  'predict.support': { en: 'SUPPORT', vi: 'HỖ TRỢ' },
+  'predict.supportNear': { en: 'near', vi: 'gần' },
+  'predict.supportLong': { en: 'long-term', vi: 'dài hạn' },
+  'predict.price': { en: 'PRICE', vi: 'GIÁ' },
+  'predict.chartHint': {
+    en: 'Drag across the chart to read any point',
+    vi: 'Kéo trên biểu đồ để xem từng điểm',
+  },
+  'predict.volume': { en: 'VOLUME', vi: 'KHỐI LƯỢNG' },
+  'predict.trend': { en: 'TREND', vi: 'XU HƯỚNG' },
+  'predict.drivers': { en: 'DRIVERS', vi: 'YẾU TỐ CHÍNH' },
+  'predict.howReads': { en: 'How this reads the stock', vi: 'Cách AI đọc cổ phiếu' },
+  'predict.strategy': { en: 'STRATEGY', vi: 'CHIẾN LƯỢC' },
+  'predict.strategyNote': {
+    en: 'This framework shapes how the AI weighs the evidence. The real numbers (price, discount, trend) are computed from market data — the strategy never changes them.',
+    vi: 'Khung này định hướng cách AI cân nhắc dữ liệu. Các con số thực (giá, chiết khấu, xu hướng) được tính từ dữ liệu thị trường — chiến lược không thay đổi chúng.',
+  },
+  // lean / entry / confidence badges (keys mirror the API's enum values)
+  'predict.lean.bounce': { en: 'BOUNCE', vi: 'TĂNG' },
+  'predict.lean.dip': { en: 'DIP', vi: 'GIẢM' },
+  'predict.lean.hold': { en: 'HOLD', vi: 'ĐI NGANG' },
+  'predict.entry.good': { en: 'GOOD ENTRY', vi: 'GIÁ TỐT' },
+  'predict.entry.fair': { en: 'FAIR', vi: 'TẠM ỔN' },
+  'predict.entry.wait': { en: 'WAIT', vi: 'NÊN CHỜ' },
+  'predict.conf.low': { en: 'low', vi: 'thấp' },
+  'predict.conf.medium': { en: 'med', vi: 'TB' },
+  'predict.conf.high': { en: 'high', vi: 'cao' },
+
   // evaluation
   'eval.title': { en: 'AI accuracy', vi: 'Độ chính xác AI' },
   'eval.headline': { en: 'DIRECTIONAL ACCURACY', vi: 'ĐỘ CHÍNH XÁC HƯỚNG' },

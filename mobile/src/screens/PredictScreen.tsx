@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -16,15 +16,12 @@ import { MiniBars } from '../components/MiniBars';
 import { PriceChart } from '../components/PriceChart';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Segmented } from '../components/Segmented';
-import { fetchPrediction, fetchSettings, Lean, Prediction, PredictionHorizon, usingMockData } from '../data/api';
+import { fetchPrediction, Lean, Prediction, PredictionHorizon } from '../data/api';
+import { useI18n } from '../i18n/LanguageContext';
 import { ThemeColors } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
 
 const RANGES: Record<string, number> = { '1W': 5, '1M': 21, '3M': 63, '6M': 130 };
-// [en, vi]
-const LEAN_LABEL = { bounce: ['BOUNCE', 'TĂNG'], dip: ['DIP', 'GIẢM'], hold: ['HOLD', 'ĐI NGANG'] } as const;
-const ENTRY_LABEL = { good: ['GOOD ENTRY', 'GIÁ TỐT'], fair: ['FAIR', 'TẠM ỔN'], wait: ['WAIT', 'NÊN CHỜ'] } as const;
-const CONF_LABEL = { low: ['low', 'thấp'], medium: ['med', 'TB'], high: ['high', 'cao'] } as const;
 
 function leanMeta(c: ThemeColors, lean: Lean) {
   if (lean === 'bounce') return { fg: c.bull, bg: c.bullBg, glyph: '▲' };
@@ -54,6 +51,7 @@ function overallLean(horizons?: PredictionHorizon[]): Lean {
 
 export function PredictScreen() {
   const { colors } = useTheme();
+  const { t, language } = useI18n();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [pred, setPred] = useState<Prediction | null>(null);
@@ -61,58 +59,66 @@ export function PredictScreen() {
   const [error, setError] = useState<string | null>(null);
   const [modal, setModal] = useState(false);
   const [range, setRange] = useState('3M');
-  const [lang, setLang] = useState('English');
+  // Last query that produced a read, so a language switch can re-ask the backend.
+  const lastQuery = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (!usingMockData) fetchSettings().then((s) => setLang(s.language)).catch(() => {});
-  }, []);
-
-  const vi = (pred?.language ?? lang).trim().toLowerCase() === 'vietnamese';
-  const t = (en: string, viStr: string) => (vi ? viStr : en);
-  const pick = (pair: readonly [string, string]) => pair[vi ? 1 : 0];
-
-  const run = async () => {
-    if (!query.trim()) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const p = await fetchPrediction(query);
-      if (p.ok) setPred(p);
-      else {
-        setPred(null);
-        setError(p.reason ?? t('Couldn’t generate a read.', 'Không tạo được nhận định.'));
+  const run = useCallback(
+    async (q?: string) => {
+      const term = (q ?? query).trim();
+      if (!term) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const p = await fetchPrediction(term);
+        if (p.ok) {
+          setPred(p);
+          lastQuery.current = term;
+        } else {
+          setPred(null);
+          setError(p.reason ?? t('predict.genErr'));
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : t('predict.genErr'));
+      } finally {
+        setLoading(false);
       }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('Couldn’t generate a read.', 'Không tạo được nhận định.'));
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [query, t],
+  );
+
+  // Chrome re-renders instantly via t(), but the narrative (entry note, rationales,
+  // drivers, disclaimer) is written server-side — re-ask so it catches up too.
+  const fetchedLang = useRef(language);
+  useEffect(() => {
+    if (fetchedLang.current === language) return;
+    fetchedLang.current = language;
+    if (lastQuery.current) run(lastQuery.current);
+  }, [language, run]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader kicker={t('AI · FORWARD-LOOKING', 'AI · DỰ BÁO')} title={t('Predict', 'Dự đoán')} />
+      <ScreenHeader kicker={t('predict.kicker')} title={t('predict.title')} />
 
       <View style={styles.inputRow}>
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder={t('Ticker or company, e.g. WDC', 'Mã hoặc tên, vd WDC')}
+          placeholder={t('predict.placeholder')}
           placeholderTextColor={colors.faint}
           autoCapitalize="characters"
           autoCorrect={false}
-          onSubmitEditing={run}
+          onSubmitEditing={() => run()}
           style={[styles.input, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.dividerStrong }]}
         />
         <Pressable
-          onPress={run}
+          onPress={() => run()}
           disabled={loading || !query.trim()}
           style={[styles.go, { backgroundColor: colors.accent, opacity: loading || !query.trim() ? 0.4 : 1 }]}
         >
           {loading ? (
             <ActivityIndicator size="small" color={colors.onAccent} />
           ) : (
-            <Text style={[styles.goText, { color: colors.onAccent }]}>{t('Predict', 'Dự đoán')}</Text>
+            <Text style={[styles.goText, { color: colors.onAccent }]}>{t('predict.go')}</Text>
           )}
         </Pressable>
       </View>
@@ -125,15 +131,8 @@ export function PredictScreen() {
       ) : !pred ? (
         <View style={styles.center}>
           <Feather name="compass" size={34} color={colors.muted} />
-          <Text style={[styles.centerTitle, { color: colors.text }]}>
-            {t('Forward-looking read', 'Dự đoán xu hướng')}
-          </Text>
-          <Text style={[styles.centerBody, { color: colors.muted }]}>
-            {t(
-              'Enter a stock and the AI gives a 1-week / 1-month / 3-month lean, grounded in real price signals + news. Speculative — not investment advice.',
-              'Nhập một mã, AI đưa ra xu hướng 1 tuần / 1 tháng / 3 tháng dựa trên tín hiệu giá thực + tin tức. Chỉ tham khảo — không phải lời khuyên đầu tư.',
-            )}
-          </Text>
+          <Text style={[styles.centerTitle, { color: colors.text }]}>{t('predict.emptyTitle')}</Text>
+          <Text style={[styles.centerBody, { color: colors.muted }]}>{t('predict.emptyBody')}</Text>
         </View>
       ) : (
         <ScrollView
@@ -157,12 +156,10 @@ export function PredictScreen() {
             const m = leanMeta(colors, lean);
             return (
               <View style={[styles.headline, { backgroundColor: m.bg }]}>
-                <Text style={[styles.headlineKicker, { color: m.fg }]}>
-                  {t('AI READ · NEXT 1–3 MONTHS', 'AI ĐÁNH GIÁ · 1–3 THÁNG TỚI')}
-                </Text>
+                <Text style={[styles.headlineKicker, { color: m.fg }]}>{t('predict.headline')}</Text>
                 <View style={styles.headlineRow}>
                   <Text style={[styles.headlineGlyph, { color: m.fg }]}>{m.glyph}</Text>
-                  <Text style={[styles.headlineLean, { color: m.fg }]}>{pick(LEAN_LABEL[lean])}</Text>
+                  <Text style={[styles.headlineLean, { color: m.fg }]}>{t(`predict.lean.${lean}`)}</Text>
                 </View>
               </View>
             );
@@ -172,28 +169,26 @@ export function PredictScreen() {
           {pred.entry ? (
             <View style={[styles.entry, { borderColor: colors.divider }]}>
               <View style={styles.entryTop}>
-                <Text style={[styles.entryLabel, { color: colors.muted }]}>
-                  {t('IS THIS A GOOD ENTRY?', 'ĐÂY CÓ PHẢI GIÁ TỐT ĐỂ MUA?')}
-                </Text>
+                <Text style={[styles.entryLabel, { color: colors.muted }]}>{t('predict.entryQ')}</Text>
                 <View style={[styles.entryBadge, { backgroundColor: entryColor(colors, pred.entry.assessment) + '22' }]}>
                   <Text style={[styles.entryBadgeText, { color: entryColor(colors, pred.entry.assessment) }]}>
-                    {pick(ENTRY_LABEL[pred.entry.assessment])}
+                    {t(`predict.entry.${pred.entry.assessment}`)}
                   </Text>
                 </View>
               </View>
               <Text style={[styles.entryNote, { color: colors.text }]}>{pred.entry.note}</Text>
               {pred.support?.near || pred.support?.long ? (
                 <View style={styles.supportRow}>
-                  <Text style={[styles.supportLabel, { color: colors.muted }]}>{t('SUPPORT', 'HỖ TRỢ')}</Text>
+                  <Text style={[styles.supportLabel, { color: colors.muted }]}>{t('predict.support')}</Text>
                   {pred.support?.near ? (
                     <View style={[styles.supportChip, { borderColor: colors.dividerStrong }]}>
-                      <Text style={[styles.supportKind, { color: colors.faint }]}>{t('near', 'gần')}</Text>
+                      <Text style={[styles.supportKind, { color: colors.faint }]}>{t('predict.supportNear')}</Text>
                       <Text style={[styles.supportVal, { color: colors.text }]}>${pred.support.near.toFixed(2)}</Text>
                     </View>
                   ) : null}
                   {pred.support?.long ? (
                     <View style={[styles.supportChip, { borderColor: colors.dividerStrong }]}>
-                      <Text style={[styles.supportKind, { color: colors.faint }]}>{t('long-term', 'dài hạn')}</Text>
+                      <Text style={[styles.supportKind, { color: colors.faint }]}>{t('predict.supportLong')}</Text>
                       <Text style={[styles.supportVal, { color: colors.text }]}>${pred.support.long.toFixed(2)}</Text>
                     </View>
                   ) : null}
@@ -207,7 +202,7 @@ export function PredictScreen() {
             <View style={styles.chartBlock}>
               <View style={styles.chartHead}>
                 <Text style={[styles.chartLabel, { color: colors.muted }]}>
-                  {t('PRICE', 'GIÁ')} {pred.price ? `· $${pred.price}` : ''}
+                  {t('predict.price')} {pred.price ? `· $${pred.price}` : ''}
                 </Text>
                 <Segmented options={['1W', '1M', '3M', '6M']} value={range} onChange={setRange} />
               </View>
@@ -216,12 +211,8 @@ export function PredictScreen() {
                 dates={pred.series.dates?.slice(-RANGES[range])}
                 height={128}
               />
-              <Text style={[styles.chartHint, { color: colors.faint }]}>
-                {t('Drag across the chart to read any point', 'Kéo trên biểu đồ để xem từng điểm')}
-              </Text>
-              <Text style={[styles.chartLabel, { color: colors.muted, marginTop: 10 }]}>
-                {t('VOLUME', 'KHỐI LƯỢNG')}
-              </Text>
+              <Text style={[styles.chartHint, { color: colors.faint }]}>{t('predict.chartHint')}</Text>
+              <Text style={[styles.chartLabel, { color: colors.muted, marginTop: 10 }]}>{t('predict.volume')}</Text>
               <MiniBars values={pred.series.volumes.slice(-RANGES[range])} color={colors.faint} height={36} />
             </View>
           ) : null}
@@ -238,7 +229,7 @@ export function PredictScreen() {
             {pred.trend ? (
               <View style={[styles.chip, { backgroundColor: signalColor(colors, pred.trend) + '22' }]}>
                 <Text style={[styles.chipText, { color: signalColor(colors, pred.trend) }]}>
-                  {t('TREND', 'XU HƯỚNG')} {pred.trend.toUpperCase()}
+                  {t('predict.trend')} {pred.trend.toUpperCase()}
                 </Text>
               </View>
             ) : null}
@@ -258,9 +249,9 @@ export function PredictScreen() {
                   <Text style={[styles.hLabel, { color: colors.text }]}>{h.horizon}</Text>
                   <View style={[styles.leanPill, { backgroundColor: m.bg }]}>
                     <Text style={[styles.leanGlyph, { color: m.fg }]}>{m.glyph}</Text>
-                    <Text style={[styles.leanText, { color: m.fg }]}>{pick(LEAN_LABEL[h.lean])}</Text>
+                    <Text style={[styles.leanText, { color: m.fg }]}>{t(`predict.lean.${h.lean}`)}</Text>
                   </View>
-                  <Text style={[styles.conf, { color: colors.faint }]}>{pick(CONF_LABEL[h.confidence])}</Text>
+                  <Text style={[styles.conf, { color: colors.faint }]}>{t(`predict.conf.${h.confidence}`)}</Text>
                   <Text style={[styles.rationale, { color: colors.muted }]}>{h.rationale}</Text>
                 </View>
               );
@@ -270,7 +261,7 @@ export function PredictScreen() {
           {/* drivers */}
           {pred.drivers?.length ? (
             <>
-              <Text style={[styles.sectionLabel, { color: colors.muted }]}>{t('DRIVERS', 'YẾU TỐ CHÍNH')}</Text>
+              <Text style={[styles.sectionLabel, { color: colors.muted }]}>{t('predict.drivers')}</Text>
               {pred.drivers.map((d, i) => (
                 <Text key={i} style={[styles.driver, { color: colors.text }]}>
                   • {d}
@@ -284,7 +275,7 @@ export function PredictScreen() {
             <Pressable onPress={() => setModal(true)} style={styles.stratRow}>
               <Feather name="info" size={13} color={colors.accentInk} />
               <Text style={[styles.stratText, { color: colors.accentInk }]}>
-                {t('How this reads the stock', 'Cách AI đọc cổ phiếu')} · {pred.strategy.name}
+                {t('predict.howReads')} · {pred.strategy.name}
               </Text>
             </Pressable>
           ) : null}
@@ -296,17 +287,12 @@ export function PredictScreen() {
       <Modal visible={modal} transparent animationType="fade" onRequestClose={() => setModal(false)}>
         <Pressable style={styles.backdrop} onPress={() => setModal(false)}>
           <Pressable style={[styles.sheet, { backgroundColor: colors.elevated }]} onPress={() => {}}>
-            <Text style={[styles.sheetKicker, { color: colors.accent }]}>{t('STRATEGY', 'CHIẾN LƯỢC')}</Text>
+            <Text style={[styles.sheetKicker, { color: colors.accent }]}>{t('predict.strategy')}</Text>
             <Text style={[styles.sheetTitle, { color: colors.text }]}>{pred?.strategy?.name}</Text>
             <Text style={[styles.sheetBody, { color: colors.muted }]}>{pred?.strategy?.body}</Text>
-            <Text style={[styles.sheetNote, { color: colors.faint }]}>
-              {t(
-                'This framework shapes how the AI weighs the evidence. The real numbers (price, discount, trend) are computed from market data — the strategy never changes them.',
-                'Khung này định hướng cách AI cân nhắc dữ liệu. Các con số thực (giá, chiết khấu, xu hướng) được tính từ dữ liệu thị trường — chiến lược không thay đổi chúng.',
-              )}
-            </Text>
+            <Text style={[styles.sheetNote, { color: colors.faint }]}>{t('predict.strategyNote')}</Text>
             <Pressable onPress={() => setModal(false)} style={[styles.sheetBtn, { backgroundColor: colors.accent }]}>
-              <Text style={[styles.sheetBtnText, { color: colors.onAccent }]}>{t('Got it', 'Đã hiểu')}</Text>
+              <Text style={[styles.sheetBtnText, { color: colors.onAccent }]}>{t('common.gotIt')}</Text>
             </Pressable>
           </Pressable>
         </Pressable>
