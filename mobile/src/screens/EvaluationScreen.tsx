@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SentimentPill } from '../components/SentimentPill';
 import { EvalReport, EvalStat, fetchEvaluation } from '../data/api';
+import { useI18n } from '../i18n/LanguageContext';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -31,6 +32,7 @@ function Bar({ label, stat, color }: { label: string; stat: EvalStat; color: str
 
 export function EvaluationScreen({ navigation }: Props) {
   const { colors } = useTheme();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const [report, setReport] = useState<EvalReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,7 +44,7 @@ export function EvaluationScreen({ navigation }: Props) {
         setReport(r);
         setError(null);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Couldn’t load accuracy.'))
+      .catch((e) => setError(e instanceof Error ? e.message : t('eval.loadErr')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -50,7 +52,7 @@ export function EvaluationScreen({ navigation }: Props) {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <View style={[styles.topbar, { borderBottomColor: colors.dividerStrong }]}>
         <Feather name="arrow-left" size={22} color={colors.text} onPress={() => navigation.goBack()} />
-        <Text style={[styles.topbarTitle, { color: colors.text }]}>AI accuracy</Text>
+        <Text style={[styles.topbarTitle, { color: colors.text }]}>{t('eval.title')}</Text>
       </View>
 
       {loading ? (
@@ -65,36 +67,36 @@ export function EvaluationScreen({ navigation }: Props) {
       ) : !report || report.totalEvaluated === 0 ? (
         <View style={styles.center}>
           <Feather name="bar-chart-2" size={30} color={colors.muted} />
-          <Text style={[styles.centerTitle, { color: colors.text }]}>Not enough data yet</Text>
+          <Text style={[styles.centerTitle, { color: colors.text }]}>{t('eval.notEnough')}</Text>
           <Text style={[styles.centerBody, { color: colors.muted }]}>
-            Accuracy shows once the AI’s calls have had time to play out.
+            {t('eval.notEnoughBody')}
           </Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 28 }} showsVerticalScrollIndicator={false}>
           {/* headline */}
           <View style={[styles.headline, { borderBottomColor: colors.divider }]}>
-            <Text style={[styles.hLabel, { color: colors.muted }]}>DIRECTIONAL ACCURACY</Text>
+            <Text style={[styles.hLabel, { color: colors.muted }]}>{t('eval.headline')}</Text>
             <View style={styles.hRow}>
               <Text style={[styles.hBig, { color: colors.text }]}>{pct(report.accuracyPct)}</Text>
               <Text style={[styles.hSub, { color: colors.muted }]}>
-                of {report.totalEvaluated} calls{'\n'}scored against real moves
+                {t('eval.ofCalls', { n: report.totalEvaluated })}
               </Text>
               <View style={{ marginLeft: 'auto', alignItems: 'flex-end' }}>
                 <Text style={[styles.hPending, { color: colors.accentInk }]}>{report.pending}</Text>
-                <Text style={[styles.hPendingLabel, { color: colors.muted }]}>PENDING</Text>
+                <Text style={[styles.hPendingLabel, { color: colors.muted }]}>{t('eval.pending')}</Text>
               </View>
             </View>
           </View>
 
           {/* per-sentiment bars */}
           <View style={[styles.bars, { borderBottomColor: colors.divider }]}>
-            <Bar label="▲ BULLISH" stat={report.bullish} color={colors.bull} />
-            <Bar label="▼ BEARISH" stat={report.bearish} color={colors.bear} />
+            <Bar label={t('eval.bullish')} stat={report.bullish} color={colors.bull} />
+            <Bar label={t('eval.bearish')} stat={report.bearish} color={colors.bear} />
           </View>
 
           {/* recent calls */}
-          <Text style={[styles.recentLabel, { color: colors.muted }]}>RECENT CALLS</Text>
+          <Text style={[styles.recentLabel, { color: colors.muted }]}>{t('eval.recent')}</Text>
           {report.recent.map((e, i) => {
             const good = e.outcome === 'HIT';
             const bad = e.outcome === 'MISS';
@@ -114,7 +116,7 @@ export function EvaluationScreen({ navigation }: Props) {
           })}
 
           <Text style={[styles.footnote, { color: colors.faint }]}>
-            Small sample — for reference only. Not investment advice.
+            {t('eval.footnote')}
           </Text>
         </ScrollView>
       )}

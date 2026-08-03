@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { BottomTabNavigationOptions, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
 
+import { useI18n } from '../i18n/LanguageContext';
 import { FeedScreen } from '../screens/FeedScreen';
 import { PredictScreen } from '../screens/PredictScreen';
 import { ReportScreen } from '../screens/ReportScreen';
@@ -22,6 +23,7 @@ const ICONS: Record<string, IconName> = {
 
 export function Tabs() {
   const { colors } = useTheme();
+  const { t } = useI18n();
 
   const screenOptions = ({ route }: { route: { name: string } }): BottomTabNavigationOptions => ({
     headerShown: false,
@@ -33,6 +35,7 @@ export function Tabs() {
       borderTopWidth: 2,
     },
     tabBarLabelStyle: { fontSize: 10, fontWeight: '800' },
+    tabBarLabel: t(`tab.${route.name}`),
     tabBarIcon: ({ color, size }) => <Feather name={ICONS[route.name]} size={size - 2} color={color} />,
   });
 

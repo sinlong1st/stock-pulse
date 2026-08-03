@@ -13,6 +13,7 @@ import {
 } from '../data/api';
 import { Logo } from '../components/Logo';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { useI18n } from '../i18n/LanguageContext';
 import { useTheme } from '../theme/ThemeContext';
 import { checkForUpdate, versionLabel } from '../updates';
 
@@ -75,16 +76,9 @@ function ToggleRow({
   );
 }
 
-async function onCheckUpdate() {
-  const r = await checkForUpdate();
-  if (r === 'current') Alert.alert('Up to date', 'You’re on the latest version.');
-  else if (r === 'dev') Alert.alert('Dev mode', 'OTA updates only apply in a real (EAS) build.');
-  else if (r === 'error') Alert.alert('Couldn’t check', 'Try again in a moment.');
-}
-
 export function SettingsScreen() {
   const { colors, mode, toggle } = useTheme();
-  const [language, setLang] = useState('English');
+  const { t, language, setLanguage: setCtxLanguage } = useI18n();
   const [languages, setLanguages] = useState<Language[]>([]);
   const [channels, setChannels] = useState<Channels | null>(null);
   const [briefing, setBriefing] = useState<BriefingInfo | null>(null);
@@ -93,13 +87,19 @@ export function SettingsScreen() {
     if (usingMockData) return;
     fetchSettings()
       .then((s) => {
-        setLang(s.language);
         setLanguages(s.languages);
         setChannels(s.channels);
         setBriefing(s.briefing);
       })
       .catch(() => {});
   }, []);
+
+  const onCheckUpdate = async () => {
+    const r = await checkForUpdate();
+    if (r === 'current') Alert.alert(t('set.upToDate'), t('set.upToDateBody'));
+    else if (r === 'dev') Alert.alert(t('set.devMode'), t('set.devModeBody'));
+    else if (r === 'error') Alert.alert(t('set.checkErr'), t('set.checkErrBody'));
+  };
 
   const changeLanguage = () => {
     const opts = languages.length
@@ -108,19 +108,19 @@ export function SettingsScreen() {
           { code: 'en', name: 'English' },
           { code: 'vi', name: 'Vietnamese' },
         ];
-    Alert.alert('Output language', 'Applies to alerts and briefings.', [
+    Alert.alert(t('set.langTitle'), t('set.langBody'), [
       ...opts.map((l) => ({
         text: l.name,
         onPress: async () => {
           try {
             const r = await setLanguage(l.code);
-            setLang(r.language);
+            setCtxLanguage(r.language);
           } catch (e) {
-            Alert.alert('Couldn’t change language', e instanceof Error ? e.message : '');
+            Alert.alert(t('set.langErr'), e instanceof Error ? e.message : '');
           }
         },
       })),
-      { text: 'Cancel', style: 'cancel' as const },
+      { text: t('common.cancel'), style: 'cancel' as const },
     ]);
   };
 
@@ -138,13 +138,13 @@ export function SettingsScreen() {
 
   const briefingValue = briefing
     ? briefing.enabled
-      ? `Daily · ${briefing.morningAt}`
-      : 'Off'
+      ? `${t('set.briefingDaily')} · ${briefing.morningAt}`
+      : t('set.briefingOff')
     : '—';
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader kicker="ACCOUNT" title="Settings" />
+      <ScreenHeader kicker={t('set.kicker')} title={t('set.title')} />
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* profile */}
         <View style={[styles.profile, { borderBottomColor: colors.divider }]}>
@@ -160,37 +160,43 @@ export function SettingsScreen() {
           </View>
         </View>
 
-        <SectionLabel>NOTIFICATIONS</SectionLabel>
+        <SectionLabel>{t('set.notifications')}</SectionLabel>
         <ToggleRow
-          label="Push to this phone"
-          hint="Alerts on your lock screen"
+          label={t('set.push')}
+          hint={t('set.pushHint')}
           value={channels?.push.enabled ?? false}
           onValueChange={(v) => toggleChannel('push', v)}
         />
         <ToggleRow
-          label="Telegram"
-          hint={channels?.telegram.configured ? 'Also send alerts to Telegram' : 'Not set up on the server'}
+          label={t('set.telegram')}
+          hint={channels?.telegram.configured ? t('set.telegramOn') : t('set.telegramOff')}
           value={channels?.telegram.enabled ?? false}
           onValueChange={(v) => toggleChannel('telegram', v)}
           disabled={!channels?.telegram.configured}
         />
 
-        <SectionLabel>PREFERENCES</SectionLabel>
-        <Row label="Language" value={language} onPress={changeLanguage} />
+        <SectionLabel>{t('set.preferences')}</SectionLabel>
+        <Row label={t('set.language')} value={language} onPress={changeLanguage} />
         <Row
-          label="Briefing schedule"
+          label={t('set.briefing')}
           value={briefingValue}
           onPress={() =>
             Alert.alert(
-              'Briefing schedule',
+              t('set.briefing'),
               briefing
-                ? `Morning ${briefing.morningAt}, then every ${briefing.intradayEveryHours}h until ${briefing.intradayUntil}, wrap ${briefing.wrapAt} (${briefing.timezone}).\n\nEdited on the server for now.`
+                ? t('set.briefingDetail', {
+                    morning: briefing.morningAt,
+                    hours: briefing.intradayEveryHours,
+                    until: briefing.intradayUntil,
+                    wrap: briefing.wrapAt,
+                    tz: briefing.timezone,
+                  })
                 : '',
             )
           }
         />
         <View style={[styles.row, { borderTopColor: colors.divider }]}>
-          <Text style={[styles.rowLabel, { color: colors.text }]}>Dark theme</Text>
+          <Text style={[styles.rowLabel, { color: colors.text }]}>{t('set.darkTheme')}</Text>
           <Switch
             value={mode === 'dark'}
             onValueChange={toggle}
@@ -199,18 +205,18 @@ export function SettingsScreen() {
           />
         </View>
 
-        <SectionLabel>ACCOUNT</SectionLabel>
-        <Row label="Manage subscription" onPress={() => {}} />
-        <Row label="Check for updates" onPress={onCheckUpdate} />
-        <Row label="Sign out" onPress={() => {}} />
-        <Row label="Delete account" danger onPress={() => {}} />
+        <SectionLabel>{t('set.kicker')}</SectionLabel>
+        <Row label={t('set.manageSub')} onPress={() => {}} />
+        <Row label={t('set.checkUpdates')} onPress={onCheckUpdate} />
+        <Row label={t('set.signOut')} onPress={() => {}} />
+        <Row label={t('set.deleteAccount')} danger onPress={() => {}} />
 
         <View style={styles.brandRow}>
           <Logo size={13} color={colors.faint} />
           <Text style={[styles.version, { color: colors.faint }]}>StockPulse · {versionLabel()}</Text>
         </View>
         <Text style={[styles.disclaimer, { color: colors.faint }]}>
-          AI-generated summaries. Not investment advice.
+          {t('set.disclaimer')}
         </Text>
       </ScrollView>
     </View>

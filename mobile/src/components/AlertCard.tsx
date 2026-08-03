@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Alert } from '../data/types';
+import { useI18n } from '../i18n/LanguageContext';
 import { useTheme } from '../theme/ThemeContext';
 import { ImportanceMeter } from './ImportanceMeter';
 import { PriceLine } from './PriceLine';
@@ -11,6 +12,7 @@ import { CategoryTag, TickerChip } from './Tags';
 /** The workhorse Feed card — importance, category, summary, why, tickers, price. */
 export function AlertCard({ alert, onPress }: { alert: Alert; onPress?: () => void }) {
   const { colors } = useTheme();
+  const { t } = useI18n();
   return (
     <Pressable
       onPress={onPress}
@@ -31,7 +33,7 @@ export function AlertCard({ alert, onPress }: { alert: Alert; onPress?: () => vo
 
       {/* why it matters */}
       <View style={styles.whyRow}>
-        <Text style={[styles.whyTag, { color: colors.accentInk }]}>WHY</Text>
+        <Text style={[styles.whyTag, { color: colors.accentInk }]}>{t('feed.why')}</Text>
         <Text style={[styles.whyText, { color: colors.muted }]}>{alert.why}</Text>
       </View>
 

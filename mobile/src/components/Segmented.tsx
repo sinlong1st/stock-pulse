@@ -8,10 +8,12 @@ export function Segmented({
   options,
   value,
   onChange,
+  renderLabel,
 }: {
   options: string[];
   value: string;
   onChange: (v: string) => void;
+  renderLabel?: (v: string) => string;
 }) {
   const { colors } = useTheme();
   return (
@@ -28,7 +30,9 @@ export function Segmented({
               active && { backgroundColor: colors.accent },
             ]}
           >
-            <Text style={[styles.segText, { color: active ? colors.onAccent : colors.muted }]}>{opt}</Text>
+            <Text style={[styles.segText, { color: active ? colors.onAccent : colors.muted }]}>
+              {renderLabel ? renderLabel(opt) : opt}
+            </Text>
           </Pressable>
         );
       })}

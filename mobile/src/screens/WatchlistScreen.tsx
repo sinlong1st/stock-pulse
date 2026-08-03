@@ -16,11 +16,13 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { SentimentPill } from '../components/SentimentPill';
 import { addWatch, fetchWatchlist, removeWatch } from '../data/api';
 import { WatchRow } from '../data/types';
+import { useI18n } from '../i18n/LanguageContext';
 import { useTheme } from '../theme/ThemeContext';
 import { changeColor, formatChange } from '../theme/semantics';
 
 export function WatchlistScreen() {
   const { colors } = useTheme();
+  const { t } = useI18n();
   const [rows, setRows] = useState<WatchRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -36,7 +38,7 @@ export function WatchlistScreen() {
       setRows(await fetchWatchlist());
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Couldn’t load your watchlist.');
+      setError(e instanceof Error ? e.message : t('wl.loadErr'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -57,27 +59,27 @@ export function WatchlistScreen() {
         setAdding(false);
         await load(true);
       } else {
-        Alert.alert('Not added', res.reason ?? 'Could not add that stock.');
+        Alert.alert(t('wl.notAdded'), res.reason ?? t('wl.addErr'));
       }
     } catch (e) {
-      Alert.alert('Couldn’t add', e instanceof Error ? e.message : '');
+      Alert.alert(t('wl.addErr'), e instanceof Error ? e.message : '');
     } finally {
       setBusy(false);
     }
   };
 
   const confirmRemove = (w: WatchRow) => {
-    Alert.alert(`Remove ${w.ticker}?`, w.name ?? '', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('wl.removeTitle', { ticker: w.ticker }), w.name ?? '', [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Remove',
+        text: t('wl.remove'),
         style: 'destructive',
         onPress: async () => {
           try {
             await removeWatch(w.ticker);
             await load(true);
           } catch (e) {
-            Alert.alert('Couldn’t remove', e instanceof Error ? e.message : '');
+            Alert.alert(t('wl.removeErr'), e instanceof Error ? e.message : '');
           }
         },
       },
@@ -87,8 +89,8 @@ export function WatchlistScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader
-        kicker={rows.length ? `${rows.length} STOCKS` : 'WATCHLIST'}
-        title="Watchlist"
+        kicker={rows.length ? t('wl.count', { n: rows.length }) : t('wl.label')}
+        title={t('wl.title')}
         right={
           <Pressable
             onPress={() => setAdding((v) => !v)}
@@ -104,7 +106,7 @@ export function WatchlistScreen() {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Ticker or company, e.g. tesla"
+            placeholder={t('wl.addPlaceholder')}
             placeholderTextColor={colors.faint}
             autoCapitalize="none"
             autoCorrect={false}
@@ -123,7 +125,7 @@ export function WatchlistScreen() {
             {busy ? (
               <ActivityIndicator size="small" color={colors.onAccent} />
             ) : (
-              <Text style={[styles.addBtnText, { color: colors.onAccent }]}>Add</Text>
+              <Text style={[styles.addBtnText, { color: colors.onAccent }]}>{t('wl.add')}</Text>
             )}
           </Pressable>
         </View>
@@ -171,7 +173,7 @@ export function WatchlistScreen() {
             </Pressable>
           ))}
           <Text style={[styles.footer, { color: colors.faint }]}>
-            LONG-PRESS A ROW TO REMOVE · PULL TO REFRESH
+            {t('wl.footer')}
           </Text>
         </ScrollView>
       )}

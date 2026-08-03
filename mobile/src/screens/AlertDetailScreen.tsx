@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ImportanceMeter } from '../components/ImportanceMeter';
 import { SentimentPill } from '../components/SentimentPill';
 import { CategoryTag, TickerChip } from '../components/Tags';
+import { useI18n } from '../i18n/LanguageContext';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -14,6 +15,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'AlertDetail'>;
 
 export function AlertDetailScreen({ route, navigation }: Props) {
   const { colors } = useTheme();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const { alert } = route.params;
 
@@ -24,7 +26,7 @@ export function AlertDetailScreen({ route, navigation }: Props) {
         <Pressable onPress={() => navigation.goBack()} hitSlop={10}>
           <Feather name="arrow-left" size={22} color={colors.text} />
         </Pressable>
-        <Text style={[styles.topbarTitle, { color: colors.text }]}>Alert</Text>
+        <Text style={[styles.topbarTitle, { color: colors.text }]}>{t('alert.title')}</Text>
       </View>
 
       <ScrollView
@@ -35,7 +37,7 @@ export function AlertDetailScreen({ route, navigation }: Props) {
         <View style={styles.metaRow}>
           <ImportanceMeter level={alert.importance} />
           <CategoryTag label={alert.category} />
-          <Text style={[styles.time, { color: colors.faint }]}>{alert.time} ago</Text>
+          <Text style={[styles.time, { color: colors.faint }]}>{t('alert.ago', { time: alert.time })}</Text>
         </View>
 
         {/* headline */}
@@ -44,26 +46,26 @@ export function AlertDetailScreen({ route, navigation }: Props) {
         {/* sentiment + tickers */}
         <View style={styles.chips}>
           <SentimentPill value={alert.sentiment} />
-          {alert.tickers.map((t) => (
-            <TickerChip key={t} symbol={t} />
+          {alert.tickers.map((sym) => (
+            <TickerChip key={sym} symbol={sym} />
           ))}
         </View>
 
         <View style={[styles.rule, { backgroundColor: colors.divider }]} />
 
         {/* why it matters */}
-        <Text style={[styles.sectionLabel, { color: colors.accentInk }]}>WHY IT MATTERS</Text>
+        <Text style={[styles.sectionLabel, { color: colors.accentInk }]}>{t('alert.why')}</Text>
         <Text style={[styles.why, { color: colors.text }]}>{alert.why}</Text>
 
         {/* affected tickers */}
         {alert.tickers.length > 0 && (
           <>
             <Text style={[styles.sectionLabel, { color: colors.muted, marginTop: 20 }]}>
-              AFFECTED TICKERS
+              {t('alert.affected')}
             </Text>
             <View style={styles.tickerList}>
-              {alert.tickers.map((t) => (
-                <TickerChip key={t} symbol={t} />
+              {alert.tickers.map((sym) => (
+                <TickerChip key={sym} symbol={sym} />
               ))}
             </View>
           </>
@@ -76,14 +78,14 @@ export function AlertDetailScreen({ route, navigation }: Props) {
           </View>
           {alert.url ? (
             <Pressable style={styles.open} onPress={() => Linking.openURL(alert.url!)}>
-              <Text style={[styles.openText, { color: colors.accentInk }]}>Open</Text>
+              <Text style={[styles.openText, { color: colors.accentInk }]}>{t('alert.open')}</Text>
               <Feather name="external-link" size={13} color={colors.accentInk} />
             </Pressable>
           ) : null}
         </View>
 
         <Text style={[styles.disclaimer, { color: colors.faint }]}>
-          AI-generated summary. Not investment advice — verify against the source before acting.
+          {t('alert.disclaimer')}
         </Text>
       </ScrollView>
     </View>

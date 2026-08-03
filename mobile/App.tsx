@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
+import { LanguageProvider } from './src/i18n/LanguageContext';
 import { Tabs } from './src/navigation/Tabs';
 import { RootStackParamList } from './src/navigation/types';
 import { registerForPush } from './src/push';
@@ -52,7 +53,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <Root />
+        <LanguageProvider>
+          <Root />
+        </LanguageProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

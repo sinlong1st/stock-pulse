@@ -16,6 +16,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Segmented } from '../components/Segmented';
 import { fetchReport } from '../data/api';
 import { Report } from '../data/types';
+import { useI18n } from '../i18n/LanguageContext';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeContext';
 import { changeColor, formatChange, sentiment as sentimentOf } from '../theme/semantics';
@@ -25,6 +26,7 @@ const SINGLE = 'Single stock';
 
 export function ReportScreen() {
   const { colors } = useTheme();
+  const { t } = useI18n();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(false);
@@ -38,7 +40,7 @@ export function ReportScreen() {
     try {
       setReport(await fetchReport(scope === SINGLE ? ticker : undefined));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Couldn’t generate the briefing.');
+      setError(e instanceof Error ? e.message : t('report.genErr'));
     } finally {
       setLoading(false);
     }
@@ -49,8 +51,8 @@ export function ReportScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader
-        kicker="BRIEFING"
-        title="Report"
+        kicker={t('report.kicker')}
+        title={t('report.title')}
         right={
           <View style={styles.headerIcons}>
             {report && !loading ? (
@@ -67,12 +69,17 @@ export function ReportScreen() {
 
       {/* scope control */}
       <View style={styles.control}>
-        <Segmented options={[WHOLE, SINGLE]} value={scope} onChange={setScope} />
+        <Segmented
+          options={[WHOLE, SINGLE]}
+          value={scope}
+          onChange={setScope}
+          renderLabel={(v) => t(v === WHOLE ? 'report.whole' : 'report.single')}
+        />
         {scope === SINGLE && (
           <TextInput
             value={ticker}
             onChangeText={setTicker}
-            placeholder="Ticker or company, e.g. WDC or Tesla"
+            placeholder={t('report.tickerPlaceholder')}
             placeholderTextColor={colors.faint}
             autoCapitalize="characters"
             autoCorrect={false}
@@ -88,26 +95,25 @@ export function ReportScreen() {
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.accent} />
-          <Text style={[styles.centerTitle, { color: colors.text }]}>Generating your briefing…</Text>
+          <Text style={[styles.centerTitle, { color: colors.text }]}>{t('report.generating')}</Text>
           <Text style={[styles.centerBody, { color: colors.muted }]}>
-            Reading the latest news and pricing your watchlist — a few seconds.
+            {t('report.generatingBody')}
           </Text>
         </View>
       ) : error ? (
         <View style={styles.center}>
           <Feather name="alert-triangle" size={30} color={colors.accent} />
           <Text style={[styles.centerBody, { color: colors.muted }]}>{error}</Text>
-          <GenerateButton label="Try again" onPress={generate} />
+          <GenerateButton label={t('common.tryAgain')} onPress={generate} />
         </View>
       ) : !report ? (
         <View style={styles.center}>
           <Feather name="bar-chart-2" size={34} color={colors.muted} />
-          <Text style={[styles.centerTitle, { color: colors.text }]}>Today’s briefing</Text>
+          <Text style={[styles.centerTitle, { color: colors.text }]}>{t('report.emptyTitle')}</Text>
           <Text style={[styles.centerBody, { color: colors.muted }]}>
-            An AI analyst reads the latest news and tells you what matters
-            {scope === SINGLE ? ' for that stock.' : ' for your watchlist.'}
+            {scope === SINGLE ? t('report.emptyBodyStock') : t('report.emptyBodyWatchlist')}
           </Text>
-          <GenerateButton label="Generate briefing" onPress={generate} disabled={!canGenerate} />
+          <GenerateButton label={t('report.generate')} onPress={generate} disabled={!canGenerate} />
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
@@ -115,7 +121,7 @@ export function ReportScreen() {
             <Text style={[styles.note, { color: colors.muted }]}>{report.note}</Text>
           ) : (
             <View style={[styles.takeaway, { borderTopColor: colors.accent }]}>
-              <Text style={[styles.takeawayKicker, { color: colors.accentInk }]}>TODAY’S TAKEAWAY</Text>
+              <Text style={[styles.takeawayKicker, { color: colors.accentInk }]}>{t('report.takeaway')}</Text>
               <Text style={[styles.takeawayText, { color: colors.text }]}>{report.takeaway}</Text>
             </View>
           )}
@@ -139,7 +145,7 @@ export function ReportScreen() {
           {report.watchlist.length > 0 && (
             <>
               <View style={styles.watchHead}>
-                <Text style={[styles.watchLabel, { color: colors.muted }]}>WATCHLIST</Text>
+                <Text style={[styles.watchLabel, { color: colors.muted }]}>{t('report.watchlist')}</Text>
                 <Text style={[styles.watchFresh, { color: colors.faint }]}>
                   {report.watchlist[0]?.fresh ?? ''}
                 </Text>
@@ -165,7 +171,7 @@ export function ReportScreen() {
           )}
 
           <Text style={[styles.footnote, { color: colors.faint }]}>
-            AI-generated. Not investment advice.
+            {t('report.footnote')}
           </Text>
         </ScrollView>
       )}

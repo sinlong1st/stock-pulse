@@ -18,13 +18,16 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Segmented } from '../components/Segmented';
 import { fetchFeed, usingMockData } from '../data/api';
 import { Alert } from '../data/types';
+import { useI18n } from '../i18n/LanguageContext';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeContext';
 
 const FILTERS = ['All', 'Watchlist', 'Macro'] as const;
+const FILTER_KEY: Record<string, string> = { All: 'feed.all', Watchlist: 'feed.watchlist', Macro: 'feed.macro' };
 
 export function FeedScreen() {
   const { colors } = useTheme();
+  const { t } = useI18n();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [filter, setFilter] = useState<string>('All');
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -71,8 +74,8 @@ export function FeedScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader
         showLogo
-        kicker={usingMockData ? 'STOCKPULSE · SAMPLE DATA' : 'STOCKPULSE'}
-        title="Feed"
+        kicker={usingMockData ? t('feed.sample') : 'STOCKPULSE'}
+        title={t('feed.title')}
         right={
           <View style={styles.icons}>
             <Feather
@@ -98,7 +101,7 @@ export function FeedScreen() {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search tickers, keywords…"
+            placeholder={t('feed.search')}
             placeholderTextColor={colors.faint}
             autoFocus
             autoCorrect={false}
@@ -112,29 +115,34 @@ export function FeedScreen() {
         </View>
       ) : (
         <View style={styles.filterRow}>
-          <Segmented options={[...FILTERS]} value={filter} onChange={setFilter} />
+          <Segmented
+            options={[...FILTERS]}
+            value={filter}
+            onChange={setFilter}
+            renderLabel={(v) => t(FILTER_KEY[v])}
+          />
         </View>
       )}
 
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.accent} />
-          <Text style={[styles.centerText, { color: colors.muted }]}>FETCHING LATEST</Text>
+          <Text style={[styles.centerText, { color: colors.muted }]}>{t('feed.fetching')}</Text>
         </View>
       ) : error ? (
         <View style={styles.center}>
           <Feather name="alert-triangle" size={34} color={colors.accent} />
-          <Text style={[styles.centerTitle, { color: colors.text }]}>Couldn’t reach the feed</Text>
+          <Text style={[styles.centerTitle, { color: colors.text }]}>{t('feed.errTitle')}</Text>
           <Text style={[styles.centerBody, { color: colors.muted }]}>{error}</Text>
         </View>
       ) : data.length === 0 ? (
         <View style={styles.center}>
           <Feather name={query ? 'search' : 'bell'} size={34} color={colors.muted} />
           <Text style={[styles.centerTitle, { color: colors.text }]}>
-            {query ? 'No matches' : 'All caught up'}
+            {query ? t('feed.noMatch') : t('feed.caughtUp')}
           </Text>
           <Text style={[styles.centerBody, { color: colors.muted }]}>
-            {query ? `Nothing matches “${query.trim()}”.` : 'No alerts that matter right now. Pull to refresh.'}
+            {query ? t('feed.noMatchBody', { q: query.trim() }) : t('feed.caughtUpBody')}
           </Text>
         </View>
       ) : (
