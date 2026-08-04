@@ -43,11 +43,6 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
     en: 'Ticker or company, e.g. WDC or Tesla',
     vi: 'Mã hoặc tên, vd WDC hoặc Tesla',
   },
-  'report.generating': { en: 'Generating your briefing…', vi: 'Đang tạo bản tin…' },
-  'report.generatingBody': {
-    en: 'Reading the latest news and pricing your watchlist — a few seconds.',
-    vi: 'Đang đọc tin mới và cập nhật giá — mất vài giây.',
-  },
   'report.emptyTitle': { en: 'Today’s briefing', vi: 'Bản tin hôm nay' },
   'report.emptyBodyWatchlist': {
     en: 'An AI analyst reads the latest news and tells you what matters for your watchlist.',
@@ -58,6 +53,7 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
     vi: 'AI đọc tin mới nhất và cho biết điều gì quan trọng với cổ phiếu đó.',
   },
   'report.generate': { en: 'Generate briefing', vi: 'Tạo bản tin' },
+  'report.regenerate': { en: 'Re-generate', vi: 'Tạo mới' },
   'report.takeaway': { en: 'TODAY’S TAKEAWAY', vi: 'ĐIỂM CHÍNH HÔM NAY' },
   'report.watchlist': { en: 'WATCHLIST', vi: 'DANH MỤC' },
   'report.footnote': { en: 'AI-generated. Not investment advice.', vi: 'Do AI tạo. Không phải lời khuyên đầu tư.' },
@@ -114,8 +110,51 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   'set.checkErr': { en: 'Couldn’t check', vi: 'Không kiểm tra được' },
   'set.checkErrBody': { en: 'Try again in a moment.', vi: 'Thử lại sau giây lát.' },
 
+  // terminal loading screen (Report + Predict)
+  'loader.channel': { en: 'STOCKPULSE // ANALYST LINK', vi: 'STOCKPULSE // KÊNH PHÂN TÍCH' },
+  'loader.active': { en: 'ACTIVE', vi: 'ĐANG CHẠY' },
+  'loader.stream': { en: 'LIVE STREAM', vi: 'LUỒNG TRỰC TIẾP' },
+  'loader.rec': { en: 'REC', vi: 'REC' },
+  'loader.working': { en: 'Working', vi: 'Đang xử lý' },
+  'loader.doNotClose': { en: 'DO NOT CLOSE THE APP', vi: 'ĐỪNG ĐÓNG ỨNG DỤNG' },
+  'loader.abort': { en: 'ABORT SEQUENCE', vi: 'HUỶ TIẾN TRÌNH' },
+
+  // report loader
+  'loader.report.scramble': { en: 'GENERATING', vi: 'ĐANG TẠO' },
+  'loader.report.headline': { en: 'YOUR BRIEFING', vi: 'BẢN TIN CỦA BẠN' },
+  'loader.report.kicker': { en: 'BRIEFING · ON DEMAND', vi: 'BẢN TIN · THEO YÊU CẦU' },
+  'loader.report.step1': { en: 'Reading the wire', vi: 'Đọc tin mới' },
+  'loader.report.step2': { en: 'Pricing your watchlist', vi: 'Cập nhật giá danh mục' },
+  'loader.report.step3': { en: 'Scoring what matters', vi: 'Chấm điểm mức quan trọng' },
+  'loader.report.step4': { en: 'Writing the briefing', vi: 'Soạn bản tin' },
+  'loader.report.log1': { en: 'pulling headlines · reuters', vi: 'tải tiêu đề · reuters' },
+  'loader.report.log2': { en: 'dedupe wire copy', vi: 'lọc tin trùng lặp' },
+  'loader.report.log3': { en: 'price check · watchlist', vi: 'kiểm tra giá · danh mục' },
+  'loader.report.log4': { en: 'sentiment pass', vi: 'phân tích sắc thái' },
+  'loader.report.log5': { en: 'rank signal strength', vi: 'xếp hạng tín hiệu' },
+  'loader.report.log6': { en: 'cross-ref filings', vi: 'đối chiếu hồ sơ' },
+  'loader.report.log7': { en: 'watchlist delta computed', vi: 'tính biến động danh mục' },
+  'loader.report.log8': { en: 'drafting briefing', vi: 'soạn thảo bản tin' },
+
+  // predict loader
+  'loader.predict.scramble': { en: 'PREDICTING', vi: 'ĐANG DỰ ĐOÁN' },
+  'loader.predict.kicker': { en: 'AI · FORWARD-LOOKING', vi: 'AI · DỰ BÁO' },
+  'loader.predict.step1': { en: 'Fetching price bars', vi: 'Tải dữ liệu giá' },
+  'loader.predict.step2': { en: 'Computing signals', vi: 'Tính toán tín hiệu' },
+  'loader.predict.step3': { en: 'Finding support levels', vi: 'Tìm vùng hỗ trợ' },
+  'loader.predict.step4': { en: 'Writing the read', vi: 'Viết nhận định' },
+  'loader.predict.log1': { en: 'fetch daily bars · 6mo', vi: 'tải nến ngày · 6 tháng' },
+  'loader.predict.log2': { en: 'range low/high computed', vi: 'tính đỉnh/đáy khoảng' },
+  'loader.predict.log3': { en: 'trend: short vs long MA', vi: 'xu hướng: MA ngắn/dài' },
+  'loader.predict.log4': { en: 'scanning swing lows', vi: 'quét đáy dao động' },
+  'loader.predict.log5': { en: 'support levels ranked', vi: 'xếp hạng vùng hỗ trợ' },
+  'loader.predict.log6': { en: 'pulling fresh headlines', vi: 'tải tin mới nhất' },
+  'loader.predict.log7': { en: 'strategy lens applied', vi: 'áp dụng chiến lược' },
+  'loader.predict.log8': { en: 'validating AI output', vi: 'kiểm tra kết quả AI' },
+
   // watchlist quick-picker (Report + Predict)
   'picker.label': { en: 'FROM YOUR WATCHLIST', vi: 'TỪ DANH MỤC CỦA BẠN' },
+  'picker.less': { en: 'Less', vi: 'Thu gọn' },
 
   // predict
   'predict.kicker': { en: 'AI · FORWARD-LOOKING', vi: 'AI · DỰ BÁO' },

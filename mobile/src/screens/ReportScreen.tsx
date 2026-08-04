@@ -1,9 +1,8 @@
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import React, { useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,10 +11,11 @@ import {
   View,
 } from 'react-native';
 
+import { HackerLoader } from '../components/HackerLoader';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Segmented } from '../components/Segmented';
 import { WatchlistPicker } from '../components/WatchlistPicker';
-import { fetchReport } from '../data/api';
+import { fetchReport, isAborted } from '../data/api';
 import { Report } from '../data/types';
 import { useI18n } from '../i18n/LanguageContext';
 import { RootStackParamList } from '../navigation/types';
@@ -35,17 +35,35 @@ export function ReportScreen() {
   const [scope, setScope] = useState<string>(WHOLE);
   const [ticker, setTicker] = useState('');
 
+  const abort = useRef<AbortController | null>(null);
+
   const generate = async () => {
+    abort.current?.abort(); // a re-tap replaces the in-flight run
+    const ctrl = new AbortController();
+    abort.current = ctrl;
     setLoading(true);
     setError(null);
     try {
-      setReport(await fetchReport(scope === SINGLE ? ticker : undefined));
+      setReport(await fetchReport(scope === SINGLE ? ticker : undefined, ctrl.signal));
     } catch (e) {
+      if (isAborted(e)) return; // cancelled on purpose — leave the screen as it was
       setError(e instanceof Error ? e.message : t('report.genErr'));
     } finally {
-      setLoading(false);
+      if (abort.current === ctrl) {
+        abort.current = null;
+        setLoading(false);
+      }
     }
   };
+
+  const loaderSteps = useMemo(
+    () => [1, 2, 3, 4].map((n) => t(`loader.report.step${n}`)),
+    [t],
+  );
+  const loaderLogs = useMemo(
+    () => [1, 2, 3, 4, 5, 6, 7, 8].map((n) => t(`loader.report.log${n}`)),
+    [t],
+  );
 
   const canGenerate = scope === WHOLE || ticker.trim().length > 0;
 
@@ -57,8 +75,15 @@ export function ReportScreen() {
         right={
           <View style={styles.headerIcons}>
             {report && !loading ? (
-              <Pressable onPress={generate} hitSlop={10}>
-                <Feather name="refresh-cw" size={20} color={colors.text} />
+              <Pressable
+                onPress={generate}
+                hitSlop={8}
+                style={[styles.regen, { borderColor: colors.accent }]}
+              >
+                <Feather name="refresh-cw" size={13} color={colors.accent} />
+                <Text style={[styles.regenText, { color: colors.accent }]}>
+                  {t('report.regenerate')}
+                </Text>
               </Pressable>
             ) : null}
             <Pressable onPress={() => navigation.navigate('Evaluation')} hitSlop={10}>
@@ -96,15 +121,7 @@ export function ReportScreen() {
         )}
       </View>
 
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.accent} />
-          <Text style={[styles.centerTitle, { color: colors.text }]}>{t('report.generating')}</Text>
-          <Text style={[styles.centerBody, { color: colors.muted }]}>
-            {t('report.generatingBody')}
-          </Text>
-        </View>
-      ) : error ? (
+      {error ? (
         <View style={styles.center}>
           <Feather name="alert-triangle" size={30} color={colors.accent} />
           <Text style={[styles.centerBody, { color: colors.muted }]}>{error}</Text>
@@ -179,6 +196,20 @@ export function ReportScreen() {
           </Text>
         </ScrollView>
       )}
+
+      <HackerLoader
+        visible={loading}
+        kicker={t('loader.report.kicker')}
+        scrambleWord={t('loader.report.scramble')}
+        headline={scope === SINGLE && ticker.trim() ? ticker.trim().toUpperCase() : t('loader.report.headline')}
+        steps={loaderSteps}
+        logLines={loaderLogs}
+        onCancel={() => {
+          abort.current?.abort();
+          abort.current = null;
+          setLoading(false);
+        }}
+      />
     </View>
   );
 }
@@ -206,7 +237,16 @@ function GenerateButton({
 }
 
 const styles = StyleSheet.create({
-  headerIcons: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  headerIcons: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  regen: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  regenText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
   control: { paddingHorizontal: 16, paddingVertical: 10, gap: 10 },
   input: { borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontWeight: '600' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },

@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/modernist-51f3ec96-6d6c-4c5d-a781-9f6da6c21c37/styles.css">
+<script src="_ds/modernist-51f3ec96-6d6c-4c5d-a781-9f6da6c21c37/_ds_bundle.js"></script>
+<style>
+  :root {
+    --color-accent: #2f5aa8;
+    --color-accent-100: #eef2fa;
+    --color-accent-200: #d7e1f4;
+    --color-accent-300: #b3c6e8;
+    --color-accent-400: #7e9cd2;
+    --color-accent-500: #6b90d6;
+    --color-accent-600: #26497f;
+    --color-accent-700: #244784;
+    --color-accent-800: #1b3562;
+    --color-accent-900: #152742;
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #dedbd9; }
+  a { color: var(--color-accent); }
+  a:hover { color: var(--color-accent-700); }
+  @keyframes blink { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 } }
+  @keyframes scan { 0% { transform: translateY(-20%) } 100% { transform: translateY(860px) } }
+  @keyframes drift { 0% { background-position: 0 0 } 100% { background-position: 0 -240px } }
+</style>
+</helmet>
+
+<section style="padding:48px;display:flex;flex-direction:column;gap:24px;font-family:var(--font-body)">
+  <div style="display:flex;align-items:baseline;gap:16px;border-bottom:2px solid var(--color-divider);padding-bottom:12px">
+    <span style="font-family:var(--font-heading);font-weight:800;font-size:13px;letter-spacing:0.08em;text-transform:uppercase">Turn 2 — In your Report screen</span>
+    <span style="font-size:13px;color:var(--color-neutral-600)">Same chrome as the briefing screen, #2f5aa8 accent. The loader owns the content area only.</span>
+  </div>
+
+  <div style="display:flex;gap:40px;flex-wrap:wrap;align-items:flex-start">
+
+    <div id="2a" style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="background:var(--color-accent);color:#fff;font-family:var(--font-heading);font-weight:800;font-size:12px;letter-spacing:0.08em;padding:3px 8px">2A</span>
+        <span style="font-family:var(--font-heading);font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:0.04em">Working terminal (in place)</span>
+      </div>
+      <div style="position:relative;width:390px;height:844px;background:var(--color-bg);border:2px solid var(--color-neutral-400);overflow:hidden;color:var(--color-text);display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px 8px;font-size:13px;font-weight:600">
+          <span>4:16</span><span style="color:var(--color-neutral-700)">▮▮ ▲ ▮</span>
+        </div>
+        <div style="padding:4px 16px 10px;border-bottom:2px solid var(--color-neutral-400)">
+          <div style="font-size:11px;font-weight:800;letter-spacing:0.14em;color:var(--color-accent)">BRIEFING</div>
+          <div style="font-family:var(--font-heading);font-weight:800;font-size:34px;letter-spacing:-0.03em;line-height:1.1">Report</div>
+        </div>
+        <div style="display:flex;margin:14px 16px 0;border:2px solid var(--color-neutral-400);width:max-content">
+          <div style="background:var(--color-accent);color:#fff;font-weight:700;font-size:14px;padding:8px 14px">Whole watchlist</div>
+          <div style="background:#fff;color:var(--color-neutral-700);font-weight:600;font-size:14px;padding:8px 14px;border-left:2px solid var(--color-neutral-400)">Single stock</div>
+        </div>
+
+        <div style="margin:20px 16px 0;border-top:2px solid var(--color-text);padding-top:14px">
+          <div style="display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;letter-spacing:0.14em;color:var(--color-accent)">
+            <span style="animation:blink 1s steps(1) infinite">●</span><span>{{ briefScramble }}</span>
+          </div>
+          <div style="font-family:var(--font-heading);font-weight:800;font-size:30px;line-height:1.05;letter-spacing:-0.025em;margin-top:8px">Generating your<br>briefing…</div>
+          <div style="font-size:14px;line-height:1.5;color:var(--color-neutral-700);margin-top:8px">Reading the latest news and pricing your watchlist — a few seconds.</div>
+        </div>
+
+        <div style="margin:18px 16px 0;display:flex;flex-direction:column">
+          <sc-for list="{{ steps }}" as="s" hint-placeholder-count="4">
+            <div style="display:flex;gap:12px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--color-neutral-300);font-size:14px;color:{{ s.c }};font-weight:{{ s.w }}">
+              <span style="flex:0 0 14px">{{ s.mark }}</span><span>{{ s.label }}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="margin:16px 16px 0;background:#111010;color:#8d8784;padding:12px 14px;height:156px;overflow:hidden;font-size:11px;line-height:20px;font-variant-numeric:tabular-nums">
+          <div style="color:#6b90d6;font-weight:800;letter-spacing:0.14em;margin-bottom:4px">ANALYST LOG · {{ headlines }} HEADLINES</div>
+          <sc-for list="{{ feedLogs }}" as="l" hint-placeholder-count="8">
+            <div style="display:flex;gap:10px;color:{{ l.c }};white-space:nowrap">
+              <span style="color:#5f5a58;flex:0 0 42px">{{ l.t }}</span><span style="overflow:hidden;text-overflow:ellipsis">{{ l.x }}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="margin:14px 16px 0">
+          <div style="height:12px;background:var(--color-neutral-300);position:relative;overflow:hidden">
+            <div style="height:100%;background:var(--color-accent);width:{{ pctW }}"></div>
+            <div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 7px,var(--color-bg) 7px 9px)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;gap:12px;margin:8px 0 14px;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-neutral-700);font-variant-numeric:tabular-nums;white-space:nowrap">
+            <span style="white-space:nowrap">{{ pctStr }}% · {{ elapsed }}</span><span style="white-space:nowrap">ETA {{ eta }}</span>
+          </div>
+        </div>
+
+        <div style="margin-top:auto;display:flex;border-top:2px solid var(--color-neutral-400);background:#fff;padding:10px 8px 20px">
+          <div style="flex:1;text-align:center;font-size:12px;font-weight:600;color:var(--color-neutral-700)">Feed</div>
+          <div style="flex:1;text-align:center;font-size:12px;font-weight:800;color:var(--color-accent)">Report</div>
+          <div style="flex:1;text-align:center;font-size:12px;font-weight:600;color:var(--color-neutral-700)">Predict</div>
+          <div style="flex:1;text-align:center;font-size:12px;font-weight:600;color:var(--color-neutral-700)">Watchlist</div>
+          <div style="flex:1;text-align:center;font-size:12px;font-weight:600;color:var(--color-neutral-700)">Settings</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="2b" style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="background:var(--color-accent);color:#fff;font-family:var(--font-heading);font-weight:800;font-size:12px;letter-spacing:0.08em;padding:3px 8px">2B</span>
+        <span style="font-family:var(--font-heading);font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:0.04em">Dark takeover (chrome stays)</span>
+      </div>
+      <div style="position:relative;width:390px;height:844px;background:var(--color-bg);border:2px solid var(--color-neutral-400);overflow:hidden;color:var(--color-text);display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px 8px;font-size:13px;font-weight:600">
+          <span>4:16</span><span style="color:var(--color-neutral-700)">▮▮ ▲ ▮</span>
+        </div>
+        <div style="padding:4px 16px 10px;border-bottom:2px solid var(--color-neutral-400)">
+          <div style="font-size:11px;font-weight:800;letter-spacing:0.14em;color:var(--color-accent)">BRIEFING</div>
+          <div style="font-family:var(--font-heading);font-weight:800;font-size:34px;letter-spacing:-0.03em;line-height:1.1">Report</div>
+        </div>
+
+        <div style="position:relative;flex:1;background:#111010;color:#e6e2df;overflow:hidden;display:flex;flex-direction:column">
+          <div style="position:absolute;inset:0;background:repeating-linear-gradient(180deg,rgba(255,255,255,0.05) 0 1px,transparent 1px 3px);pointer-events:none;z-index:3"></div>
+          <div style="position:absolute;left:0;right:0;height:120px;background:linear-gradient(180deg,transparent,rgba(107,144,214,0.20),transparent);animation:scan 4.2s linear infinite;pointer-events:none;z-index:2"></div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:2px solid var(--color-accent);font-size:11px;letter-spacing:0.14em;text-transform:uppercase">
+            <span style="color:#8d8784">WATCHLIST · 12 TICKERS</span>
+            <span style="color:#9db6e2;animation:blink 1s steps(1) infinite">LIVE</span>
+          </div>
+
+          <div style="padding:22px 16px 0">
+            <div style="font-family:var(--font-heading);font-weight:800;font-size:34px;line-height:0.98;letter-spacing:-0.025em;color:#9db6e2;min-height:70px">{{ briefScramble }}<br>YOUR BRIEFING</div>
+            <div style="font-size:13px;line-height:1.5;color:#8d8784;margin-top:10px">Reading the wire, pricing every position, keeping only what moves you.</div>
+          </div>
+
+          <div style="margin:18px 16px 0;border-top:1px solid rgba(255,255,255,0.16)">
+            <sc-for list="{{ steps }}" as="s" hint-placeholder-count="4">
+              <div style="display:flex;gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.12);font-size:13px;color:{{ s.dc }};font-weight:{{ s.w }}">
+                <span style="flex:0 0 14px">{{ s.mark }}</span><span>{{ s.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="padding:14px 16px 0;font-size:11px;line-height:18px;height:126px;overflow:hidden;font-variant-numeric:tabular-nums">
+            <sc-for list="{{ feedShort }}" as="l" hint-placeholder-count="5">
+              <div style="display:flex;gap:10px;color:#8d8784;white-space:nowrap">
+                <span style="color:#5f5a58;flex:0 0 42px">{{ l.t }}</span><span style="overflow:hidden;text-overflow:ellipsis">{{ l.x }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="margin-top:auto;padding:14px 16px 18px;border-top:2px solid rgba(255,255,255,0.18);position:relative;z-index:4">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+              <span style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#8d8784">{{ headlines }} headlines read</span>
+              <span style="font-family:var(--font-heading);font-weight:800;font-size:20px;color:#9db6e2;font-variant-numeric:tabular-nums">{{ pctStr }}%</span>
+            </div>
+            <div style="height:14px;background:rgba(255,255,255,0.1);position:relative;overflow:hidden">
+              <div style="height:100%;background:var(--color-accent-500);width:{{ pctW }}"></div>
+              <div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 9px,#111010 9px 12px)"></div>
+            </div>
+            <button class="btn btn-block" style="margin-top:12px;justify-content:flex-start;border:2px solid rgba(255,255,255,0.3);color:#e6e2df;height:44px;letter-spacing:0.12em;font-size:12px" style-hover="background:rgba(107,144,214,0.18)">CANCEL</button>
+          </div>
+        </div>
+
+        <div style="display:flex;border-top:2px solid var(--color-neutral-400);background:#fff;padding:10px 8px 20px">
+          <div style="flex:1;text-align:center;font-size:12px;font-weight:600;color:var(--color-neutral-700)">Feed</div>
+          <div style="flex:1;text-align:center;font-size:12px;font-weight:800;color:var(--color-accent)">Report</div>
+          <div style="flex:1;text-align:center;font-size:12px;font-weight:600;color:var(--color-neutral-700)">Predict</div>
+          <div style="flex:1;text-align:center;font-size:12px;font-weight:600;color:var(--color-neutral-700)">Watchlist</div>
+          <div style="flex:1;text-align:center;font-size:12px;font-weight:600;color:var(--color-neutral-700)">Settings</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section style="padding:48px;display:flex;flex-direction:column;gap:24px;font-family:var(--font-body)">
+  <div style="display:flex;align-items:baseline;gap:16px;border-bottom:2px solid var(--color-divider);padding-bottom:12px">
+    <span style="font-family:var(--font-heading);font-weight:800;font-size:13px;letter-spacing:0.08em;text-transform:uppercase">Turn 1 — Loading screens</span>
+    <span style="font-size:13px;color:var(--color-neutral-600)">Three directions, all self-animating — no assets needed.</span>
+  </div>
+
+  <div style="display:flex;gap:40px;flex-wrap:wrap;align-items:flex-start">
+
+    <div id="1a" style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="background:var(--color-accent);color:#fff;font-family:var(--font-heading);font-weight:800;font-size:12px;letter-spacing:0.08em;padding:3px 8px">1A</span>
+        <span style="font-family:var(--font-heading);font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:0.04em">Blackout terminal</span>
+      </div>
+      <div style="position:relative;width:390px;height:844px;background:#111010;border:2px solid var(--color-text);overflow:hidden;color:#e6e2df">
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(180deg,rgba(255,255,255,0.05) 0 1px,transparent 1px 3px);pointer-events:none;z-index:6"></div>
+        <div style="position:absolute;left:0;right:0;height:120px;background:linear-gradient(180deg,transparent,rgba(107,144,214,0.20),transparent);animation:scan 4.2s linear infinite;pointer-events:none;z-index:5"></div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px 10px;font-size:12px;font-weight:600;letter-spacing:0.04em">
+          <span>9:41</span>
+          <span style="color:var(--color-accent-500)">▮▮▮ ▲ ▮</span>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:0 20px 10px;border-bottom:2px solid var(--color-accent);font-size:11px;letter-spacing:0.14em;text-transform:uppercase">
+          <span style="color:#8d8784">SYS-77 // SECURE CHANNEL</span>
+          <span style="color:var(--color-accent-500)">ACTIVE</span>
+        </div>
+
+        <div style="padding:26px 20px 0">
+          <div style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#8d8784;margin-bottom:10px">Handshake 04 of 12</div>
+          <div style="font-family:var(--font-heading);font-weight:800;font-size:46px;line-height:0.94;letter-spacing:-0.02em;color:var(--color-accent-500);min-height:88px">{{ scramble }}<br>KEYS</div>
+        </div>
+
+        <div style="margin:18px 20px 0;border:2px solid var(--color-accent);position:relative">
+          <div style="display:flex;justify-content:space-between;align-items:center;background:var(--color-accent);color:#fff;padding:4px 8px;font-size:10px;font-weight:800;letter-spacing:0.16em">
+            <span>SUBJECT UNKNOWN</span>
+            <span style="animation:blink 1s steps(1) infinite">REC</span>
+          </div>
+          <div style="display:grid;grid-template-columns:64px 1fr;gap:8px 12px;padding:12px;font-size:11px;letter-spacing:0.1em;align-items:center">
+            <span style="color:#5f5a58">NAME</span><span style="height:11px;background:#3a3634;width:78%"></span>
+            <span style="color:#5f5a58">CELL</span><span style="height:11px;background:#3a3634;width:54%"></span>
+            <span style="color:#5f5a58">LOC</span><span style="height:11px;background:#3a3634;width:66%"></span>
+            <span style="color:#5f5a58">HASH</span><span style="color:var(--color-accent-500);overflow:hidden;white-space:nowrap;font-variant-numeric:tabular-nums">{{ hash }}</span>
+          </div>
+          <div style="border-top:2px solid rgba(255,255,255,0.14);padding:10px 12px;font-size:12px;line-height:18px;letter-spacing:0.14em;color:var(--color-neutral-600);height:110px;overflow:hidden">
+            <sc-for list="{{ rows }}" as="r" hint-placeholder-count="9">
+              <div style="white-space:nowrap;color:{{ r.d }}">{{ r.x }}</div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="padding:16px 20px 0;display:flex;flex-direction:column;gap:3px;font-size:11px;letter-spacing:0.02em;font-variant-numeric:tabular-nums">
+          <sc-for list="{{ logs }}" as="l" hint-placeholder-count="7">
+            <div style="display:flex;gap:10px;color:{{ l.c }}">
+              <span style="color:#5f5a58;flex:0 0 46px">{{ l.t }}</span>
+              <span style="flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">{{ l.x }}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="position:absolute;left:0;right:0;bottom:0;padding:16px 20px 24px;border-top:2px solid rgba(255,255,255,0.18);background:#111010;z-index:7">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+            <span style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#8d8784">Transfer</span>
+            <span style="font-family:var(--font-heading);font-weight:800;font-size:22px;font-variant-numeric:tabular-nums;color:var(--color-accent-500)">{{ pctStr }}%</span>
+          </div>
+          <div style="height:16px;background:rgba(255,255,255,0.1);position:relative;overflow:hidden">
+            <div style="height:100%;background:var(--color-accent);width:{{ pctW }}"></div>
+            <div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 9px,#111010 9px 12px)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:11px;color:#8d8784;font-variant-numeric:tabular-nums">
+            <span>{{ rate }} MB/S</span>
+            <span>ETA {{ eta }}</span>
+          </div>
+          <button class="btn btn-block" style="margin-top:14px;justify-content:flex-start;border:2px solid var(--color-accent);color:var(--color-accent-500);height:48px;letter-spacing:0.14em;font-size:13px" style-hover="background:rgba(107,144,214,0.18)">ABORT SEQUENCE</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="1b" style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="background:var(--color-accent);color:#fff;font-family:var(--font-heading);font-weight:800;font-size:12px;letter-spacing:0.08em;padding:3px 8px">1B</span>
+        <span style="font-family:var(--font-heading);font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:0.04em">Paper terminal</span>
+      </div>
+      <div style="position:relative;width:390px;height:844px;background:var(--color-bg);border:2px solid var(--color-text);overflow:hidden;color:var(--color-text);display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px 10px;font-size:12px;font-weight:600">
+          <span>9:41</span>
+          <span>▮▮▮ ▲ ▮</span>
+        </div>
+
+        <div style="padding:0 20px 12px;border-bottom:2px solid var(--color-text);display:flex;justify-content:space-between;align-items:baseline;font-size:11px;letter-spacing:0.14em;text-transform:uppercase">
+          <span>NODE / {{ node }}</span>
+          <span style="color:var(--color-accent-700)">NO EXIT</span>
+        </div>
+
+        <div style="padding:22px 20px 0">
+          <div style="font-family:var(--font-heading);font-weight:800;font-size:150px;line-height:0.8;letter-spacing:-0.05em;font-variant-numeric:tabular-nums;color:var(--color-accent)">{{ pctStr }}</div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;border-top:2px solid var(--color-text);padding-top:8px">
+            <span style="font-family:var(--font-heading);font-weight:800;font-size:20px;text-transform:uppercase;letter-spacing:-0.01em">Establishing<br>secure link</span>
+            <span style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-600)">AES-256</span>
+          </div>
+        </div>
+
+        <div style="margin:18px 20px 0;border:2px solid var(--color-text);padding:12px 14px;background:var(--color-surface);font-size:13px;line-height:1.5;letter-spacing:0.06em;color:var(--color-neutral-800);height:210px;overflow:hidden;font-variant-numeric:tabular-nums">
+          <sc-for list="{{ rows }}" as="r" hint-placeholder-count="9">
+            <div style="white-space:nowrap;color:{{ r.c }}">{{ r.x }}</div>
+          </sc-for>
+        </div>
+
+        <div style="padding:16px 20px 0;display:flex;flex-direction:column;gap:6px">
+          <sc-for list="{{ shortLogs }}" as="l" hint-placeholder-count="3">
+            <div style="display:flex;gap:10px;font-size:12px;border-bottom:1px solid var(--color-neutral-300);padding-bottom:5px;font-variant-numeric:tabular-nums">
+              <span style="flex:0 0 48px;color:var(--color-neutral-600)">{{ l.t }}</span>
+              <span style="flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">{{ l.x }}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="margin-top:auto;padding:16px 20px 24px">
+          <div style="height:14px;background:var(--color-neutral-300);position:relative;overflow:hidden;border:2px solid var(--color-text)">
+            <div style="height:100%;background:var(--color-accent);width:{{ pctW }}"></div>
+            <div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 7px,var(--color-bg) 7px 9px)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-neutral-700)">
+            <span>{{ elapsed }} ELAPSED</span>
+            <span>DO NOT CLOSE</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="1c" style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="background:var(--color-accent);color:#fff;font-family:var(--font-heading);font-weight:800;font-size:12px;letter-spacing:0.08em;padding:3px 8px">1C</span>
+        <span style="font-family:var(--font-heading);font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:0.04em">Takeover modal</span>
+      </div>
+      <div style="position:relative;width:390px;height:844px;background:var(--color-bg);border:2px solid var(--color-text);overflow:hidden;color:var(--color-text)">
+        <div style="filter:blur(2px);opacity:0.5">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px 10px;font-size:12px;font-weight:600">
+            <span>9:41</span><span>▮▮▮ ▲ ▮</span>
+          </div>
+          <div style="padding:0 20px 12px;border-bottom:2px solid var(--color-text);font-family:var(--font-heading);font-weight:800;font-size:24px">Vault</div>
+          <div style="padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+            <div style="height:88px;background:var(--color-surface);border:2px solid var(--color-neutral-300)"></div>
+            <div style="height:88px;background:var(--color-surface);border:2px solid var(--color-neutral-300)"></div>
+            <div style="height:88px;background:var(--color-surface);border:2px solid var(--color-neutral-300)"></div>
+            <div style="height:88px;background:var(--color-surface);border:2px solid var(--color-neutral-300)"></div>
+            <div style="height:88px;background:var(--color-surface);border:2px solid var(--color-neutral-300)"></div>
+          </div>
+        </div>
+
+        <div style="position:absolute;inset:0;background:rgba(17,16,16,0.82)"></div>
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(180deg,rgba(255,255,255,0.05) 0 1px,transparent 1px 3px);pointer-events:none"></div>
+
+        <div style="position:absolute;left:16px;right:16px;top:150px;background:#111010;border:2px solid var(--color-accent);color:#e6e2df">
+          <div style="display:flex;justify-content:space-between;align-items:center;background:var(--color-accent);color:#fff;padding:7px 12px;font-size:11px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase">
+            <span>Intrusion in progress</span>
+            <span style="animation:blink 1s steps(1) infinite">●</span>
+          </div>
+
+          <div style="padding:12px 14px;border-bottom:2px solid rgba(255,255,255,0.14);font-size:13px;line-height:20px;letter-spacing:0.14em;color:var(--color-neutral-600);height:144px;overflow:hidden;font-variant-numeric:tabular-nums">
+            <sc-for list="{{ rows }}" as="r" hint-placeholder-count="9">
+              <div style="white-space:nowrap;color:{{ r.d }}">{{ r.x }}</div>
+            </sc-for>
+          </div>
+
+          <div style="padding:16px 16px 0">
+            <div style="font-family:var(--font-heading);font-weight:800;font-size:30px;line-height:1;letter-spacing:-0.02em;min-height:60px">{{ scramble }}<br>THE VAULT</div>
+            <div style="font-size:12px;line-height:1.5;color:#8d8784;margin-top:10px">Do not lock your phone. The session dies with the screen.</div>
+          </div>
+
+          <div style="padding:14px 16px 0;display:flex;flex-direction:column;gap:3px;font-size:11px;font-variant-numeric:tabular-nums">
+            <sc-for list="{{ modalLogs }}" as="l" hint-placeholder-count="4">
+              <div style="display:flex;gap:10px;color:{{ l.c }}">
+                <span style="color:#5f5a58;flex:0 0 46px">{{ l.t }}</span>
+                <span style="flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">{{ l.x }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="padding:16px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#8d8784">
+              <span>Layer 3 of 5</span>
+              <span style="color:var(--color-accent-500);font-family:var(--font-heading);font-weight:800;font-size:18px">{{ pctStr }}%</span>
+            </div>
+            <div style="height:14px;background:rgba(255,255,255,0.1);position:relative;overflow:hidden">
+              <div style="height:100%;background:var(--color-accent);width:{{ pctW }}"></div>
+              <div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 9px,#111010 9px 12px)"></div>
+            </div>
+            <button class="btn btn-block" style="margin-top:14px;justify-content:flex-start;background:var(--color-accent);color:#fff;height:48px;letter-spacing:0.14em;font-size:13px" style-hover="background:var(--color-accent-600)">KILL SESSION</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1360,&quot;height&quot;:1000}}">
+const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&/\\<>*+=";
+const HEX = "0123456789ABCDEF";
+const LINES = [
+  "port 443 :: handshake ok",
+  "spoofing mac 8c:2d:aa:71",
+  "bypass tarpit -> route 12",
+  "reading sector 0x4f21",
+  "key fragment 7/12 recovered",
+  "tunnel rekeyed",
+  "trace null — you are nobody",
+  "dumping shadow table",
+  "peer 194.68.11.4 accepted",
+  "checksum mismatch, retry",
+  "entropy pool refilled",
+  "hop 6 cleared, latency 41ms",
+  "certificate pinned",
+  "wiping local trace log",
+];
+const FEED = [
+  "pull 42 headlines · reuters",
+  "dedupe wire copy · 6 dropped",
+  "price check NVDA 1,204.11",
+  "sentiment pass · AAPL +0.31",
+  "earnings calendar · 3 hits",
+  "cross-ref 8-K filings",
+  "rank signal strength",
+  "price check TSLA 241.80",
+  "summarize cluster 04/07",
+  "watchlist delta computed",
+  "options flow · unusual: AMD",
+  "drafting briefing section 2",
+];
+const STEPS = ["Reading the wire", "Pricing your watchlist", "Scoring what matters", "Writing the briefing"];
+const rnd = a => a[Math.floor(Math.random() * a.length)];
+
+class Component extends DCLogic {
+  state = { tick: 0, pct: 0, logs: [], feed: [], seed: 0 };
+
+  componentDidMount() {
+    this.iv = setInterval(() => {
+      this.setState(s => {
+        let pct = s.pct + (Math.random() < 0.12 ? 0 : Math.random() * 1.6);
+        if (pct >= 100) pct = 0;
+        let logs = s.logs, feed = s.feed;
+        if (s.tick % 5 === 0) {
+          const mm = String(Math.floor(s.tick / 60) % 60).padStart(2, "0");
+          const ss = String(s.tick % 60).padStart(2, "0");
+          logs = logs.concat([{ t: mm + ":" + ss, x: rnd(LINES), k: s.tick }]).slice(-9);
+          feed = feed.concat([{ t: mm + ":" + ss, x: rnd(FEED), k: s.tick }]).slice(-8);
+        }
+        return { tick: s.tick + 1, pct, logs, feed, seed: Math.random() };
+      });
+    }, 110);
+  }
+  componentWillUnmount() { clearInterval(this.iv); }
+
+  scramble(word) {
+    const p = Math.min(1, (this.state.tick % 40) / 22);
+    const n = Math.floor(word.length * p);
+    return word.split("").map((c, i) => (i < n ? c : rnd(CHARS.split("")))).join("");
+  }
+
+  renderVals() {
+    const { pct, tick, logs, feed } = this.state;
+    const active = Math.min(3, Math.floor(pct / 25));
+    const steps = STEPS.map((label, i) => ({
+      k: i,
+      label,
+      mark: i < active ? "✓" : i === active ? "▸" : "·",
+      c: i < active ? "var(--color-neutral-600)" : i === active ? "var(--color-accent)" : "var(--color-neutral-400)",
+      w: i === active ? "800" : "500",
+      dc: i < active ? "#8d8784" : i === active ? "#9db6e2" : "#4f4a48",
+    }));
+    const acc = "#7e9cd2", dim = "#8d8784";
+    const marked = logs.map((l, i) => ({ ...l, c: i === logs.length - 1 ? acc : dim }));
+    const rows = [];
+    for (let r = 0; r < 9; r++) {
+      let s = "";
+      for (let i = 0; i < 22; i++) s += (Math.random() < 0.5 ? rnd(HEX.split("")) : rnd(CHARS.split(""))) + (i % 2 ? " " : "");
+      const hot = r === (tick % 9);
+      rows.push({ x: s, c: hot ? "var(--color-accent)" : "var(--color-neutral-700)", d: hot ? acc : "#4f4a48", k: r });
+    }
+    const secs = tick / 9.1;
+    return {
+      pctStr: String(Math.floor(pct)).padStart(2, "0"),
+      pctW: pct.toFixed(1) + "%",
+      scramble: this.scramble("DECRYPTING"),
+      logs: marked,
+      modalLogs: marked.slice(-4),
+      shortLogs: logs.slice(-3).map(l => ({ ...l })),
+      rows,
+      rate: (3 + (tick % 17) / 4).toFixed(1),
+      eta: "00:" + String(Math.max(3, Math.floor((100 - pct) / 3.4))).padStart(2, "0"),
+      elapsed: String(Math.floor(secs / 60)).padStart(2, "0") + ":" + String(Math.floor(secs % 60)).padStart(2, "0"),
+      node: "0x" + (0x4a21 + (tick % 97)).toString(16).toUpperCase(),
+      hash: Array.from({ length: 9 }, () => rnd(HEX.split(""))).join("") + "…",
+      steps,
+      feedLogs: feed.map((l, i) => ({ ...l, c: i === feed.length - 1 ? acc : dim, lc: i === feed.length - 1 ? "var(--color-text)" : "var(--color-neutral-600)" })),
+      feedShort: feed.slice(-5).map(l => ({ ...l })),
+      briefScramble: this.scramble("GENERATING"),
+      headlines: 18 + (tick % 31),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

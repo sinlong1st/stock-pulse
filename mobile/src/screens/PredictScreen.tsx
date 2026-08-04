@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -12,12 +12,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { HackerLoader } from '../components/HackerLoader';
 import { MiniBars } from '../components/MiniBars';
 import { PriceChart } from '../components/PriceChart';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Segmented } from '../components/Segmented';
 import { WatchlistPicker } from '../components/WatchlistPicker';
-import { fetchPrediction, Lean, Prediction, PredictionHorizon } from '../data/api';
+import { fetchPrediction, isAborted, Lean, Prediction, PredictionHorizon } from '../data/api';
 import { useI18n } from '../i18n/LanguageContext';
 import { ThemeColors } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
@@ -95,14 +96,21 @@ export function PredictScreen() {
   // Last query that produced a read, so a language switch can re-ask the backend.
   const lastQuery = useRef<string | null>(null);
 
+  const abort = useRef<AbortController | null>(null);
+
   const run = useCallback(
-    async (q?: string) => {
+    /** `silent` refreshes in the background — no takeover loader. Used by the
+     *  language switch, which the user didn't ask to wait for. */
+    async (q?: string, { silent = false }: { silent?: boolean } = {}) => {
       const term = (q ?? query).trim();
       if (!term) return;
-      setLoading(true);
+      abort.current?.abort(); // a new ticker replaces the in-flight run
+      const ctrl = new AbortController();
+      abort.current = ctrl;
+      if (!silent) setLoading(true);
       setError(null);
       try {
-        const p = await fetchPrediction(term);
+        const p = await fetchPrediction(term, ctrl.signal);
         if (p.ok) {
           setPred(p);
           lastQuery.current = term;
@@ -111,12 +119,22 @@ export function PredictScreen() {
           setError(p.reason ?? t('predict.genErr'));
         }
       } catch (e) {
+        if (isAborted(e)) return; // cancelled on purpose — keep the current read
         setError(e instanceof Error ? e.message : t('predict.genErr'));
       } finally {
-        setLoading(false);
+        if (abort.current === ctrl) {
+          abort.current = null;
+          if (!silent) setLoading(false);
+        }
       }
     },
     [query, t],
+  );
+
+  const loaderSteps = useMemo(() => [1, 2, 3, 4].map((n) => t(`loader.predict.step${n}`)), [t]);
+  const loaderLogs = useMemo(
+    () => [1, 2, 3, 4, 5, 6, 7, 8].map((n) => t(`loader.predict.log${n}`)),
+    [t],
   );
 
   // Up to three levels each; older payloads only carry the single near/long.
@@ -129,7 +147,7 @@ export function PredictScreen() {
   useEffect(() => {
     if (fetchedLang.current === language) return;
     fetchedLang.current = language;
-    if (lastQuery.current) run(lastQuery.current);
+    if (lastQuery.current) run(lastQuery.current, { silent: true });
   }, [language, run]);
 
   return (
@@ -321,6 +339,20 @@ export function PredictScreen() {
           <Text style={[styles.disclaimer, { color: colors.faint }]}>{pred.disclaimer}</Text>
         </ScrollView>
       )}
+
+      <HackerLoader
+        visible={loading}
+        kicker={t('loader.predict.kicker')}
+        scrambleWord={t('loader.predict.scramble')}
+        headline={query.trim().toUpperCase() || t('predict.title')}
+        steps={loaderSteps}
+        logLines={loaderLogs}
+        onCancel={() => {
+          abort.current?.abort();
+          abort.current = null;
+          setLoading(false);
+        }}
+      />
 
       {/* strategy modal */}
       <Modal visible={modal} transparent animationType="fade" onRequestClose={() => setModal(false)}>

@@ -15,6 +15,16 @@ function requireBackend() {
   if (!API_BASE_URL) throw new Error('No backend configured (running on sample data).');
 }
 
+/** Thrown when the caller aborted the request — callers should stay silent. */
+export class AbortedError extends Error {
+  constructor() {
+    super('aborted');
+    this.name = 'AbortedError';
+  }
+}
+
+export const isAborted = (e: unknown) => e instanceof AbortedError;
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
@@ -26,7 +36,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
         ...(init?.headers ?? {}),
       },
     });
-  } catch {
+  } catch (e) {
+    // A cancel is not a failure — don't dress it up as an unreachable server.
+    if (init?.signal?.aborted || (e as Error)?.name === 'AbortError') throw new AbortedError();
     throw new Error(`Can't reach ${base()} — is Tailscale ON and the URL right?`);
   }
   if (res.status === 401) {
@@ -38,7 +50,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-const getJson = <T>(path: string) => request<T>(path);
+const getJson = <T>(path: string, signal?: AbortSignal) => request<T>(path, { signal });
 
 export async function fetchFeed(limit = 30): Promise<Alert[]> {
   if (!API_BASE_URL) return mockAlerts;
@@ -54,10 +66,10 @@ export async function fetchWatchlist(): Promise<WatchRow[]> {
 
 /** Generate a briefing on the server (one OpenAI call) — trigger on demand.
  * Pass a query (ticker or company name) for a focused single-stock report. */
-export async function fetchReport(query?: string): Promise<Report> {
+export async function fetchReport(query?: string, signal?: AbortSignal): Promise<Report> {
   if (!API_BASE_URL) return mockReport;
   const q = query?.trim() ? `?q=${encodeURIComponent(query.trim())}` : '';
-  return getJson<Report>(`/api/report${q}`);
+  return getJson<Report>(`/api/report${q}`, signal);
 }
 
 // --- settings + watchlist mutations ---------------------------------------
@@ -183,9 +195,9 @@ export type Prediction = {
   disclaimer?: string;
 };
 
-export async function fetchPrediction(query: string): Promise<Prediction> {
+export async function fetchPrediction(query: string, signal?: AbortSignal): Promise<Prediction> {
   if (!API_BASE_URL) return mockPrediction;
-  return getJson<Prediction>(`/api/predict?q=${encodeURIComponent(query.trim())}`);
+  return getJson<Prediction>(`/api/predict?q=${encodeURIComponent(query.trim())}`, signal);
 }
 
 export async function registerPushToken(token: string, platform?: string): Promise<void> {
