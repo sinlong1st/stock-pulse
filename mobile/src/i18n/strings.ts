@@ -116,6 +116,7 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   'loader.stream': { en: 'LIVE STREAM', vi: 'LUỒNG TRỰC TIẾP' },
   'loader.rec': { en: 'REC', vi: 'REC' },
   'loader.working': { en: 'Working', vi: 'Đang xử lý' },
+  'loader.complete': { en: 'COMPLETE', vi: 'HOÀN TẤT' },
   'loader.doNotClose': { en: 'DO NOT CLOSE THE APP', vi: 'ĐỪNG ĐÓNG ỨNG DỤNG' },
   'loader.abort': { en: 'ABORT SEQUENCE', vi: 'HUỶ TIẾN TRÌNH' },
 

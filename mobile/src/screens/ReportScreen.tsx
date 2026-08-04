@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 
-import { HackerLoader } from '../components/HackerLoader';
+import { HackerLoader, LoaderPhase } from '../components/HackerLoader';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Segmented } from '../components/Segmented';
 import { WatchlistPicker } from '../components/WatchlistPicker';
@@ -30,8 +30,9 @@ export function ReportScreen() {
   const { t } = useI18n();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [report, setReport] = useState<Report | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [phase, setPhase] = useState<LoaderPhase>('idle');
   const [error, setError] = useState<string | null>(null);
+  const loading = phase !== 'idle';
   const [scope, setScope] = useState<string>(WHOLE);
   const [ticker, setTicker] = useState('');
 
@@ -41,18 +42,17 @@ export function ReportScreen() {
     abort.current?.abort(); // a re-tap replaces the in-flight run
     const ctrl = new AbortController();
     abort.current = ctrl;
-    setLoading(true);
+    setPhase('running');
     setError(null);
     try {
       setReport(await fetchReport(scope === SINGLE ? ticker : undefined, ctrl.signal));
+      if (abort.current === ctrl) setPhase('done'); // loader runs the bar to 100%
     } catch (e) {
       if (isAborted(e)) return; // cancelled on purpose — leave the screen as it was
       setError(e instanceof Error ? e.message : t('report.genErr'));
+      if (abort.current === ctrl) setPhase('idle'); // a failure earns no fanfare
     } finally {
-      if (abort.current === ctrl) {
-        abort.current = null;
-        setLoading(false);
-      }
+      if (abort.current === ctrl) abort.current = null;
     }
   };
 
@@ -198,7 +198,8 @@ export function ReportScreen() {
       )}
 
       <HackerLoader
-        visible={loading}
+        phase={phase}
+        onDone={() => setPhase('idle')}
         kicker={t('loader.report.kicker')}
         scrambleWord={t('loader.report.scramble')}
         headline={scope === SINGLE && ticker.trim() ? ticker.trim().toUpperCase() : t('loader.report.headline')}
@@ -207,7 +208,7 @@ export function ReportScreen() {
         onCancel={() => {
           abort.current?.abort();
           abort.current = null;
-          setLoading(false);
+          setPhase('idle');
         }}
       />
     </View>

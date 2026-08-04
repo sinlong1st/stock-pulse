@@ -72,8 +72,20 @@ function palette(dark: boolean) {
       };
 }
 
+/** How long the 100% + COMPLETE beat holds before the loader gets out of the way. */
+const FINISH_RAMP_MS = 260;
+const FINISH_HOLD_MS = 240;
+
+export type LoaderPhase = 'idle' | 'running' | 'done';
+
 export type HackerLoaderProps = {
-  visible: boolean;
+  /**
+   * `running` = estimating; `done` = the response landed, so drive the bar to
+   * 100%, tick every step, then call `onDone`. Errors and cancels go straight
+   * back to `idle` — they never earn the completion beat.
+   */
+  phase: LoaderPhase;
+  onDone?: () => void;
   /** Word that scrambles into place, e.g. "GENERATING". */
   scrambleWord: string;
   /** Static second line under it, e.g. "YOUR BRIEFING". */
@@ -88,7 +100,8 @@ export type HackerLoaderProps = {
 };
 
 export function HackerLoader({
-  visible,
+  phase,
+  onDone,
   scrambleWord,
   headline,
   kicker,
@@ -96,6 +109,8 @@ export function HackerLoader({
   logLines,
   onCancel,
 }: HackerLoaderProps) {
+  const visible = phase !== 'idle';
+  const finishing = phase === 'done';
   const { mode } = useTheme();
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
@@ -106,6 +121,11 @@ export function HackerLoader({
   const [pct, setPct] = useState(0);
   const [logs, setLogs] = useState<{ t: string; x: string; k: number }[]>([]);
   const beam = useRef(new Animated.Value(0)).current;
+  const pctRef = useRef(0);
+  pctRef.current = pct;
+  // Callers pass an inline arrow; keep the finish timers off its identity.
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
   // Reset between runs so a second generate doesn't resume the old progress.
   useEffect(() => {
@@ -117,7 +137,7 @@ export function HackerLoader({
   }, [visible]);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || finishing) return;
     const iv = setInterval(() => {
       setTick((s) => s + 1);
       // Ease out: quick at first, crawling near the end — an honest shape for
@@ -125,7 +145,26 @@ export function HackerLoader({
       setPct((p) => (p >= MAX_FAKE_PCT ? p : p + Math.max(0.15, (MAX_FAKE_PCT - p) * 0.012)));
     }, TICK_MS);
     return () => clearInterval(iv);
-  }, [visible]);
+  }, [visible, finishing]);
+
+  // The response landed: run the bar home to 100, hold a beat, then hand back.
+  useEffect(() => {
+    if (!finishing) return;
+    const startedAt = Date.now();
+    const from = pctRef.current;
+    const ramp = setInterval(() => {
+      const k = Math.min(1, (Date.now() - startedAt) / FINISH_RAMP_MS);
+      setPct(from + (100 - from) * k);
+      if (k >= 1) clearInterval(ramp);
+    }, 16);
+    const hand = setTimeout(() => onDoneRef.current?.(), FINISH_RAMP_MS + FINISH_HOLD_MS);
+    return () => {
+      clearInterval(ramp);
+      clearTimeout(hand);
+    };
+    // `pct` and `onDone` are read through refs so the ramp runs exactly once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finishing]);
 
   // Append a log line every ~5 ticks, keeping a fixed-height window.
   useEffect(() => {
@@ -172,7 +211,10 @@ export function HackerLoader({
     return rows;
   }, [tick]);
 
-  const activeStep = Math.min(steps.length - 1, Math.floor((pct / MAX_FAKE_PCT) * steps.length));
+  // On finish every step reads as done — activeStep past the end.
+  const activeStep = finishing
+    ? steps.length
+    : Math.min(steps.length - 1, Math.floor((pct / MAX_FAKE_PCT) * steps.length));
   const blinkOn = tick % 9 < 5;
   const elapsed = (tick * TICK_MS) / 1000;
   const stamp = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(
@@ -303,8 +345,8 @@ export function HackerLoader({
           ]}
         >
           <View style={styles.footerTop}>
-            <Text style={[styles.footerLabel, { color: c.dim }]}>
-              {t('loader.working')} · {stamp}
+            <Text style={[styles.footerLabel, { color: finishing ? c.accent : c.dim }]}>
+              {finishing ? t('loader.complete') : `${t('loader.working')} · ${stamp}`}
             </Text>
             <Text style={[styles.pct, { color: c.accent }]}>
               {String(Math.floor(pct)).padStart(2, '0')}%
@@ -325,7 +367,8 @@ export function HackerLoader({
 
           <Text style={[styles.doNotClose, { color: c.faint }]}>{t('loader.doNotClose')}</Text>
 
-          {onCancel ? (
+          {/* Nothing left to abort once the response is in. */}
+          {onCancel && !finishing ? (
             <Pressable
               onPress={onCancel}
               style={[styles.abort, { borderColor: c.accent }]}

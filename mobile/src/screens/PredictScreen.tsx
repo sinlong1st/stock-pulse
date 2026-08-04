@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { HackerLoader } from '../components/HackerLoader';
+import { HackerLoader, LoaderPhase } from '../components/HackerLoader';
 import { MiniBars } from '../components/MiniBars';
 import { PriceChart } from '../components/PriceChart';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -89,8 +89,9 @@ export function PredictScreen() {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [pred, setPred] = useState<Prediction | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [phase, setPhase] = useState<LoaderPhase>('idle');
   const [error, setError] = useState<string | null>(null);
+  const loading = phase !== 'idle';
   const [modal, setModal] = useState(false);
   const [range, setRange] = useState('3M');
   // Last query that produced a read, so a language switch can re-ask the backend.
@@ -107,25 +108,27 @@ export function PredictScreen() {
       abort.current?.abort(); // a new ticker replaces the in-flight run
       const ctrl = new AbortController();
       abort.current = ctrl;
-      if (!silent) setLoading(true);
+      if (!silent) setPhase('running');
       setError(null);
       try {
         const p = await fetchPrediction(term, ctrl.signal);
+        const mine = abort.current === ctrl;
         if (p.ok) {
           setPred(p);
           lastQuery.current = term;
+          // Only a visible run gets the 100% beat; a silent refresh never showed.
+          if (mine && !silent) setPhase('done');
         } else {
           setPred(null);
           setError(p.reason ?? t('predict.genErr'));
+          if (mine && !silent) setPhase('idle');
         }
       } catch (e) {
         if (isAborted(e)) return; // cancelled on purpose — keep the current read
         setError(e instanceof Error ? e.message : t('predict.genErr'));
+        if (abort.current === ctrl && !silent) setPhase('idle'); // no fanfare on failure
       } finally {
-        if (abort.current === ctrl) {
-          abort.current = null;
-          if (!silent) setLoading(false);
-        }
+        if (abort.current === ctrl) abort.current = null;
       }
     },
     [query, t],
@@ -341,7 +344,8 @@ export function PredictScreen() {
       )}
 
       <HackerLoader
-        visible={loading}
+        phase={phase}
+        onDone={() => setPhase('idle')}
         kicker={t('loader.predict.kicker')}
         scrambleWord={t('loader.predict.scramble')}
         headline={query.trim().toUpperCase() || t('predict.title')}
@@ -350,7 +354,7 @@ export function PredictScreen() {
         onCancel={() => {
           abort.current?.abort();
           abort.current = null;
-          setLoading(false);
+          setPhase('idle');
         }}
       />
 
