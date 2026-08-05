@@ -71,27 +71,31 @@ export function EarningsRowView({ row }: { row: EarningsRow }) {
       <Text style={[styles.ticker, { color: colors.text }]}>{row.ticker}</Text>
 
       <View style={styles.mid}>
-        <View style={styles.line}>
-          <Text style={[styles.lineLabel, { color: colors.faint }]}>
-            {reported ? t('earn.reportedLabel') : t('earn.nextLabel')}
+        {/* Labels are inline spans, not a fixed-width column — a column sized
+            for "NEXT" breaks longer labels like "ĐÃ CÔNG BỐ" across two lines. */}
+        <Text style={[styles.next, { color: colors.text }]}>
+          <Text style={[styles.inlineLabel, { color: colors.faint }]}>
+            {(reported ? t('earn.reportedLabel') : t('earn.nextLabel')) + '  '}
           </Text>
           {when ? (
-            <Text style={[styles.next, { color: colors.text }]}>
+            <>
               {when}
               {rel ? <Text style={{ color: colors.faint }}> · {rel}</Text> : null}
               {!reported && row.nextIsEstimate ? (
                 <Text style={{ color: colors.faint }}> · {t('earn.estimated')}</Text>
               ) : null}
-            </Text>
+            </>
           ) : (
-            <Text style={[styles.next, { color: colors.faint }]}>{t('earn.noDate')}</Text>
+            <Text style={{ color: colors.faint }}>{t('earn.noDate')}</Text>
           )}
-        </View>
+        </Text>
 
         {hasResult ? (
           <View style={styles.line}>
-            <Text style={[styles.lineLabel, { color: colors.faint }]}>{t('earn.quarterLabel')}</Text>
             <Text style={[styles.eps, { color: colors.muted }]}>
+              <Text style={[styles.inlineLabel, { color: colors.faint }]}>
+                {t('earn.lastLabel') + '  '}
+              </Text>
               {quarter ? `${t('earn.qEnded', { d: quarter })} · ` : ''}
               {t('earn.eps')} {row.epsActual?.toFixed(2)} {t('earn.vs')}{' '}
               {row.epsEstimate?.toFixed(2)} {t('earn.est')}
@@ -154,10 +158,12 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 10, paddingVertical: 10, borderBottomWidth: 1 },
   ticker: { fontSize: 12.5, fontWeight: '800', width: 46, paddingTop: 1 },
   mid: { flex: 1, gap: 4 },
-  line: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  lineLabel: { fontSize: 8.5, fontWeight: '900', letterSpacing: 0.7, width: 42 },
+  line: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  inlineLabel: { fontSize: 8.5, fontWeight: '900', letterSpacing: 0.7 },
   next: { fontSize: 12, fontWeight: '700' },
-  eps: { fontSize: 10.5 },
+  // flexShrink keeps the verdict badge on this line instead of bumping it down
+  // whenever the EPS text runs long.
+  eps: { fontSize: 10.5, flexShrink: 1 },
   badge: { paddingHorizontal: 7, paddingVertical: 3 },
   badgeText: { fontSize: 9.5, fontWeight: '900', letterSpacing: 0.3 },
   chip: {
