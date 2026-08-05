@@ -128,6 +128,72 @@ def test_custom_strategy_without_translation_falls_back() -> None:
     assert mine.display(vi=True) == ("My value lens", "Buy fear.")
 
 
+async def test_build_prediction_records_the_read_when_given_a_session(monkeypatch) -> None:
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from app.db.database import Base
+    from app.db.models import PredictionRow
+    from app.status import PRED_SOURCE_PREDICT
+
+    engine = create_engine("sqlite:///:memory:", future=True)
+    Base.metadata.create_all(engine)
+    _wire(monkeypatch)
+
+    with sessionmaker(bind=engine, expire_on_commit=False)() as session:
+        out = await svc.build_prediction(
+            Settings(_env_file=None), query="wdc", analyst=_FakeAnalyst(), session=session
+        )
+        rows = session.query(PredictionRow).all()
+
+    assert out["ok"] is True
+    assert len(rows) == 1  # the fake analyst returns a single 1w horizon
+    assert rows[0].source == PRED_SOURCE_PREDICT
+    assert rows[0].strategy_id == "default"
+    assert rows[0].ticker == "WDC"
+    assert rows[0].baseline_price == 110.0  # the raw price, not the display string
+
+
+async def test_recording_failure_never_costs_the_user_the_prediction(monkeypatch) -> None:
+    """Bookkeeping is best-effort — a broken session must not fail the request."""
+    _wire(monkeypatch)
+
+    class _BrokenSession:
+        def commit(self):
+            raise RuntimeError("db is on fire")
+
+        def rollback(self):
+            pass
+
+    def boom(*a, **kw):
+        raise RuntimeError("db is on fire")
+
+    monkeypatch.setattr(svc, "record_prediction_read", boom)
+    out = await svc.build_prediction(
+        Settings(_env_file=None), query="wdc", analyst=_FakeAnalyst(), session=_BrokenSession()
+    )
+    assert out["ok"] is True and out["ticker"] == "WDC"
+
+
+async def test_recording_can_be_switched_off(monkeypatch) -> None:
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from app.db.database import Base
+    from app.db.models import PredictionRow
+
+    engine = create_engine("sqlite:///:memory:", future=True)
+    Base.metadata.create_all(engine)
+    _wire(monkeypatch)
+
+    settings = Settings(_env_file=None, prediction_recording_enabled=False)
+    with sessionmaker(bind=engine, expire_on_commit=False)() as session:
+        await svc.build_prediction(
+            settings, query="wdc", analyst=_FakeAnalyst(), session=session
+        )
+        assert session.query(PredictionRow).count() == 0
+
+
 async def test_build_prediction_unknown_ticker(monkeypatch) -> None:
     monkeypatch.setattr(svc, "resolve_focus", lambda q: FocusTarget(q, None, None, q))
 
@@ -160,7 +226,7 @@ def test_predict_endpoint_404_when_disabled(monkeypatch) -> None:
 
 
 def test_predict_endpoint_200(monkeypatch) -> None:
-    async def fake_build(settings, *, query):
+    async def fake_build(settings, *, query, session=None):
         return {"ok": True, "ticker": query.upper()}
 
     monkeypatch.setattr(main, "build_prediction", fake_build)

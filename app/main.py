@@ -308,7 +308,10 @@ async def api_predict(
         raise HTTPException(status_code=404, detail="Not found")
     if not q or not q.strip():
         raise HTTPException(status_code=400, detail="Missing ?q=<ticker or name>")
-    return await build_prediction(settings, query=q)
+    # The session lets the read be recorded for later scoring (per-strategy
+    # accuracy); build_prediction treats that as best-effort.
+    with SessionLocal() as session:
+        return await build_prediction(settings, query=q, session=session)
 
 
 class LanguageBody(BaseModel):

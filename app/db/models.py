@@ -80,23 +80,36 @@ class AlertRow(Base):
 
 
 class PredictionRow(Base):
-    """The `predictions` table: one row per (classification, ticker, horizon).
+    """The `predictions` table: one directional call, scored later against price.
 
-    Records the AI's directional call with a baseline price at classify
-    time, then (in the evaluation step) the price at the horizon and the
-    scored outcome.
+    Two kinds of row live here, told apart by `source`:
+
+    - ``news`` — from the classification pipeline: one per (classification,
+      ticker, horizon), carrying `classification_id`/`article_id`/`importance`.
+    - ``predict`` — from the Predict tab: one per (ticker, horizon), carrying
+      `strategy_id`/`confidence` and no article at all.
+
+    They share a table because the scoring is identical — a direction, a
+    baseline price and a deadline — so both feed one evaluation loop.
     """
 
     __tablename__ = "predictions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    classification_id: Mapped[int] = mapped_column(
-        ForeignKey("classifications.id", ondelete="CASCADE"), index=True
+    # Null for `predict` rows: a forward-looking read has no source article.
+    classification_id: Mapped[int | None] = mapped_column(
+        ForeignKey("classifications.id", ondelete="CASCADE"), index=True, nullable=True
     )
-    article_id: Mapped[int] = mapped_column(index=True)
+    article_id: Mapped[int | None] = mapped_column(index=True, nullable=True)
+    source: Mapped[str] = mapped_column(String(16), default="news", index=True)
     ticker: Mapped[str] = mapped_column(String(16), index=True)
     sentiment: Mapped[str] = mapped_column(String(16))
-    importance: Mapped[str] = mapped_column(String(16))
+    # `news` rows only — how big a deal the article was.
+    importance: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # `predict` rows only — which lens made the call, and how sure it was. The
+    # strategy id is what makes per-strategy accuracy possible.
+    strategy_id: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
+    confidence: Mapped[str | None] = mapped_column(String(16), nullable=True)
     horizon: Mapped[str] = mapped_column(String(8))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     evaluate_after: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)

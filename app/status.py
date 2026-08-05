@@ -18,6 +18,12 @@ PRED_PENDING = "PENDING_EVAL"
 PRED_EVALUATED = "EVALUATED"
 PRED_SKIPPED = "SKIPPED"
 
+# Which pipeline produced a prediction row. `news` = the classification pipeline
+# (has an article); `predict` = the Predict tab's forward-looking read (has a
+# strategy). Both are scored by the same loop.
+PRED_SOURCE_NEWS = "news"
+PRED_SOURCE_PREDICT = "predict"
+
 # Prediction outcomes.
 OUTCOME_HIT = "HIT"
 OUTCOME_MISS = "MISS"

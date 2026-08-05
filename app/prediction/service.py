@@ -13,6 +13,7 @@ from app.briefing.retrieval import retrieve_fresh_news
 from app.commands.symbols import resolve_symbol
 from app.config import Settings, get_settings, resolve_briefing_timezone
 from app.earnings import fetch_many, local_today
+from app.evaluation import record_prediction_read
 from app.prediction.analyst import PredictionError, build_analyst
 from app.prediction.signals import compute_signals, fetch_bars, support_levels
 from app.prediction.strategies import DEFAULT_STRATEGY, Strategy
@@ -101,6 +102,26 @@ async def _news_lines(target: FocusTarget, settings: Settings) -> list[str]:
         return []
 
 
+def _record(session, settings: Settings, payload: dict, price: float | None) -> None:
+    """Persist the read for later scoring. Best-effort: a bookkeeping failure
+    must never cost the user the prediction they just paid for."""
+    if session is None or not settings.prediction_recording_enabled:
+        return
+    try:
+        record_prediction_read(
+            session,
+            ticker=payload["ticker"],
+            horizons=payload["horizons"],
+            strategy_id=payload["strategy"]["id"],
+            baseline_price=price,
+            dedupe_minutes=settings.prediction_cache_minutes,
+        )
+        session.commit()
+    except Exception:
+        logger.warning("Could not record prediction for evaluation", exc_info=True)
+        session.rollback()
+
+
 async def build_prediction(
     settings: Settings | None = None,
     *,
@@ -108,6 +129,7 @@ async def build_prediction(
     strategy: Strategy = DEFAULT_STRATEGY,
     analyst=None,
     language: str | None = None,
+    session=None,
 ) -> dict:
     """Produce the prediction JSON (spec §2), or `{ok: False, reason}` on failure."""
     settings = settings or get_settings()
@@ -148,7 +170,7 @@ async def build_prediction(
         logger.warning("Prediction analysis failed: %s", exc)
         return {"ok": False, "reason": "AI is unavailable right now (check the OpenAI key)."}
 
-    return {
+    payload = {
         "ok": True,
         "ticker": ticker,
         "name": name,
@@ -188,3 +210,6 @@ async def build_prediction(
             else "AI opinion — not investment advice."
         ),
     }
+
+    _record(session, settings, payload, price)
+    return payload

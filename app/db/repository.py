@@ -17,6 +17,8 @@ from app.status import (
     PRED_EVALUATED,
     PRED_PENDING,
     PRED_SKIPPED,
+    PRED_SOURCE_NEWS,
+    PRED_SOURCE_PREDICT,
     STATUS_FAILED,
     STATUS_PENDING,
     STATUS_SENT,
@@ -293,24 +295,35 @@ class PredictionRepository:
     def create(
         self,
         *,
-        classification_id: int,
-        article_id: int,
         ticker: str,
         sentiment: str,
-        importance: str,
         horizon: str,
         created_at: datetime,
         evaluate_after: datetime,
         baseline_price: float,
         baseline_at: datetime,
+        source: str = PRED_SOURCE_NEWS,
+        classification_id: int | None = None,
+        article_id: int | None = None,
+        importance: str | None = None,
+        strategy_id: str | None = None,
+        confidence: str | None = None,
     ) -> PredictionRow:
-        """Record a prediction with its baseline price (does not commit)."""
+        """Record a prediction with its baseline price (does not commit).
+
+        News rows pass classification/article/importance; Predict-tab rows pass
+        strategy_id/confidence instead. Everything after `source` is optional so
+        each caller only supplies what its kind of prediction actually has.
+        """
         row = PredictionRow(
             classification_id=classification_id,
             article_id=article_id,
+            source=source,
             ticker=ticker,
             sentiment=sentiment,
             importance=importance,
+            strategy_id=strategy_id,
+            confidence=confidence,
             horizon=horizon,
             created_at=created_at,
             evaluate_after=evaluate_after,
@@ -320,6 +333,29 @@ class PredictionRepository:
         )
         self.session.add(row)
         return row
+
+    def has_recent_pending(
+        self, *, ticker: str, horizon: str, strategy_id: str | None, since: datetime
+    ) -> bool:
+        """True if an equivalent Predict row is already awaiting evaluation.
+
+        Re-running the same read (a language switch, a second tap) must not
+        stack duplicate rows — they would weight one call several times in the
+        accuracy stats.
+        """
+        stmt = (
+            select(func.count())
+            .select_from(PredictionRow)
+            .where(
+                PredictionRow.source == PRED_SOURCE_PREDICT,
+                PredictionRow.ticker == ticker,
+                PredictionRow.horizon == horizon,
+                PredictionRow.strategy_id == strategy_id,
+                PredictionRow.status == PRED_PENDING,
+                PredictionRow.created_at >= since,
+            )
+        )
+        return bool(self.session.scalar(stmt))
 
     def count(self) -> int:
         return self.session.scalar(select(func.count()).select_from(PredictionRow)) or 0
@@ -354,12 +390,14 @@ class PredictionRepository:
         prediction.status = PRED_SKIPPED
         prediction.evaluated_at = datetime.now(tz=UTC)
 
-    def list_evaluated(self, limit: int = 2000) -> list[PredictionRow]:
-        """Evaluated predictions, most recently evaluated first."""
-        stmt = (
-            select(PredictionRow)
-            .where(PredictionRow.status == PRED_EVALUATED)
-            .order_by(PredictionRow.evaluated_at.desc(), PredictionRow.id.desc())
-            .limit(limit)
-        )
+    def list_evaluated(self, limit: int = 2000, *, source: str | None = None) -> list[PredictionRow]:
+        """Evaluated predictions, most recently evaluated first.
+
+        `source` scopes to one kind — the existing accuracy screen asks for
+        news only, so Predict-tab reads can't quietly change its numbers.
+        """
+        stmt = select(PredictionRow).where(PredictionRow.status == PRED_EVALUATED)
+        if source is not None:
+            stmt = stmt.where(PredictionRow.source == source)
+        stmt = stmt.order_by(PredictionRow.evaluated_at.desc(), PredictionRow.id.desc()).limit(limit)
         return list(self.session.scalars(stmt))

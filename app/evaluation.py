@@ -7,6 +7,7 @@ Scoring the outcome against the price at the horizon is step D.
 """
 
 import logging
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -16,22 +17,39 @@ from app.config import Settings, get_settings
 from app.db.repository import PredictionRepository
 from app.models.classification import ClassificationResult
 from app.prices import PriceClient
-from app.status import OUTCOME_FLAT, OUTCOME_HIT, OUTCOME_MISS, PRED_PENDING
+from app.status import (
+    OUTCOME_FLAT,
+    OUTCOME_HIT,
+    OUTCOME_MISS,
+    PRED_PENDING,
+    PRED_SOURCE_NEWS,
+    PRED_SOURCE_PREDICT,
+)
 
 logger = logging.getLogger("stockpulse.evaluation")
 
 
+# A month is approximated as 30 days — timedelta has no calendar months, and the
+# scorer already defers when the market is shut on the deadline, so a couple of
+# days either way changes nothing.
+_HORIZON_UNITS = {
+    "h": timedelta(hours=1),
+    "d": timedelta(days=1),
+    "w": timedelta(weeks=1),
+    "mo": timedelta(days=30),
+}
+_HORIZON_RE = re.compile(r"(\d+)(mo|[hdw])")
+
+
 def parse_horizon(horizon: str) -> timedelta:
-    """Parse a horizon like '1h' or '2d' into a timedelta."""
-    h = horizon.strip().lower()
-    if not h or not h[:-1].isdigit():
-        raise ValueError(f"Invalid horizon: {horizon!r}")
-    amount, unit = int(h[:-1]), h[-1]
-    if unit == "h":
-        return timedelta(hours=amount)
-    if unit == "d":
-        return timedelta(days=amount)
-    raise ValueError(f"Invalid horizon unit in {horizon!r} (use 'h' or 'd')")
+    """Parse a horizon like '1h', '2d', '1w' or '3mo' into a timedelta.
+
+    The news pipeline uses hours/days; the Predict tab uses weeks/months.
+    """
+    match = _HORIZON_RE.fullmatch(horizon.strip().lower())
+    if not match:
+        raise ValueError(f"Invalid horizon: {horizon!r} (use e.g. 1h, 2d, 1w, 3mo)")
+    return int(match.group(1)) * _HORIZON_UNITS[match.group(2)]
 
 
 def horizons_from_settings(settings: Settings | None = None) -> list[str]:
@@ -193,7 +211,9 @@ def _sentiment_stat(rows: list, label: str, sentiment: str) -> SentimentStat:
 def build_evaluation_report(session: Session, *, recent_limit: int = 15) -> EvaluationReport:
     """Aggregate scored predictions into an accuracy report."""
     repo = PredictionRepository(session)
-    rows = repo.list_evaluated(limit=2000)
+    # News rows only: this screen reports on alert calls, and it breaks results
+    # down by importance, which a Predict-tab read doesn't have.
+    rows = repo.list_evaluated(limit=2000, source=PRED_SOURCE_NEWS)
 
     hits = sum(1 for r in rows if r.outcome == OUTCOME_HIT)
     misses = sum(1 for r in rows if r.outcome == OUTCOME_MISS)
@@ -370,6 +390,7 @@ async def record_predictions(
                 logger.warning("Skipping invalid evaluation horizon %r", horizon)
                 continue
             repo.create(
+                source=PRED_SOURCE_NEWS,
                 classification_id=classification_id,
                 article_id=article_id,
                 ticker=ticker,
@@ -382,5 +403,69 @@ async def record_predictions(
                 baseline_at=now,
             )
             created += 1
+
+    return created
+
+
+# The Predict tab speaks in leans; the scorer speaks in sentiment. Same three
+# directions, so one mapping lets both kinds of prediction share a scorer.
+LEAN_TO_SENTIMENT = {"bounce": "BULLISH", "dip": "BEARISH", "hold": "NEUTRAL"}
+
+
+def record_prediction_read(
+    session: Session,
+    *,
+    ticker: str,
+    horizons: list[dict],
+    strategy_id: str,
+    baseline_price: float | None,
+    dedupe_minutes: float = 180.0,
+    now: datetime | None = None,
+) -> int:
+    """Record a Predict-tab read so it can be scored later, per horizon.
+
+    `horizons` are the AI's per-horizon entries (``horizon``/``lean``/
+    ``confidence``). Tagging each row with `strategy_id` is what later makes
+    "your strategy vs ours" measurable.
+
+    Returns the number of rows created. Never raises — a recording failure must
+    not cost the user the prediction they asked for.
+    """
+    if not _is_sane_price(baseline_price) or not horizons:
+        return 0
+
+    repo = PredictionRepository(session)
+    now = now or datetime.now(tz=UTC)
+    cutoff = now - timedelta(minutes=dedupe_minutes)
+    created = 0
+
+    for entry in horizons:
+        label = str(entry.get("horizon") or "").strip()
+        lean = str(entry.get("lean") or "").strip().lower()
+        sentiment = LEAN_TO_SENTIMENT.get(lean)
+        if not label or sentiment is None:
+            continue
+        try:
+            delta = parse_horizon(label)
+        except ValueError:
+            logger.warning("Skipping unparsable prediction horizon %r", label)
+            continue
+        if repo.has_recent_pending(
+            ticker=ticker, horizon=label, strategy_id=strategy_id, since=cutoff
+        ):
+            continue  # same call already awaiting evaluation
+        repo.create(
+            source=PRED_SOURCE_PREDICT,
+            ticker=ticker,
+            sentiment=sentiment,
+            strategy_id=strategy_id,
+            confidence=str(entry.get("confidence") or "").strip().lower() or None,
+            horizon=label,
+            created_at=now,
+            evaluate_after=now + delta,
+            baseline_price=float(baseline_price),
+            baseline_at=now,
+        )
+        created += 1
 
     return created

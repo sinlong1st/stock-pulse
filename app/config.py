@@ -68,6 +68,10 @@ class Settings(BaseSettings):
     prediction_model: str = "gpt-4o-mini"
     prediction_range_months: int = 6  # window for the discount/trend signals
     prediction_cache_minutes: int = 180  # reuse a recent read for the same ticker
+    # Record each Predict read (tagged with its strategy) so the same evaluation
+    # loop scores it later — the data behind per-strategy accuracy. Recording is
+    # cheap and best-effort; it reuses the price already fetched for the read.
+    prediction_recording_enabled: bool = True
     # Language for AI-written summary + why-it-matters (e.g. "English",
     # "Vietnamese"). Alerts inherit this since they use those fields.
     output_language: str = "English"

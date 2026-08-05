@@ -77,8 +77,13 @@ def session():
 def test_parse_horizon() -> None:
     assert parse_horizon("1h") == timedelta(hours=1)
     assert parse_horizon("2d") == timedelta(days=2)
-    with pytest.raises(ValueError):
-        parse_horizon("5w")
+    # Weeks/months exist for the Predict tab's 1w,1mo,3mo horizons.
+    assert parse_horizon("5w") == timedelta(weeks=5)
+    assert parse_horizon("1mo") == timedelta(days=30)
+    assert parse_horizon("3MO") == timedelta(days=90)  # case-insensitive
+    for bad in ("", "d", "1y", "mo", "1m", "abc", "1.5d"):
+        with pytest.raises(ValueError):
+            parse_horizon(bad)
 
 
 def _classification(tickers: list[str]) -> ClassificationResult:
