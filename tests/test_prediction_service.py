@@ -56,16 +56,41 @@ async def test_build_prediction_assembles(monkeypatch) -> None:
     assert out["price"] == "110.00"  # fell back to the last bar close
     assert out["series"]["closes"] == [100, 120, 140, 130, 110]  # for the app's charts
     assert len(out["series"]["volumes"]) == 5 and len(out["series"]["dates"]) == 5
-    # lows = close*0.99 → the only floor below the 110 price is 99.0. `near`/`long`
-    # stay scalar for older app builds; the lists carry the same levels.
+    # lows = close*0.99 → the only floor under the 110 price is 99.0, and with just
+    # 5 bars there is nothing deeper, so long-term is empty rather than echoing it.
     assert out["support"] == {
         "near": 99.0,
-        "long": 99.0,
+        "long": None,
         "nearLevels": [99.0],
-        "longLevels": [99.0],
+        "longLevels": [],
     }
     assert out["entry"] == {"assessment": "fair", "note": ""}  # default from the fake analyst
     assert out["language"] == "English"
+
+
+async def test_long_term_support_sits_below_near_term(monkeypatch) -> None:
+    """Regression: the full window contains the recent one, so ranking both by
+    'closest to price' put the long-term floor NEARER than the near-term one."""
+    # Deep troughs early (structural), shallower ones in the last month (recent).
+    closes = (
+        [100, 110, 60, 100, 115, 65, 105, 118, 70, 108]  # older: deep floors
+        + [112] * 90
+        + [120, 130, 95, 118, 128, 100, 122, 126, 105, 124]  # recent: shallow
+        + [130] * 11
+    )
+    _wire(monkeypatch)
+
+    async def fake_bars(t, **kw):
+        return _bars(closes)
+
+    monkeypatch.setattr(svc, "fetch_bars", fake_bars)
+    out = await svc.build_prediction(Settings(_env_file=None), query="wdc", analyst=_FakeAnalyst())
+
+    near, long = out["support"]["nearLevels"], out["support"]["longLevels"]
+    assert near and long, "both horizons should be populated on a 130-bar series"
+    assert max(long) < min(near), f"long-term {long} must sit under near-term {near}"
+    assert near == sorted(near, reverse=True)  # closest first
+    assert long == sorted(long, reverse=True)
 
 
 async def test_build_prediction_unknown_ticker(monkeypatch) -> None:

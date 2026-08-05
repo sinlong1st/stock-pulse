@@ -191,7 +191,7 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   // lean / entry / confidence badges (keys mirror the API's enum values)
   'predict.lean.bounce': { en: 'BOUNCE', vi: 'TĂNG' },
   'predict.lean.dip': { en: 'DIP', vi: 'GIẢM' },
-  'predict.lean.hold': { en: 'HOLD', vi: 'ĐI NGANG' },
+  'predict.lean.hold': { en: 'HOLD', vi: 'TẠM CHỜ' },
   'predict.entry.good': { en: 'GOOD ENTRY', vi: 'GIÁ TỐT' },
   'predict.entry.fair': { en: 'FAIR', vi: 'TẠM ỔN' },
   'predict.entry.wait': { en: 'WAIT', vi: 'NÊN CHỜ' },

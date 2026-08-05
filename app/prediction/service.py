@@ -54,8 +54,13 @@ _NEAR_WINDOW_BARS = 21  # ~1 trading month — enough swing lows to name three
 
 def _support_levels(bars: list, price: float | None) -> dict:
     """Grounded support from real price lows: up to three NEAR levels (the last
-    ~month of swing lows — the closest floors) and three LONG-term levels (swing
-    lows across the whole window — the structural floors). Closest first.
+    ~month of swing lows — the floors just under today's price) and up to three
+    LONG-term levels (the structural floors *below those*). Closest first.
+
+    The long-term levels are deliberately drawn from below the near ones. The
+    full window contains the recent window, so ranking both by "closest to the
+    price" would let the long-term number land nearer than the near-term one —
+    which reads as a bug, because it is one.
 
     `near`/`long` stay as the single closest level of each so older app builds
     keep working; `nearLevels`/`longLevels` carry the full list.
@@ -65,7 +70,14 @@ def _support_levels(bars: list, price: float | None) -> dict:
 
     near_window = bars[-_NEAR_WINDOW_BARS:] if len(bars) >= _NEAR_WINDOW_BARS else bars
     near = support_levels(near_window, price)
-    long = support_levels(bars, price)
+
+    # Everything long-term must sit under the deepest near-term floor.
+    ceiling = min(near) if near else price
+    long = support_levels(bars, ceiling)
+    if near:
+        floor = min(near)
+        long = [v for v in long if v < floor]  # guards the fallback branch too
+
     return {
         "near": near[0] if near else None,
         "long": long[0] if long else None,
