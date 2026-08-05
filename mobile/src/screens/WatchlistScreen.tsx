@@ -16,6 +16,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { SentimentPill } from '../components/SentimentPill';
 import { addWatch, fetchWatchlist, removeWatch } from '../data/api';
 import { WatchRow } from '../data/types';
+import { primeWatchlist } from '../data/useWatchlist';
 import { useI18n } from '../i18n/LanguageContext';
 import { useTheme } from '../theme/ThemeContext';
 import { changeColor, formatChange } from '../theme/semantics';
@@ -35,7 +36,9 @@ export function WatchlistScreen() {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     try {
-      setRows(await fetchWatchlist());
+      const fresh = await fetchWatchlist();
+      setRows(fresh);
+      primeWatchlist(fresh); // keep the Report/Predict pickers in step
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : t('wl.loadErr'));

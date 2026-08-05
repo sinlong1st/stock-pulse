@@ -3,11 +3,10 @@
  * you type a symbol you already track. Loads once and stays quiet on failure —
  * it's a shortcut, never the only way in (the text input still works).
  */
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { fetchWatchlist } from '../data/api';
-import { WatchRow } from '../data/types';
+import { useWatchlist } from '../data/useWatchlist';
 import { useI18n } from '../i18n/LanguageContext';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -24,18 +23,8 @@ export function WatchlistPicker({
 }) {
   const { colors } = useTheme();
   const { t } = useI18n();
-  const [rows, setRows] = useState<WatchRow[]>([]);
+  const rows = useWatchlist();
   const [expanded, setExpanded] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    fetchWatchlist()
-      .then((r) => alive && setRows(r))
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   if (!rows.length) return null;
 

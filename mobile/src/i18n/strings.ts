@@ -140,6 +140,7 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   // predict loader
   'loader.predict.scramble': { en: 'PREDICTING', vi: 'ĐANG DỰ ĐOÁN' },
   'loader.predict.kicker': { en: 'AI · FORWARD-LOOKING', vi: 'AI · DỰ BÁO' },
+  'loader.predict.headline': { en: 'THE READ', vi: 'NHẬN ĐỊNH' },
   'loader.predict.step1': { en: 'Fetching price bars', vi: 'Tải dữ liệu giá' },
   'loader.predict.step2': { en: 'Computing signals', vi: 'Tính toán tín hiệu' },
   'loader.predict.step3': { en: 'Finding support levels', vi: 'Tìm vùng hỗ trợ' },

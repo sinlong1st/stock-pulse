@@ -19,6 +19,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Segmented } from '../components/Segmented';
 import { WatchlistPicker } from '../components/WatchlistPicker';
 import { fetchPrediction, isAborted, Lean, Prediction, PredictionHorizon } from '../data/api';
+import { guessTicker, useWatchlist } from '../data/useWatchlist';
 import { useI18n } from '../i18n/LanguageContext';
 import { ThemeColors } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
@@ -133,6 +134,14 @@ export function PredictScreen() {
     },
     [query, t],
   );
+
+  // See ReportScreen: guess from the watchlist while in flight, then show the
+  // ticker the server actually resolved rather than echoing the user's typo.
+  const watchlist = useWatchlist();
+  const loaderHeadline = useMemo(() => {
+    const resolved = phase === 'done' ? pred?.ticker : null;
+    return resolved ?? guessTicker(watchlist, query) ?? t('loader.predict.headline');
+  }, [phase, pred, watchlist, query, t]);
 
   const loaderSteps = useMemo(() => [1, 2, 3, 4].map((n) => t(`loader.predict.step${n}`)), [t]);
   const loaderLogs = useMemo(
@@ -348,7 +357,7 @@ export function PredictScreen() {
         onDone={() => setPhase('idle')}
         kicker={t('loader.predict.kicker')}
         scrambleWord={t('loader.predict.scramble')}
-        headline={query.trim().toUpperCase() || t('predict.title')}
+        headline={loaderHeadline}
         steps={loaderSteps}
         logLines={loaderLogs}
         onCancel={() => {

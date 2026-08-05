@@ -17,6 +17,7 @@ import { Segmented } from '../components/Segmented';
 import { WatchlistPicker } from '../components/WatchlistPicker';
 import { fetchReport, isAborted } from '../data/api';
 import { Report } from '../data/types';
+import { guessTicker, useWatchlist } from '../data/useWatchlist';
 import { useI18n } from '../i18n/LanguageContext';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeContext';
@@ -55,6 +56,17 @@ export function ReportScreen() {
       if (abort.current === ctrl) abort.current = null;
     }
   };
+
+  // What to call the stock on the loading screen. While the request is in flight
+  // the server hasn't resolved the text yet, so fall back to a watchlist guess —
+  // echoing a typo back ("MICOSFT") looks broken. Once the response lands we know
+  // the real ticker and show that during the completion beat.
+  const watchlist = useWatchlist();
+  const loaderHeadline = useMemo(() => {
+    if (scope !== SINGLE) return t('loader.report.headline');
+    const resolved = phase === 'done' ? report?.watchlist?.[0]?.ticker : null;
+    return resolved ?? guessTicker(watchlist, ticker) ?? t('loader.report.headline');
+  }, [scope, phase, report, watchlist, ticker, t]);
 
   const loaderSteps = useMemo(
     () => [1, 2, 3, 4].map((n) => t(`loader.report.step${n}`)),
@@ -202,7 +214,7 @@ export function ReportScreen() {
         onDone={() => setPhase('idle')}
         kicker={t('loader.report.kicker')}
         scrambleWord={t('loader.report.scramble')}
-        headline={scope === SINGLE && ticker.trim() ? ticker.trim().toUpperCase() : t('loader.report.headline')}
+        headline={loaderHeadline}
         steps={loaderSteps}
         logLines={loaderLogs}
         onCancel={() => {
