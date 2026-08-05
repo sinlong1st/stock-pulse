@@ -16,19 +16,35 @@ def _epoch(d: date) -> int:
     return int(datetime(d.year, d.month, d.day, tzinfo=UTC).timestamp())
 
 
-def _payload(*, next_date: date | None, actual=2.02, estimate=1.89, last=date(2026, 6, 30)):
-    calendar = {"earnings": {"earningsDate": [{"raw": _epoch(next_date)}] if next_date else []}}
-    history = {
-        "history": [
-            {
-                "quarter": {"raw": _epoch(last)},
-                "epsActual": {"raw": actual},
-                "epsEstimate": {"raw": estimate},
-                "surprisePercent": {"raw": 0.0674},
-            }
-        ]
+def _quarter(end: date, actual, estimate, surprise=0.0674):
+    return {
+        "quarter": {"raw": _epoch(end)},
+        "epsActual": {"raw": actual},
+        "epsEstimate": {"raw": estimate},
+        "surprisePercent": {"raw": surprise},
     }
-    return {"quoteSummary": {"result": [{"calendarEvents": calendar, "earningsHistory": history}]}}
+
+
+def _payload(
+    *,
+    next_date: date | None,
+    actual=2.02,
+    estimate=1.89,
+    last=date(2026, 6, 30),
+    is_estimate=None,
+    history=None,
+):
+    earnings: dict = {"earningsDate": [{"raw": _epoch(next_date)}] if next_date else []}
+    if is_estimate is not None:
+        earnings["isEarningsDateEstimate"] = is_estimate
+    hist = history if history is not None else [_quarter(last, actual, estimate)]
+    return {
+        "quoteSummary": {
+            "result": [
+                {"calendarEvents": {"earnings": earnings}, "earningsHistory": {"history": hist}}
+            ]
+        }
+    }
 
 
 def _transport(handler):
@@ -68,8 +84,45 @@ async def test_fetch_parses_next_date_and_last_quarter() -> None:
     assert got.next_date == soon
     assert got.days_until(datetime.now(tz=UTC).date()) == 10
     assert got.eps_actual == 2.02 and got.eps_estimate == 1.89
-    assert got.last_date == date(2026, 6, 30)
+    assert got.quarter_end == date(2026, 6, 30)
     assert got.verdict == "beat"
+
+
+async def test_picks_the_newest_quarter_regardless_of_array_order() -> None:
+    """Regression: trusting Yahoo's array order would report a stale quarter."""
+    payload = _payload(
+        next_date=None,
+        history=[
+            _quarter(date(2026, 6, 30), -0.09, -0.28931),  # newest, listed FIRST
+            _quarter(date(2026, 3, 31), -1.27, None),
+        ],
+    )
+    got = await _client(_ok_handler(payload)).fetch("SPCX")
+    assert got is not None
+    assert got.quarter_end == date(2026, 6, 30)
+    assert got.eps_actual == -0.09
+
+
+async def test_past_next_date_is_kept_with_a_negative_countdown() -> None:
+    """Yahoo returns the date a company just reported until it posts the next
+    estimate — the value is still useful, but callers must see it is behind us."""
+    yesterday = datetime.now(tz=UTC).date() - timedelta(days=1)
+    got = await _client(_ok_handler(_payload(next_date=yesterday))).fetch("SPCX")
+    assert got is not None
+    assert got.days_until(datetime.now(tz=UTC).date()) == -1
+
+
+async def test_is_earnings_date_estimate_is_captured() -> None:
+    c = _client(_ok_handler(_payload(next_date=date(2026, 10, 29), is_estimate=True)))
+    got = await c.fetch("AAPL")
+    assert got is not None and got.next_is_estimate is True
+    assert got.as_dict()["nextIsEstimate"] is True
+
+
+def test_as_dict_exposes_quarter_end_not_a_report_date() -> None:
+    got = Earnings("X", quarter_end=date(2026, 6, 30)).as_dict()
+    assert got["quarterEnd"] == "2026-06-30"
+    assert "lastDate" not in got  # renamed: it was never the report date
 
 
 @pytest.mark.parametrize(

@@ -42,8 +42,14 @@ class Earnings:
     """What we know about one ticker's earnings, all fields optional."""
 
     ticker: str
+    # The next scheduled report — but Yahoo keeps returning the date a company
+    # just reported on until it publishes a new estimate, so this can be in the
+    # past. Callers must check `days_until` before calling it "next".
     next_date: date | None = None
-    last_date: date | None = None
+    next_is_estimate: bool | None = None
+    # The fiscal quarter the EPS figures cover — its END date, NOT the day the
+    # results were announced (a Q ending 30 Jun is typically reported weeks later).
+    quarter_end: date | None = None
     eps_actual: float | None = None
     eps_estimate: float | None = None
     surprise_pct: float | None = None
@@ -76,8 +82,9 @@ class Earnings:
         return {
             "ticker": self.ticker,
             "nextDate": self.next_date.isoformat() if self.next_date else None,
+            "nextIsEstimate": self.next_is_estimate,
             "daysUntil": self.days_until(today),
-            "lastDate": self.last_date.isoformat() if self.last_date else None,
+            "quarterEnd": self.quarter_end.isoformat() if self.quarter_end else None,
             "epsActual": self.eps_actual,
             "epsEstimate": self.eps_estimate,
             "surprisePct": round(self.surprise_pct * 100, 1)
@@ -128,13 +135,19 @@ def _parse(ticker: str, result: dict) -> Earnings:
     # the start — an approximate date is still more useful than none.
     dates = calendar.get("earningsDate") or []
     next_date = _to_date(dates[0]) if dates else None
+    is_estimate = calendar.get("isEarningsDateEstimate")
 
+    # Pick the newest quarter explicitly. Yahoo happens to return these oldest
+    # first, but relying on that would silently report a stale quarter's EPS.
     history = (result.get("earningsHistory") or {}).get("history") or []
-    last = history[-1] if history else {}
+    dated = [(q, h) for h in history if (q := _to_date(h.get("quarter"))) is not None]
+    quarter_end, last = max(dated, key=lambda pair: pair[0]) if dated else (None, {})
+
     return Earnings(
         ticker=ticker,
         next_date=next_date,
-        last_date=_to_date(last.get("quarter")),
+        next_is_estimate=is_estimate if isinstance(is_estimate, bool) else None,
+        quarter_end=quarter_end,
         eps_actual=_raw(last.get("epsActual")),
         eps_estimate=_raw(last.get("epsEstimate")),
         surprise_pct=_raw(last.get("surprisePercent")),

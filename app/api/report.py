@@ -65,8 +65,18 @@ async def _earnings_rows(settings: Settings, watchlist: list[dict]) -> list[dict
     found = await fetch_many(tickers, settings=settings)
     today = local_today(settings)
     rows = [found[t].as_dict(today) for t in tickers if t in found]
-    # Past/unknown dates sort last, so an upcoming report always leads.
-    return sorted(rows, key=lambda r: (r["daysUntil"] is None, r["daysUntil"] or 0))
+
+    def order(row: dict) -> tuple[int, int]:
+        """Upcoming reports first (soonest first), then ones that just happened
+        (most recent first), then anything with no date at all."""
+        days = row["daysUntil"]
+        if days is None:
+            return (2, 0)
+        if days >= 0:
+            return (0, days)
+        return (1, -days)
+
+    return sorted(rows, key=order)
 
 
 async def build_report(settings: Settings, *, query: str | None = None) -> dict:

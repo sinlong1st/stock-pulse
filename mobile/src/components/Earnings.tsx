@@ -58,7 +58,10 @@ export function EarningsRowView({ row }: { row: EarningsRow }) {
 
   const when = formatEarningsDate(row.nextDate, vi);
   const rel = countdown(row.daysUntil);
-  const lastWhen = formatEarningsDate(row.lastDate, vi);
+  const quarter = formatEarningsDate(row.quarterEnd, vi);
+  // Yahoo returns the just-passed report date until it publishes the next
+  // estimate, so a negative countdown means this already happened.
+  const reported = row.daysUntil != null && row.daysUntil < 0;
   // Yahoo often knows the quarter's EPS but not the exact upcoming date, and
   // vice versa — so the two halves render independently.
   const hasResult = row.epsActual != null && row.epsEstimate != null;
@@ -69,11 +72,16 @@ export function EarningsRowView({ row }: { row: EarningsRow }) {
 
       <View style={styles.mid}>
         <View style={styles.line}>
-          <Text style={[styles.lineLabel, { color: colors.faint }]}>{t('earn.nextLabel')}</Text>
+          <Text style={[styles.lineLabel, { color: colors.faint }]}>
+            {reported ? t('earn.reportedLabel') : t('earn.nextLabel')}
+          </Text>
           {when ? (
             <Text style={[styles.next, { color: colors.text }]}>
               {when}
               {rel ? <Text style={{ color: colors.faint }}> · {rel}</Text> : null}
+              {!reported && row.nextIsEstimate ? (
+                <Text style={{ color: colors.faint }}> · {t('earn.estimated')}</Text>
+              ) : null}
             </Text>
           ) : (
             <Text style={[styles.next, { color: colors.faint }]}>{t('earn.noDate')}</Text>
@@ -82,9 +90,9 @@ export function EarningsRowView({ row }: { row: EarningsRow }) {
 
         {hasResult ? (
           <View style={styles.line}>
-            <Text style={[styles.lineLabel, { color: colors.faint }]}>{t('earn.lastLabel')}</Text>
+            <Text style={[styles.lineLabel, { color: colors.faint }]}>{t('earn.quarterLabel')}</Text>
             <Text style={[styles.eps, { color: colors.muted }]}>
-              {lastWhen ? `${lastWhen} · ` : ''}
+              {quarter ? `${t('earn.qEnded', { d: quarter })} · ` : ''}
               {t('earn.eps')} {row.epsActual?.toFixed(2)} {t('earn.vs')}{' '}
               {row.epsEstimate?.toFixed(2)} {t('earn.est')}
             </Text>
@@ -119,8 +127,10 @@ export function NextEarningsChip({ row }: { row: EarningsRow }) {
   const when = formatEarningsDate(row.nextDate, vi);
   if (!when) return null;
   const rel = countdown(row.daysUntil);
-  // Inside a week the report dominates any short-horizon read — flag it.
-  const soon = row.daysUntil != null && row.daysUntil >= 0 && row.daysUntil <= 7;
+  const reported = row.daysUntil != null && row.daysUntil < 0;
+  // Inside a week the report dominates any short-horizon read — flag it. A
+  // report already behind us is context, not a warning, so it stays neutral.
+  const soon = !reported && row.daysUntil != null && row.daysUntil >= 0 && row.daysUntil <= 7;
 
   return (
     <View
@@ -129,7 +139,9 @@ export function NextEarningsChip({ row }: { row: EarningsRow }) {
         { borderColor: soon ? colors.accent : colors.dividerStrong },
       ]}
     >
-      <Text style={[styles.chipLabel, { color: colors.faint }]}>{t('earn.next')}</Text>
+      <Text style={[styles.chipLabel, { color: colors.faint }]}>
+        {reported ? t('earn.reportedLabel') : t('earn.next')}
+      </Text>
       <Text style={[styles.chipValue, { color: soon ? colors.accent : colors.text }]}>
         {when}
         {rel ? ` · ${rel}` : ''}

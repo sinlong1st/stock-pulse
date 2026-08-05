@@ -43,9 +43,15 @@ export type ReportSection = {
 /** Earnings calendar + last-quarter result. Every field is best-effort. */
 export type EarningsRow = {
   ticker: string;
-  nextDate?: string | null; // ISO date of the next report
+  /** Next scheduled report — but Yahoo keeps returning the date a company just
+   *  reported until it posts a new estimate, so this can be in the PAST. Always
+   *  branch on `daysUntil` before calling it "next". */
+  nextDate?: string | null;
+  nextIsEstimate?: boolean | null;
   daysUntil?: number | null; // negative once the date has passed
-  lastDate?: string | null;
+  /** END of the fiscal quarter the EPS covers — NOT the day it was announced.
+   *  A quarter ending 30 Jun is typically reported weeks later. */
+  quarterEnd?: string | null;
   epsActual?: number | null;
   epsEstimate?: number | null;
   surprisePct?: number | null;

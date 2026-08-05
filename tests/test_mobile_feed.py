@@ -352,6 +352,34 @@ async def test_report_earnings_sorted_soonest_first(monkeypatch) -> None:
     assert out["earnings"][2]["verdict"] == "beat"
 
 
+async def test_report_earnings_upcoming_outrank_already_reported(monkeypatch) -> None:
+    """A stock that reported yesterday must not sit above one reporting tomorrow."""
+    from datetime import timedelta
+
+    import app.api.report as report_api
+    from app.earnings import Earnings, local_today
+
+    today = local_today(Settings(_env_file=None))
+    report_api_, _ = await _report_with(
+        monkeypatch,
+        focus_ticker="NVDA",
+        wl_rows=[{"ticker": t, "name": t} for t in ("SPCX", "NVDA", "MU")],
+    )
+
+    async def some_earnings(tickers, **kw):
+        return {
+            "SPCX": Earnings("SPCX", next_date=today - timedelta(days=1)),  # reported
+            "NVDA": Earnings("NVDA", next_date=today + timedelta(days=1)),  # tomorrow
+            "MU": Earnings("MU", next_date=today - timedelta(days=9)),  # older report
+        }
+
+    monkeypatch.setattr(report_api_, "fetch_many", some_earnings)
+    out = await report_api_.build_report(Settings(_env_file=None))
+
+    # upcoming first, then the most recent report, then the older one
+    assert [r["ticker"] for r in out["earnings"]] == ["NVDA", "SPCX", "MU"]
+
+
 async def test_report_earnings_absent_when_lookup_fails(monkeypatch) -> None:
     """A Yahoo outage hides the section; it must not break the report."""
     report_api_, _ = await _report_with(monkeypatch, focus_ticker="NVDA")

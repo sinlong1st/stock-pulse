@@ -159,7 +159,10 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   'earn.next': { en: 'NEXT REPORT', vi: 'BÁO CÁO TỚI' },
   'earn.noDate': { en: 'Date not confirmed', vi: 'Chưa có lịch' },
   'earn.nextLabel': { en: 'NEXT', vi: 'SẮP TỚI' },
-  'earn.lastLabel': { en: 'LAST', vi: 'GẦN NHẤT' },
+  'earn.reportedLabel': { en: 'REPORTED', vi: 'ĐÃ CÔNG BỐ' },
+  'earn.quarterLabel': { en: 'QUARTER', vi: 'QUÝ' },
+  'earn.qEnded': { en: 'ended {d}', vi: 'kết thúc {d}' },
+  'earn.estimated': { en: 'estimated', vi: 'dự kiến' },
   'earn.eps': { en: 'EPS', vi: 'EPS' },
   'earn.vs': { en: 'vs', vi: 'so với' },
   'earn.est': { en: 'est.', vi: 'dự báo' },
@@ -172,8 +175,8 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   'earn.inDays': { en: 'in {n} days', vi: 'sau {n} ngày' },
   'earn.daysAgo': { en: '{n} days ago', vi: '{n} ngày trước' },
   'earn.footnote': {
-    en: 'LAST is the most recent reported quarter — not a forecast. Upcoming dates are estimates until the company confirms.',
-    vi: 'GẦN NHẤT là quý đã công bố gần nhất — không phải dự báo. Ngày sắp tới là dự kiến cho đến khi công ty xác nhận.',
+    en: 'QUARTER shows the fiscal period the EPS covers, not the day it was announced — results are published weeks after a quarter ends.',
+    vi: 'QUÝ là kỳ tài chính của số EPS, không phải ngày công bố — kết quả thường công bố vài tuần sau khi quý kết thúc.',
   },
 
   // watchlist quick-picker (Report + Predict)
