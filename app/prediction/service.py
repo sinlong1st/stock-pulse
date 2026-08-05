@@ -175,7 +175,11 @@ async def build_prediction(
             for h in read.horizons
         ],
         "drivers": read.drivers,
-        "strategy": {"id": strategy.id, "name": strategy.name, "body": strategy.body},
+        # Display text follows the user's language; the analyst above still got
+        # the English `body` as its prompt.
+        "strategy": dict(
+            zip(("name", "body"), strategy.display(vi), strict=True), id=strategy.id
+        ),
         "language": language,
         "generatedAt": datetime.now(UTC).isoformat(),
         "disclaimer": (

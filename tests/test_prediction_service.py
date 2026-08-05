@@ -97,6 +97,37 @@ async def test_long_term_support_sits_below_near_term(monkeypatch) -> None:
     assert long == sorted(long, reverse=True)
 
 
+async def test_strategy_is_shown_in_vietnamese_but_prompted_in_english(monkeypatch) -> None:
+    """The modal must follow the UI language, while the model keeps the English
+    prompt — mixing prompt languages degrades the output."""
+    _wire(monkeypatch)
+    analyst = _FakeAnalyst()
+    out = await svc.build_prediction(
+        Settings(_env_file=None), query="wdc", analyst=analyst, language="Vietnamese"
+    )
+
+    assert out["strategy"]["id"] == "default"  # enum-ish id never translates
+    assert out["strategy"]["name"] == "StockPulse Cân bằng"
+    assert "Cân nhắc ba yếu tố" in out["strategy"]["body"]
+    # what the model actually received is still English
+    assert analyst.seen["strategy"].body.startswith("Weigh three things")
+
+
+async def test_strategy_display_defaults_to_english(monkeypatch) -> None:
+    _wire(monkeypatch)
+    out = await svc.build_prediction(Settings(_env_file=None), query="wdc", analyst=_FakeAnalyst())
+    assert out["strategy"]["name"] == "StockPulse Balanced"
+    assert out["strategy"]["body"].startswith("Weigh three things")
+
+
+def test_custom_strategy_without_translation_falls_back() -> None:
+    """A user-written strategy has no vi text — show it as they wrote it."""
+    from app.prediction.strategies import Strategy
+
+    mine = Strategy(id="mine", name="My value lens", body="Buy fear.", builtin=False)
+    assert mine.display(vi=True) == ("My value lens", "Buy fear.")
+
+
 async def test_build_prediction_unknown_ticker(monkeypatch) -> None:
     monkeypatch.setattr(svc, "resolve_focus", lambda q: FocusTarget(q, None, None, q))
 
