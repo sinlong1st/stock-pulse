@@ -12,6 +12,7 @@ from app.briefing.focus import FocusTarget, build_focus_collectors, resolve_focu
 from app.briefing.retrieval import retrieve_fresh_news
 from app.commands.symbols import resolve_symbol
 from app.config import Settings, get_settings, resolve_briefing_timezone
+from app.earnings import fetch_many, local_today
 from app.prediction.analyst import PredictionError, build_analyst
 from app.prediction.signals import compute_signals, fetch_bars, support_levels
 from app.prediction.strategies import DEFAULT_STRATEGY, Strategy
@@ -131,6 +132,7 @@ async def build_prediction(
         "dates": [b.t.date().isoformat() for b in recent],
     }
     support = _support_levels(bars, price)
+    earnings = (await fetch_many([ticker], settings=settings)).get(ticker)
 
     news = await _news_lines(target, settings)
     horizons = [h.strip() for h in settings.prediction_horizons.split(",") if h.strip()]
@@ -140,7 +142,7 @@ async def build_prediction(
         read = await analyst.analyze(
             ticker=ticker, name=name, signals=signals, news_lines=news,
             horizons=horizons, price=price, support=support,
-            strategy=strategy, language=language,
+            earnings=earnings, strategy=strategy, language=language,
         )
     except PredictionError as exc:
         logger.warning("Prediction analysis failed: %s", exc)
@@ -161,6 +163,7 @@ async def build_prediction(
         "enoughHistory": signals.enough_history,
         "series": series,
         "support": support,
+        "earnings": earnings.as_dict(local_today(settings)) if earnings else None,
         "entry": {"assessment": read.entry.assessment, "note": read.entry.note},
         "horizons": [
             {

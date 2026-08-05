@@ -77,9 +77,31 @@ def _fmt_support(support: dict) -> str:
     return "; ".join(parts) or "n/a"
 
 
+def _fmt_earnings(earnings: object) -> str:
+    """One line of earnings context, or '' when we know nothing."""
+    if earnings is None:
+        return ""
+    parts = []
+    days_fn = getattr(earnings, "days_until", None)
+    days = days_fn() if callable(days_fn) else None
+    next_date = getattr(earnings, "next_date", None)
+    if next_date is not None:
+        when = f"in {days} days" if days is not None and days >= 0 else "recently"
+        parts.append(f"next report {next_date.isoformat()} ({when})")
+    actual = getattr(earnings, "eps_actual", None)
+    estimate = getattr(earnings, "eps_estimate", None)
+    if actual is not None and estimate is not None:
+        verdict = getattr(earnings, "verdict", None) or "inline"
+        parts.append(f"last quarter EPS {actual:.2f} vs {estimate:.2f} est ({verdict})")
+    if not parts:
+        return ""
+    return "Earnings: " + "; ".join(parts) + "\n"
+
+
 def _user_message(
     *, ticker: str, name: str, price: float | None, signals: Signals, support: dict,
     news_lines: list[str], horizons: list[str], strategy: Strategy,
+    earnings: object = None,
 ) -> str:
     news = "\n".join(f"- {line}" for line in news_lines[:12]) or "- (no fresh headlines)"
     price_line = f"Current price: ${price:,.2f}\n" if price else ""
@@ -91,7 +113,8 @@ def _user_message(
         f"Discount: {signals.discount_level} — {signals.range_note or 'range unknown'}. "
         f"{signals.discount_note}\n"
         f"Trend: {signals.trend}\n"
-        f"Support levels (from real price lows): {_fmt_support(support)}\n\n"
+        f"Support levels (from real price lows): {_fmt_support(support)}\n"
+        f"{_fmt_earnings(earnings)}\n"
         f"RECENT NEWS:\n{news}\n\n"
         f"Produce one horizons entry for each of: {', '.join(horizons)}."
     )
@@ -125,6 +148,7 @@ class PredictionAnalyst:
         horizons: list[str],
         price: float | None = None,
         support: dict | None = None,
+        earnings: object = None,
         strategy: Strategy = DEFAULT_STRATEGY,
         language: str = "English",
     ) -> PredictionRead:
@@ -139,7 +163,7 @@ class PredictionAnalyst:
                     "content": _user_message(
                         ticker=ticker, name=name, price=price, signals=signals,
                         support=support or {}, news_lines=news_lines,
-                        horizons=horizons, strategy=strategy,
+                        horizons=horizons, strategy=strategy, earnings=earnings,
                     ),
                 },
             ],

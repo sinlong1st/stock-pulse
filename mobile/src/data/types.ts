@@ -40,10 +40,23 @@ export type ReportSection = {
   body: string;
 };
 
+/** Earnings calendar + last-quarter result. Every field is best-effort. */
+export type EarningsRow = {
+  ticker: string;
+  nextDate?: string | null; // ISO date of the next report
+  daysUntil?: number | null; // negative once the date has passed
+  lastDate?: string | null;
+  epsActual?: number | null;
+  epsEstimate?: number | null;
+  surprisePct?: number | null;
+  verdict?: 'beat' | 'miss' | 'inline' | null;
+};
+
 export type Report = {
   takeaway: string;
   sections: ReportSection[];
   watchlist: WatchRow[];
+  earnings?: EarningsRow[]; // absent on older backends
   generatedAt?: string;
   note?: string | null;
 };

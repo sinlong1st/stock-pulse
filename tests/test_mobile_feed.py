@@ -212,8 +212,12 @@ async def test_build_report_maps_themes(monkeypatch) -> None:
     async def fake_wl(settings):
         return [{"ticker": "NVDA"}]
 
+    async def no_earnings(tickers, **kw):
+        return {}
+
     monkeypatch.setattr(report_api, "run_report", fake_run_report)
     monkeypatch.setattr(report_api, "build_watchlist", fake_wl)
+    monkeypatch.setattr(report_api, "fetch_many", no_earnings)
 
     out = await report_api.build_report(Settings(_env_file=None))
     assert out["takeaway"] == "Rates rule the tape"
@@ -235,8 +239,12 @@ async def test_build_report_handles_no_result(monkeypatch) -> None:
     async def fake_wl(settings):
         return []
 
+    async def no_earnings(tickers, **kw):
+        return {}
+
     monkeypatch.setattr(report_api, "run_report", fake_run_report)
     monkeypatch.setattr(report_api, "build_watchlist", fake_wl)
+    monkeypatch.setattr(report_api, "fetch_many", no_earnings)
 
     out = await report_api.build_report(Settings(_env_file=None))
     assert out["sections"] == []
@@ -263,12 +271,16 @@ async def _report_with(monkeypatch, *, focus_ticker, symbol=None, wl_rows=None):
     async def fake_symbol(q, *, settings):
         return symbol
 
+    async def no_earnings(tickers, **kw):
+        return {}
+
     monkeypatch.setattr(report_api, "run_report", fake_run_report)
     monkeypatch.setattr(report_api, "build_watchlist", fake_wl)
     monkeypatch.setattr(
         report_api, "resolve_focus", lambda q: FocusTarget(q, focus_ticker, None, q)
     )
     monkeypatch.setattr(report_api, "resolve_symbol", fake_symbol)
+    monkeypatch.setattr(report_api, "fetch_many", no_earnings)  # never touch Yahoo in tests
     return report_api, seen
 
 
@@ -305,6 +317,47 @@ async def test_single_stock_report_prices_off_watchlist_name(monkeypatch) -> Non
     out = await report_api.build_report(Settings(_env_file=None), query="tesla")
     assert [r["ticker"] for r in out["watchlist"]] == ["TSLA"]
     assert out["watchlist"][0]["name"] == "Tesla"  # named from the resolved symbol
+
+
+async def test_report_earnings_sorted_soonest_first(monkeypatch) -> None:
+    from datetime import timedelta
+
+    import app.api.report as report_api
+    from app.earnings import Earnings, local_today
+
+    today = local_today(Settings(_env_file=None))
+    report_api_, _ = await _report_with(
+        monkeypatch,
+        focus_ticker="NVDA",
+        wl_rows=[
+            {"ticker": "NVDA", "name": "Nvidia"},
+            {"ticker": "MU", "name": "Micron"},
+            {"ticker": "WDC", "name": "Western Digital"},
+        ],
+    )
+
+    async def some_earnings(tickers, **kw):
+        return {
+            "NVDA": Earnings("NVDA", next_date=today + timedelta(days=30)),
+            "MU": Earnings("MU", next_date=today + timedelta(days=3)),
+            # WDC has no date but a past result — still worth showing, sorted last.
+            "WDC": Earnings("WDC", eps_actual=1.1, eps_estimate=1.0),
+        }
+
+    monkeypatch.setattr(report_api_, "fetch_many", some_earnings)
+    out = await report_api_.build_report(Settings(_env_file=None))
+
+    assert [r["ticker"] for r in out["earnings"]] == ["MU", "NVDA", "WDC"]
+    assert out["earnings"][0]["daysUntil"] == 3
+    assert out["earnings"][2]["verdict"] == "beat"
+
+
+async def test_report_earnings_absent_when_lookup_fails(monkeypatch) -> None:
+    """A Yahoo outage hides the section; it must not break the report."""
+    report_api_, _ = await _report_with(monkeypatch, focus_ticker="NVDA")
+    out = await report_api_.build_report(Settings(_env_file=None))
+    assert out["earnings"] == []
+    assert "takeaway" in out  # the rest of the report is unaffected
 
 
 async def test_single_stock_report_unresolvable_shows_no_prices(monkeypatch) -> None:

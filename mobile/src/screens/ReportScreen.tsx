@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { EarningsRowView } from '../components/Earnings';
 import { HackerLoader, LoaderPhase } from '../components/HackerLoader';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Segmented } from '../components/Segmented';
@@ -203,6 +204,18 @@ export function ReportScreen() {
             </>
           )}
 
+          {report.earnings && report.earnings.length > 0 && (
+            <>
+              <Text style={[styles.watchLabel, styles.earnHead, { color: colors.muted }]}>
+                {t('earn.section')}
+              </Text>
+              {report.earnings.map((e) => (
+                <EarningsRowView key={e.ticker} row={e} />
+              ))}
+              <Text style={[styles.earnNote, { color: colors.faint }]}>{t('earn.footnote')}</Text>
+            </>
+          )}
+
           <Text style={[styles.footnote, { color: colors.faint }]}>
             {t('report.footnote')}
           </Text>
@@ -286,5 +299,7 @@ const styles = StyleSheet.create({
   wName: { fontSize: 11, flex: 1 },
   wPx: { fontSize: 12.5, fontWeight: '700', fontVariant: ['tabular-nums'] },
   wChg: { fontSize: 12, fontWeight: '800', width: 66, textAlign: 'right', fontVariant: ['tabular-nums'] },
+  earnHead: { marginTop: 20, marginBottom: 4 },
+  earnNote: { fontSize: 9.5, fontWeight: '600', marginTop: 8 },
   footnote: { fontSize: 10, fontWeight: '600', lineHeight: 14, marginTop: 14 },
 });

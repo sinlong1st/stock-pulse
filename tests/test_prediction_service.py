@@ -39,8 +39,12 @@ def _wire(monkeypatch, *, ticker="WDC", name="Western Digital"):
     async def fake_news(**kw):
         return SimpleNamespace(all=[SimpleNamespace(title="Some headline")])
 
+    async def no_earnings(tickers, **kw):
+        return {}
+
     monkeypatch.setattr(svc, "fetch_bars", fake_bars)
     monkeypatch.setattr(svc, "retrieve_fresh_news", fake_news)
+    monkeypatch.setattr(svc, "fetch_many", no_earnings)  # never touch Yahoo in tests
 
 
 async def test_build_prediction_assembles(monkeypatch) -> None:

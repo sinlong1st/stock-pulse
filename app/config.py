@@ -97,8 +97,17 @@ class Settings(BaseSettings):
     # a company name to a ticker for /watch.
     yahoo_chart_url: str = "https://query1.finance.yahoo.com"
     yahoo_search_url: str = "https://query1.finance.yahoo.com"
+    # quoteSummary carries the earnings calendar + EPS history. Unlike the chart
+    # endpoint it is cookie-gated, so app/earnings.py does a crumb handshake.
+    yahoo_quote_summary_url: str = "https://query2.finance.yahoo.com"
     price_features_enabled: bool = False
     price_context_in_alerts: bool = False  # add a "MU +3.4% today" line to alerts
+
+    # Earnings calendar + last-quarter EPS, shown in the report and prediction.
+    # Best-effort: an outage hides the section, it never fails the request.
+    earnings_enabled: bool = True
+    earnings_cache_hours: float = 6.0  # earnings move quarterly, not intraday
+    earnings_max_tickers: int = 15  # cap the fan-out on a big watchlist
 
     # Self-evaluation: record AI predictions and later score them vs price.
     evaluation_enabled: bool = False

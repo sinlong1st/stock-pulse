@@ -16,6 +16,7 @@ from app.api.watchlist import build_watchlist
 from app.briefing.focus import resolve_focus
 from app.commands.symbols import resolve_symbol
 from app.config import Settings
+from app.earnings import fetch_many, local_today
 from app.jobs.briefing import run_report
 
 logger = logging.getLogger("stockpulse.api.report")
@@ -56,12 +57,25 @@ async def _price_rows(settings: Settings, query: str | None) -> list[dict]:
     return rows
 
 
+async def _earnings_rows(settings: Settings, watchlist: list[dict]) -> list[dict]:
+    """Earnings for whatever the report is priced against — the whole watchlist,
+    or the single focused stock. Sorted soonest-first so the next report to
+    worry about is at the top; tickers with nothing known are dropped."""
+    tickers = [r["ticker"] for r in watchlist if r.get("ticker")]
+    found = await fetch_many(tickers, settings=settings)
+    today = local_today(settings)
+    rows = [found[t].as_dict(today) for t in tickers if t in found]
+    # Past/unknown dates sort last, so an upcoming report always leads.
+    return sorted(rows, key=lambda r: (r["daysUntil"] is None, r["daysUntil"] or 0))
+
+
 async def build_report(settings: Settings, *, query: str | None = None) -> dict:
     """Run a briefing and shape it for the mobile Report screen."""
     run = await run_report(query, deliver=False, settings=settings)
     result = run.result
 
     watchlist = await _price_rows(settings, query)
+    earnings = await _earnings_rows(settings, watchlist)
     generated_at = datetime.now(UTC).isoformat()
 
     if result is None:
@@ -69,6 +83,7 @@ async def build_report(settings: Settings, *, query: str | None = None) -> dict:
             "takeaway": "",
             "sections": [],
             "watchlist": watchlist,
+            "earnings": earnings,
             "generatedAt": generated_at,
             "note": run.skipped_reason or "No report available right now.",
         }
@@ -85,6 +100,7 @@ async def build_report(settings: Settings, *, query: str | None = None) -> dict:
         "takeaway": result.headline,
         "sections": sections,
         "watchlist": watchlist,
+        "earnings": earnings,
         "generatedAt": generated_at,
         "note": None,
     }

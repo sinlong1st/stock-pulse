@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { NextEarningsChip } from '../components/Earnings';
 import { HackerLoader, LoaderPhase } from '../components/HackerLoader';
 import { MiniBars } from '../components/MiniBars';
 import { PriceChart } from '../components/PriceChart';
@@ -227,6 +228,11 @@ export function PredictScreen() {
                 ${pred.price} <Text style={{ color: colors.faint, fontSize: 10 }}>{pred.priceFresh}</Text>
               </Text>
             ) : null}
+            {pred.earnings ? (
+              <View style={styles.earnRow}>
+                <NextEarningsChip row={pred.earnings} />
+              </View>
+            ) : null}
           </View>
 
           {/* big headline read */}
@@ -401,6 +407,7 @@ const styles = StyleSheet.create({
   ticker: { fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
   name: { fontSize: 12, marginTop: 1 },
   price: { fontSize: 15, fontWeight: '800', marginTop: 6, fontVariant: ['tabular-nums'] },
+  earnRow: { marginTop: 8 },
   headline: { paddingVertical: 14, paddingHorizontal: 16, marginBottom: 14 },
   headlineKicker: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
   headlineRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },

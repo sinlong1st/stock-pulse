@@ -4,7 +4,7 @@
  */
 import { API_BASE_URL, API_TOKEN } from '../config';
 import { mockAlerts, mockEvaluation, mockPrediction, mockReport, mockWatchlist } from './mock';
-import { Alert, Report, Sentiment, WatchRow } from './types';
+import { Alert, EarningsRow, Report, Sentiment, WatchRow } from './types';
 
 /** True when no backend is configured (the app is showing sample data). */
 export const usingMockData = !API_BASE_URL;
@@ -189,6 +189,7 @@ export type Prediction = {
     nearLevels?: number[];
     longLevels?: number[];
   };
+  earnings?: EarningsRow | null;
   strategy?: { id: string; name: string; body: string };
   series?: { closes: number[]; volumes: number[]; dates?: string[] };
   language?: string;

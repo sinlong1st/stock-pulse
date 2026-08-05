@@ -154,6 +154,25 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   'loader.predict.log7': { en: 'strategy lens applied', vi: 'áp dụng chiến lược' },
   'loader.predict.log8': { en: 'validating AI output', vi: 'kiểm tra kết quả AI' },
 
+  // earnings (Report section + Predict chip)
+  'earn.section': { en: 'EARNINGS', vi: 'KẾT QUẢ KINH DOANH' },
+  'earn.next': { en: 'NEXT REPORT', vi: 'BÁO CÁO TỚI' },
+  'earn.noDate': { en: 'Date not confirmed', vi: 'Chưa có lịch' },
+  'earn.eps': { en: 'EPS', vi: 'EPS' },
+  'earn.vs': { en: 'vs', vi: 'so với' },
+  'earn.beat': { en: 'BEAT', vi: 'VƯỢT' },
+  'earn.miss': { en: 'MISS', vi: 'HỤT' },
+  'earn.inline': { en: 'INLINE', vi: 'ĐÚNG DỰ BÁO' },
+  'earn.today': { en: 'today', vi: 'hôm nay' },
+  'earn.tomorrow': { en: 'tomorrow', vi: 'ngày mai' },
+  'earn.yesterday': { en: 'yesterday', vi: 'hôm qua' },
+  'earn.inDays': { en: 'in {n} days', vi: 'sau {n} ngày' },
+  'earn.daysAgo': { en: '{n} days ago', vi: '{n} ngày trước' },
+  'earn.footnote': {
+    en: 'Dates are estimates until the company confirms.',
+    vi: 'Ngày dự kiến cho đến khi công ty xác nhận.',
+  },
+
   // watchlist quick-picker (Report + Predict)
   'picker.label': { en: 'FROM YOUR WATCHLIST', vi: 'TỪ DANH MỤC CỦA BẠN' },
   'picker.less': { en: 'Less', vi: 'Thu gọn' },
@@ -191,7 +210,7 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   // lean / entry / confidence badges (keys mirror the API's enum values)
   'predict.lean.bounce': { en: 'BOUNCE', vi: 'TĂNG' },
   'predict.lean.dip': { en: 'DIP', vi: 'GIẢM' },
-  'predict.lean.hold': { en: 'HOLD', vi: 'TẠM CHỜ' },
+  'predict.lean.hold': { en: 'HOLD', vi: 'ĐI NGANG' },
   'predict.entry.good': { en: 'GOOD ENTRY', vi: 'GIÁ TỐT' },
   'predict.entry.fair': { en: 'FAIR', vi: 'TẠM ỔN' },
   'predict.entry.wait': { en: 'WAIT', vi: 'NÊN CHỜ' },
