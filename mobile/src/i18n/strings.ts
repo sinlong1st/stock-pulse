@@ -158,8 +158,11 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   'earn.section': { en: 'EARNINGS', vi: 'KẾT QUẢ KINH DOANH' },
   'earn.next': { en: 'NEXT REPORT', vi: 'BÁO CÁO TỚI' },
   'earn.noDate': { en: 'Date not confirmed', vi: 'Chưa có lịch' },
+  'earn.nextLabel': { en: 'NEXT', vi: 'SẮP TỚI' },
+  'earn.lastLabel': { en: 'LAST', vi: 'GẦN NHẤT' },
   'earn.eps': { en: 'EPS', vi: 'EPS' },
   'earn.vs': { en: 'vs', vi: 'so với' },
+  'earn.est': { en: 'est.', vi: 'dự báo' },
   'earn.beat': { en: 'BEAT', vi: 'VƯỢT' },
   'earn.miss': { en: 'MISS', vi: 'HỤT' },
   'earn.inline': { en: 'INLINE', vi: 'ĐÚNG DỰ BÁO' },
@@ -169,8 +172,8 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   'earn.inDays': { en: 'in {n} days', vi: 'sau {n} ngày' },
   'earn.daysAgo': { en: '{n} days ago', vi: '{n} ngày trước' },
   'earn.footnote': {
-    en: 'Dates are estimates until the company confirms.',
-    vi: 'Ngày dự kiến cho đến khi công ty xác nhận.',
+    en: 'LAST is the most recent reported quarter — not a forecast. Upcoming dates are estimates until the company confirms.',
+    vi: 'GẦN NHẤT là quý đã công bố gần nhất — không phải dự báo. Ngày sắp tới là dự kiến cho đến khi công ty xác nhận.',
   },
 
   // watchlist quick-picker (Report + Predict)

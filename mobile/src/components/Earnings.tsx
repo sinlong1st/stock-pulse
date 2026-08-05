@@ -45,7 +45,12 @@ export function useCountdown() {
   };
 }
 
-/** One row: ticker, next-report date, and how last quarter went. */
+/**
+ * One row: when the stock next reports, and — on a clearly separate, labelled
+ * line — how the LAST quarter went. The two must never blur together: an EPS
+ * figure sitting under an upcoming date reads as a forecast for that date, when
+ * it is actually a already-published historical result.
+ */
 export function EarningsRowView({ row }: { row: EarningsRow }) {
   const { colors } = useTheme();
   const { t, vi } = useI18n();
@@ -53,6 +58,7 @@ export function EarningsRowView({ row }: { row: EarningsRow }) {
 
   const when = formatEarningsDate(row.nextDate, vi);
   const rel = countdown(row.daysUntil);
+  const lastWhen = formatEarningsDate(row.lastDate, vi);
   // Yahoo often knows the quarter's EPS but not the exact upcoming date, and
   // vice versa — so the two halves render independently.
   const hasResult = row.epsActual != null && row.epsEstimate != null;
@@ -62,30 +68,44 @@ export function EarningsRowView({ row }: { row: EarningsRow }) {
       <Text style={[styles.ticker, { color: colors.text }]}>{row.ticker}</Text>
 
       <View style={styles.mid}>
-        {when ? (
-          <Text style={[styles.next, { color: colors.text }]}>
-            {when}
-            {rel ? <Text style={{ color: colors.faint }}> · {rel}</Text> : null}
-          </Text>
-        ) : (
-          <Text style={[styles.next, { color: colors.faint }]}>{t('earn.noDate')}</Text>
-        )}
+        <View style={styles.line}>
+          <Text style={[styles.lineLabel, { color: colors.faint }]}>{t('earn.nextLabel')}</Text>
+          {when ? (
+            <Text style={[styles.next, { color: colors.text }]}>
+              {when}
+              {rel ? <Text style={{ color: colors.faint }}> · {rel}</Text> : null}
+            </Text>
+          ) : (
+            <Text style={[styles.next, { color: colors.faint }]}>{t('earn.noDate')}</Text>
+          )}
+        </View>
+
         {hasResult ? (
-          <Text style={[styles.eps, { color: colors.muted }]}>
-            {t('earn.eps')} {row.epsActual?.toFixed(2)} {t('earn.vs')}{' '}
-            {row.epsEstimate?.toFixed(2)}
-          </Text>
+          <View style={styles.line}>
+            <Text style={[styles.lineLabel, { color: colors.faint }]}>{t('earn.lastLabel')}</Text>
+            <Text style={[styles.eps, { color: colors.muted }]}>
+              {lastWhen ? `${lastWhen} · ` : ''}
+              {t('earn.eps')} {row.epsActual?.toFixed(2)} {t('earn.vs')}{' '}
+              {row.epsEstimate?.toFixed(2)} {t('earn.est')}
+            </Text>
+            {row.verdict ? (
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: verdictColor(colors, row.verdict) + '22' },
+                ]}
+              >
+                <Text style={[styles.badgeText, { color: verdictColor(colors, row.verdict) }]}>
+                  {t(`earn.${row.verdict}`)}
+                  {row.surprisePct != null
+                    ? ` ${row.surprisePct > 0 ? '+' : ''}${row.surprisePct}%`
+                    : ''}
+                </Text>
+              </View>
+            ) : null}
+          </View>
         ) : null}
       </View>
-
-      {row.verdict ? (
-        <View style={[styles.badge, { backgroundColor: verdictColor(colors, row.verdict) + '22' }]}>
-          <Text style={[styles.badgeText, { color: verdictColor(colors, row.verdict) }]}>
-            {t(`earn.${row.verdict}`)}
-            {row.surprisePct != null ? ` ${row.surprisePct > 0 ? '+' : ''}${row.surprisePct}%` : ''}
-          </Text>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -119,9 +139,11 @@ export function NextEarningsChip({ row }: { row: EarningsRow }) {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, borderBottomWidth: 1 },
-  ticker: { fontSize: 12.5, fontWeight: '800', width: 46 },
-  mid: { flex: 1, gap: 1 },
+  row: { flexDirection: 'row', gap: 10, paddingVertical: 10, borderBottomWidth: 1 },
+  ticker: { fontSize: 12.5, fontWeight: '800', width: 46, paddingTop: 1 },
+  mid: { flex: 1, gap: 4 },
+  line: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  lineLabel: { fontSize: 8.5, fontWeight: '900', letterSpacing: 0.7, width: 42 },
   next: { fontSize: 12, fontWeight: '700' },
   eps: { fontSize: 10.5 },
   badge: { paddingHorizontal: 7, paddingVertical: 3 },
