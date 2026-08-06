@@ -201,6 +201,62 @@ export async function fetchPrediction(query: string, signal?: AbortSignal): Prom
   return getJson<Prediction>(`/api/predict?q=${encodeURIComponent(query.trim())}`, signal);
 }
 
+// --- prediction strategies -------------------------------------------------
+
+export type StrategyItem = {
+  id: string;
+  name: string;
+  body: string;
+  builtin: boolean;
+  active: boolean;
+};
+export type StrategiesInfo = {
+  strategies: StrategyItem[];
+  activeId: string;
+  limits: { nameChars: number; bodyChars: number; minBodyChars: number };
+};
+
+export async function fetchStrategies(): Promise<StrategiesInfo> {
+  requireBackend();
+  return getJson<StrategiesInfo>('/api/strategies');
+}
+
+export async function createStrategy(name: string, body: string): Promise<StrategiesInfo> {
+  requireBackend();
+  return request<StrategiesInfo>('/api/strategies', {
+    method: 'POST',
+    body: JSON.stringify({ name, body }),
+  });
+}
+
+export async function updateStrategy(
+  id: string,
+  name: string,
+  body: string,
+): Promise<StrategiesInfo> {
+  requireBackend();
+  return request<StrategiesInfo>(`/api/strategies/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name, body }),
+  });
+}
+
+/** Retires a strategy. The server archives rather than deletes, so past
+ *  predictions keep their label. */
+export async function archiveStrategy(id: string): Promise<StrategiesInfo> {
+  requireBackend();
+  return request<StrategiesInfo>(`/api/strategies/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function activateStrategy(id: string): Promise<StrategiesInfo> {
+  requireBackend();
+  return request<StrategiesInfo>(`/api/strategies/${encodeURIComponent(id)}/activate`, {
+    method: 'POST',
+  });
+}
+
 export async function registerPushToken(token: string, platform?: string): Promise<void> {
   requireBackend();
   await request('/api/push/register', {

@@ -55,6 +55,18 @@ from app.pipeline.classifier import ClassificationError, build_classifier
 from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
 from app.prediction.service import build_prediction
+from app.prediction.store import (
+    MAX_BODY_CHARS,
+    MAX_NAME_CHARS,
+    MIN_BODY_CHARS,
+    StrategyError,
+    archive_strategy,
+    create_strategy,
+    get_active_strategy,
+    list_strategies,
+    set_active_strategy,
+    update_strategy,
+)
 from app.prefs import (
     SUPPORTED_LANGUAGES,
     push_delivery_enabled,
@@ -312,6 +324,98 @@ async def api_predict(
     # accuracy); build_prediction treats that as best-effort.
     with SessionLocal() as session:
         return await build_prediction(settings, query=q, session=session)
+
+
+class StrategyBody(BaseModel):
+    name: str
+    body: str
+
+
+def _strategy_json(strategy, *, active_id: str, vi: bool) -> dict:
+    name, body = strategy.display(vi)
+    return {
+        "id": strategy.id,
+        "name": name,
+        "body": body,
+        "builtin": strategy.builtin,
+        "active": strategy.id == active_id,
+    }
+
+
+def _strategies_payload(settings) -> dict:
+    vi = resolve_language(settings).strip().lower() == "vietnamese"
+    active = get_active_strategy(settings)
+    return {
+        "strategies": [
+            _strategy_json(s, active_id=active.id, vi=vi)
+            for s in list_strategies(settings)
+        ],
+        "activeId": active.id,
+        "limits": {
+            "nameChars": MAX_NAME_CHARS,
+            "bodyChars": MAX_BODY_CHARS,
+            "minBodyChars": MIN_BODY_CHARS,
+        },
+    }
+
+
+@app.get("/api/strategies")
+def api_strategies(authorization: str | None = Header(default=None)) -> dict:
+    """The built-in strategy plus the user's own, and which one is active."""
+    settings = _require_mobile_api(authorization)
+    return _strategies_payload(settings)
+
+
+@app.post("/api/strategies")
+def api_create_strategy(
+    payload: StrategyBody, authorization: str | None = Header(default=None)
+) -> dict:
+    settings = _require_mobile_api(authorization)
+    try:
+        create_strategy(payload.name, payload.body, settings=settings)
+    except StrategyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _strategies_payload(settings)
+
+
+@app.put("/api/strategies/{strategy_id}")
+def api_update_strategy(
+    strategy_id: str,
+    payload: StrategyBody,
+    authorization: str | None = Header(default=None),
+) -> dict:
+    settings = _require_mobile_api(authorization)
+    try:
+        update_strategy(strategy_id, name=payload.name, body=payload.body, settings=settings)
+    except StrategyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _strategies_payload(settings)
+
+
+@app.delete("/api/strategies/{strategy_id}")
+def api_archive_strategy(
+    strategy_id: str, authorization: str | None = Header(default=None)
+) -> dict:
+    """Retire a strategy. It is archived, not deleted — past predictions carry
+    its id and the accuracy screen still needs to name it."""
+    settings = _require_mobile_api(authorization)
+    try:
+        archive_strategy(strategy_id, settings=settings)
+    except StrategyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _strategies_payload(settings)
+
+
+@app.post("/api/strategies/{strategy_id}/activate")
+def api_activate_strategy(
+    strategy_id: str, authorization: str | None = Header(default=None)
+) -> dict:
+    settings = _require_mobile_api(authorization)
+    try:
+        set_active_strategy(strategy_id, settings=settings)
+    except StrategyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _strategies_payload(settings)
 
 
 class LanguageBody(BaseModel):

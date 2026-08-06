@@ -1,4 +1,6 @@
 import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
@@ -13,6 +15,7 @@ import {
 } from '../data/api';
 import { Logo } from '../components/Logo';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { RootStackParamList } from '../navigation/types';
 import { useI18n } from '../i18n/LanguageContext';
 import { useTheme } from '../theme/ThemeContext';
 import { checkForUpdate, versionLabel } from '../updates';
@@ -79,6 +82,7 @@ function ToggleRow({
 export function SettingsScreen() {
   const { colors, mode, toggle } = useTheme();
   const { t, language, setLanguage: setCtxLanguage } = useI18n();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [languages, setLanguages] = useState<Language[]>([]);
   const [channels, setChannels] = useState<Channels | null>(null);
   const [briefing, setBriefing] = useState<BriefingInfo | null>(null);
@@ -177,6 +181,10 @@ export function SettingsScreen() {
 
         <SectionLabel>{t('set.preferences')}</SectionLabel>
         <Row label={t('set.language')} value={language} onPress={changeLanguage} />
+        <Row
+          label={t('strat.title')}
+          onPress={() => navigation.navigate('Strategies')}
+        />
         <Row
           label={t('set.briefing')}
           value={briefingValue}

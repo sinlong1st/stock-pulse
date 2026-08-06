@@ -182,6 +182,10 @@ class Settings(BaseSettings):
     # Docker this is redirected into the ./data volume so it survives rebuilds.
     prefs_file: str = "runtime_prefs.json"
 
+    # User-written prediction strategies (app/prediction/store.py). Like
+    # prefs_file, redirect this into ./data in Docker so it survives rebuilds.
+    strategies_file: str = "strategies.json"
+
     # Read-only JSON API for the mobile app (GET /api/feed). Off by default and
     # gated by a bearer token; purely additive (does not affect alerts/Telegram).
     mobile_api_enabled: bool = False

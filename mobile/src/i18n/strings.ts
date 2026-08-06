@@ -154,6 +154,47 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   'loader.predict.log7': { en: 'strategy lens applied', vi: 'áp dụng chiến lược' },
   'loader.predict.log8': { en: 'validating AI output', vi: 'kiểm tra kết quả AI' },
 
+  // prediction strategies
+  'strat.kicker': { en: 'AI · HOW IT THINKS', vi: 'AI · CÁCH SUY LUẬN' },
+  'strat.title': { en: 'Strategies', vi: 'Chiến lược' },
+  'strat.intro': {
+    en: 'A strategy is the lens the AI reasons through. It changes how the evidence is weighed — never the real numbers.',
+    vi: 'Chiến lược là góc nhìn AI dùng để suy luận. Nó thay đổi cách cân nhắc dữ liệu — không bao giờ thay đổi các con số thực.',
+  },
+  'strat.builtin': { en: 'BUILT-IN', vi: 'MẶC ĐỊNH' },
+  'strat.manage': { en: 'Manage strategies', vi: 'Quản lý chiến lược' },
+  'strat.active': { en: 'ACTIVE', vi: 'ĐANG DÙNG' },
+  'strat.use': { en: 'Use this', vi: 'Dùng cái này' },
+  'strat.edit': { en: 'Edit', vi: 'Sửa' },
+  'strat.add': { en: 'Write your own', vi: 'Viết chiến lược riêng' },
+  'strat.newTitle': { en: 'New strategy', vi: 'Chiến lược mới' },
+  'strat.editTitle': { en: 'Edit strategy', vi: 'Sửa chiến lược' },
+  'strat.nameLabel': { en: 'NAME', vi: 'TÊN' },
+  'strat.namePlaceholder': { en: 'e.g. Deep value', vi: 'vd Giá trị sâu' },
+  'strat.bodyLabel': { en: 'HOW TO WEIGH THE EVIDENCE', vi: 'CÁCH CÂN NHẮC DỮ LIỆU' },
+  'strat.bodyPlaceholder': {
+    en: 'e.g. Favour quality names 20%+ off their high where the bad news looks temporary. Ignore short-term momentum.',
+    vi: 'vd Ưu tiên cổ phiếu tốt giảm trên 20% từ đỉnh khi tin xấu chỉ là tạm thời. Bỏ qua đà ngắn hạn.',
+  },
+  'strat.bodyHint': {
+    en: 'Write it as instructions to an analyst. The AI still uses the real price signals and can never change them.',
+    vi: 'Hãy viết như đang hướng dẫn một chuyên viên phân tích. AI vẫn dùng tín hiệu giá thực và không thể thay đổi chúng.',
+  },
+  'strat.save': { en: 'Save', vi: 'Lưu' },
+  'strat.removeTitle': { en: 'Remove {name}?', vi: 'Xoá {name}?' },
+  'strat.removeBody': {
+    en: 'Predictions already made with it keep their accuracy record.',
+    vi: 'Các dự đoán đã tạo bằng chiến lược này vẫn giữ lịch sử độ chính xác.',
+  },
+  'strat.footnote': {
+    en: 'Each prediction records the strategy that made it, so accuracy can be compared later.',
+    vi: 'Mỗi dự đoán ghi lại chiến lược đã tạo ra nó, để so sánh độ chính xác về sau.',
+  },
+  'strat.loadErr': { en: 'Couldn’t load strategies.', vi: 'Không tải được chiến lược.' },
+  'strat.saveErr': { en: 'Couldn’t save', vi: 'Không lưu được' },
+  'strat.removeErr': { en: 'Couldn’t remove', vi: 'Không xoá được' },
+  'strat.activateErr': { en: 'Couldn’t switch strategy', vi: 'Không đổi được chiến lược' },
+
   // earnings (Report section + Predict chip)
   'earn.section': { en: 'EARNINGS', vi: 'KẾT QUẢ KINH DOANH' },
   'earn.next': { en: 'NEXT REPORT', vi: 'BÁO CÁO TỚI' },

@@ -1,4 +1,6 @@
 import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -22,6 +24,7 @@ import { WatchlistPicker } from '../components/WatchlistPicker';
 import { fetchPrediction, isAborted, Lean, Prediction, PredictionHorizon } from '../data/api';
 import { guessTicker, useWatchlist } from '../data/useWatchlist';
 import { useI18n } from '../i18n/LanguageContext';
+import { RootStackParamList } from '../navigation/types';
 import { ThemeColors } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -88,6 +91,7 @@ function overallLean(horizons?: PredictionHorizon[]): Lean {
 export function PredictScreen() {
   const { colors } = useTheme();
   const { t, language } = useI18n();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [pred, setPred] = useState<Prediction | null>(null);
@@ -381,6 +385,18 @@ export function PredictScreen() {
             <Text style={[styles.sheetTitle, { color: colors.text }]}>{pred?.strategy?.name}</Text>
             <Text style={[styles.sheetBody, { color: colors.muted }]}>{pred?.strategy?.body}</Text>
             <Text style={[styles.sheetNote, { color: colors.faint }]}>{t('predict.strategyNote')}</Text>
+            <Pressable
+              onPress={() => {
+                setModal(false);
+                navigation.navigate('Strategies');
+              }}
+              style={[styles.sheetLink, { borderColor: colors.dividerStrong }]}
+            >
+              <Feather name="sliders" size={13} color={colors.accentInk} />
+              <Text style={[styles.sheetLinkText, { color: colors.accentInk }]}>
+                {t('strat.manage')}
+              </Text>
+            </Pressable>
             <Pressable onPress={() => setModal(false)} style={[styles.sheetBtn, { backgroundColor: colors.accent }]}>
               <Text style={[styles.sheetBtnText, { color: colors.onAccent }]}>{t('common.gotIt')}</Text>
             </Pressable>
@@ -453,6 +469,16 @@ const styles = StyleSheet.create({
   sheetTitle: { fontSize: 20, fontWeight: '900' },
   sheetBody: { fontSize: 13.5, lineHeight: 20 },
   sheetNote: { fontSize: 11, lineHeight: 16, marginTop: 4 },
-  sheetBtn: { marginTop: 10, paddingVertical: 12, alignItems: 'center' },
+  sheetLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    paddingVertical: 11,
+    marginTop: 10,
+  },
+  sheetLinkText: { fontSize: 12.5, fontWeight: '800' },
+  sheetBtn: { marginTop: 8, paddingVertical: 12, alignItems: 'center' },
   sheetBtnText: { fontSize: 14, fontWeight: '800' },
 });

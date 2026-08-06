@@ -16,7 +16,8 @@ from app.earnings import fetch_many, local_today
 from app.evaluation import record_prediction_read
 from app.prediction.analyst import PredictionError, build_analyst
 from app.prediction.signals import compute_signals, fetch_bars, support_levels
-from app.prediction.strategies import DEFAULT_STRATEGY, Strategy
+from app.prediction.store import get_active_strategy
+from app.prediction.strategies import Strategy
 from app.prefs import resolve_language
 from app.prices import maybe_briefing_price_client, price_freshness
 
@@ -126,13 +127,19 @@ async def build_prediction(
     settings: Settings | None = None,
     *,
     query: str,
-    strategy: Strategy = DEFAULT_STRATEGY,
+    strategy: Strategy | None = None,
     analyst=None,
     language: str | None = None,
     session=None,
 ) -> dict:
-    """Produce the prediction JSON (spec §2), or `{ok: False, reason}` on failure."""
+    """Produce the prediction JSON (spec §2), or `{ok: False, reason}` on failure.
+
+    Without an explicit `strategy`, the user's active one is used — that's what
+    lets a custom lens actually change the read.
+    """
     settings = settings or get_settings()
+    if strategy is None:
+        strategy = get_active_strategy(settings)
     language = language or resolve_language(settings)
     vi = language.strip().lower() == "vietnamese"
 

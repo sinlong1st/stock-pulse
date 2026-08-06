@@ -83,6 +83,23 @@ def set_flag(key: str, value: bool, *, path: str | Path | None = None) -> None:
     logger.info("Runtime pref %s set to %s.", key, value)
 
 
+def get_str(key: str, settings=None) -> str | None:
+    """Read a string runtime pref, or None when unset/blank."""
+    settings = settings or get_settings()
+    val = _load(str(settings.prefs_file)).get(key)
+    return val.strip() if isinstance(val, str) and val.strip() else None
+
+
+def set_str(key: str, value: str, *, path: str | Path | None = None) -> None:
+    """Persist a string runtime pref and clear the cache."""
+    path = Path(path or get_settings().prefs_file)
+    prefs = dict(_load(str(path)))
+    prefs[key] = value
+    _write(prefs, path)
+    _load.cache_clear()
+    logger.info("Runtime pref %s set to %r.", key, value)
+
+
 def telegram_delivery_enabled(settings=None) -> bool:
     """Whether the user wants alerts on Telegram (the app toggle; default on).
 

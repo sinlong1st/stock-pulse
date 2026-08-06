@@ -194,6 +194,50 @@ async def test_recording_can_be_switched_off(monkeypatch) -> None:
         assert session.query(PredictionRow).count() == 0
 
 
+async def test_active_custom_strategy_drives_and_tags_the_prediction(monkeypatch, tmp_path) -> None:
+    """The whole point of the feature: the user's lens reaches the model, and
+    the resulting call is tagged with it so accuracy can be compared later."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    import app.prediction.store as store
+    import app.prefs as prefs
+    from app.db.database import Base
+    from app.db.models import PredictionRow
+
+    store._load.cache_clear()
+    prefs._load.cache_clear()
+    settings = Settings(
+        _env_file=None,
+        strategies_file=str(tmp_path / "strategies.json"),
+        prefs_file=str(tmp_path / "prefs.json"),
+    )
+    mine = store.create_strategy(
+        "Deep value",
+        "Favour quality names far off their high when the bad news looks temporary.",
+        settings=settings,
+    )
+    store.set_active_strategy(mine.id, settings=settings)
+
+    engine = create_engine("sqlite:///:memory:", future=True)
+    Base.metadata.create_all(engine)
+    _wire(monkeypatch)
+    analyst = _FakeAnalyst()
+
+    with sessionmaker(bind=engine, expire_on_commit=False)() as session:
+        out = await svc.build_prediction(settings, query="wdc", analyst=analyst, session=session)
+        rows = session.query(PredictionRow).all()
+
+    assert analyst.seen["strategy"].id == mine.id  # the model saw the user's lens
+    assert "Favour quality names" in analyst.seen["strategy"].body
+    assert out["strategy"]["id"] == mine.id
+    assert out["strategy"]["name"] == "Deep value"
+    assert [r.strategy_id for r in rows] == [mine.id]  # recorded against it
+
+    store._load.cache_clear()
+    prefs._load.cache_clear()
+
+
 async def test_build_prediction_unknown_ticker(monkeypatch) -> None:
     monkeypatch.setattr(svc, "resolve_focus", lambda q: FocusTarget(q, None, None, q))
 
