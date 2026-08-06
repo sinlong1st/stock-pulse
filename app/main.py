@@ -9,7 +9,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from app import __version__
@@ -24,6 +24,7 @@ from app.alerts.telegram_listener import build_command_listener
 from app.api.evaluation import build_evaluation
 from app.api.feed import build_feed
 from app.api.report import build_report as build_mobile_report
+from app.api.stream import SSE_HEADERS, sse_with_progress
 from app.api.watchlist import build_watchlist
 from app.collectors import build_all_collectors, collect_from
 from app.commands import build_command_handlers
@@ -324,6 +325,43 @@ async def api_predict(
     # accuracy); build_prediction treats that as best-effort.
     with SessionLocal() as session:
         return await build_prediction(settings, query=q, session=session)
+
+
+@app.get("/api/report/stream")
+async def api_report_stream(
+    q: str | None = None, authorization: str | None = Header(default=None)
+):
+    """Same as /api/report, but streams stage events while it works."""
+    settings = _require_mobile_api(authorization)
+
+    async def run(progress):
+        return await build_mobile_report(settings, query=q, progress=progress)
+
+    return StreamingResponse(
+        sse_with_progress(run), media_type="text/event-stream", headers=SSE_HEADERS
+    )
+
+
+@app.get("/api/predict/stream")
+async def api_predict_stream(
+    q: str | None = None, authorization: str | None = Header(default=None)
+):
+    """Same as /api/predict, but streams stage events while it works."""
+    settings = _require_mobile_api(authorization)
+    if not settings.prediction_enabled:
+        raise HTTPException(status_code=404, detail="Not found")
+    if not q or not q.strip():
+        raise HTTPException(status_code=400, detail="Missing ?q=<ticker or name>")
+
+    async def run(progress):
+        with SessionLocal() as session:
+            return await build_prediction(
+                settings, query=q, session=session, progress=progress
+            )
+
+    return StreamingResponse(
+        sse_with_progress(run), media_type="text/event-stream", headers=SSE_HEADERS
+    )
 
 
 class StrategyBody(BaseModel):

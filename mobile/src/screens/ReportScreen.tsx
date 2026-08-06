@@ -16,7 +16,7 @@ import { HackerLoader, LoaderPhase } from '../components/HackerLoader';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Segmented } from '../components/Segmented';
 import { WatchlistPicker } from '../components/WatchlistPicker';
-import { fetchReport, isAborted } from '../data/api';
+import { REPORT_STAGES, streamReport, StreamHandle } from '../data/api';
 import { Report } from '../data/types';
 import { guessTicker, useWatchlist } from '../data/useWatchlist';
 import { useI18n } from '../i18n/LanguageContext';
@@ -38,24 +38,34 @@ export function ReportScreen() {
   const [scope, setScope] = useState<string>(WHOLE);
   const [ticker, setTicker] = useState('');
 
-  const abort = useRef<AbortController | null>(null);
+  const stream = useRef<StreamHandle | null>(null);
+  const [stageIndex, setStageIndex] = useState<number | null>(null);
 
-  const generate = async () => {
-    abort.current?.abort(); // a re-tap replaces the in-flight run
-    const ctrl = new AbortController();
-    abort.current = ctrl;
+  const generate = () => {
+    stream.current?.cancel(); // a re-tap replaces the in-flight run
     setPhase('running');
+    setStageIndex(null);
     setError(null);
-    try {
-      setReport(await fetchReport(scope === SINGLE ? ticker : undefined, ctrl.signal));
-      if (abort.current === ctrl) setPhase('done'); // loader runs the bar to 100%
-    } catch (e) {
-      if (isAborted(e)) return; // cancelled on purpose — leave the screen as it was
-      setError(e instanceof Error ? e.message : t('report.genErr'));
-      if (abort.current === ctrl) setPhase('idle'); // a failure earns no fanfare
-    } finally {
-      if (abort.current === ctrl) abort.current = null;
-    }
+    stream.current = streamReport(
+      scope === SINGLE ? ticker : undefined,
+      (stage) => setStageIndex(REPORT_STAGES.indexOf(stage)),
+      (r) => {
+        setReport(r);
+        setPhase('done'); // loader runs the bar to 100%
+        stream.current = null;
+      },
+      (e) => {
+        setError(e.message || t('report.genErr'));
+        setPhase('idle'); // a failure earns no fanfare
+        stream.current = null;
+      },
+    );
+  };
+
+  const cancel = () => {
+    stream.current?.cancel();
+    stream.current = null;
+    setPhase('idle');
   };
 
   // What to call the stock on the loading screen. While the request is in flight
@@ -229,12 +239,9 @@ export function ReportScreen() {
         scrambleWord={t('loader.report.scramble')}
         headline={loaderHeadline}
         steps={loaderSteps}
+        stageIndex={stageIndex}
         logLines={loaderLogs}
-        onCancel={() => {
-          abort.current?.abort();
-          abort.current = null;
-          setPhase('idle');
-        }}
+        onCancel={cancel}
       />
     </View>
   );

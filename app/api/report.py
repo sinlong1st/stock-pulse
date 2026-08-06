@@ -17,9 +17,14 @@ from app.briefing.focus import resolve_focus
 from app.commands.symbols import resolve_symbol
 from app.config import Settings
 from app.earnings import fetch_many, local_today
+from app.jobs.briefing import REPORT_STAGES as _PIPELINE_STAGES
 from app.jobs.briefing import run_report
 
 logger = logging.getLogger("stockpulse.api.report")
+
+# What the app renders as its step list: the briefing pipeline's stages, plus the
+# price/earnings assembly this module does afterwards.
+REPORT_STAGES = (*_PIPELINE_STAGES, "compose")
 
 _DIRECTION_TO_SENTIMENT = {"bullish": "BULLISH", "bearish": "BEARISH", "mixed": "NEUTRAL"}
 
@@ -79,11 +84,21 @@ async def _earnings_rows(settings: Settings, watchlist: list[dict]) -> list[dict
     return sorted(rows, key=order)
 
 
-async def build_report(settings: Settings, *, query: str | None = None) -> dict:
-    """Run a briefing and shape it for the mobile Report screen."""
-    run = await run_report(query, deliver=False, settings=settings)
+async def build_report(
+    settings: Settings, *, query: str | None = None, progress=None
+) -> dict:
+    """Run a briefing and shape it for the mobile Report screen.
+
+    `progress` receives a stage key as each phase begins — see REPORT_STAGES for
+    the order the app expects.
+    """
+    step = progress if callable(progress) else (lambda _stage: None)
+    run = await run_report(query, deliver=False, settings=settings, progress=step)
     result = run.result
 
+    # Prices and earnings are gathered after the AI call, so they get their own
+    # stage rather than hiding inside a step that already looks finished.
+    step("compose")
     watchlist = await _price_rows(settings, query)
     earnings = await _earnings_rows(settings, watchlist)
     generated_at = datetime.now(UTC).isoformat()

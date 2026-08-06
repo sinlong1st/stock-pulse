@@ -206,7 +206,7 @@ async def test_build_report_maps_themes(monkeypatch) -> None:
         themes=[BriefingTheme(theme="AI & semis", direction="bearish", insight="chips wobble")],
     )
 
-    async def fake_run_report(query=None, *, deliver=True, settings=None):
+    async def fake_run_report(query=None, *, deliver=True, settings=None, progress=None):
         return SimpleNamespace(result=result, skipped_reason=None)
 
     async def fake_wl(settings):
@@ -233,7 +233,7 @@ async def test_build_report_handles_no_result(monkeypatch) -> None:
 
     import app.api.report as report_api
 
-    async def fake_run_report(query=None, *, deliver=True, settings=None):
+    async def fake_run_report(query=None, *, deliver=True, settings=None, progress=None):
         return SimpleNamespace(result=None, skipped_reason="no OpenAI key")
 
     async def fake_wl(settings):
@@ -258,7 +258,7 @@ async def _report_with(monkeypatch, *, focus_ticker, symbol=None, wl_rows=None):
     import app.api.report as report_api
     from app.briefing.focus import FocusTarget
 
-    async def fake_run_report(query=None, *, deliver=True, settings=None):
+    async def fake_run_report(query=None, *, deliver=True, settings=None, progress=None):
         return SimpleNamespace(result=None, skipped_reason=None)
 
     seen: dict = {}

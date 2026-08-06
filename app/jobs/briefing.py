@@ -32,6 +32,10 @@ logger = logging.getLogger("stockpulse.jobs.briefing")
 
 _UNSET = object()
 
+# The stages run_briefing reports, in order. The app renders one step per entry;
+# keep this aligned with the loader's step labels.
+REPORT_STAGES = ("news", "prices", "analyze")
+
 
 @dataclass
 class BriefingRun:
@@ -138,6 +142,7 @@ async def run_briefing(
     collectors: list[NewsCollector] | None = None,
     price_tickers: list[str] | None = None,
     price_client: object = _UNSET,
+    progress: object = None,
 ) -> BriefingRun:
     """Run a briefing once and (optionally) deliver it to Telegram.
 
@@ -150,6 +155,8 @@ async def run_briefing(
     settings = settings or get_settings()
     win = window_hours if window_hours is not None else window_for(trigger, settings)
     run = BriefingRun(trigger=trigger)
+    # Stage keys are part of the app-facing API (see REPORT_STAGES).
+    step = progress if callable(progress) else (lambda _stage: None)
 
     if memory is _UNSET:
         # Focused single-stock reports are one-offs — they don't feed or pollute
@@ -175,6 +182,7 @@ async def run_briefing(
     # 2. Retrieve fresh news (unless injected). `collectors` narrows the sources
     # for a focused single-stock report.
     if retrieval is None:
+        step("news")
         retrieval = await retrieve_fresh_news(
             window_hours=win, settings=settings, collectors=collectors
         )
@@ -188,12 +196,14 @@ async def run_briefing(
 
     # Prices fetched BEFORE analysis so notable movers can be fed to the AI
     # (it flags a big move even when there is no news for it).
+    step("prices")
     snapshots = await _fetch_snapshots(
         settings, _price_tickers(settings, price_tickers), price_client
     )
     price_moves = _format_price_moves(snapshots, settings.briefing_price_move_threshold_pct)
 
     # 3. Analyze.
+    step("analyze")
     try:
         result = await analyst.analyze(
             retrieval, prior_themes=prior_themes, focus=focus, price_moves=price_moves

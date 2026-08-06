@@ -4,6 +4,7 @@
  */
 import { API_BASE_URL, API_TOKEN } from '../config';
 import { mockAlerts, mockEvaluation, mockPrediction, mockReport, mockWatchlist } from './mock';
+import { streamSse } from './sse';
 import { Alert, EarningsRow, Report, Sentiment, WatchRow } from './types';
 
 /** True when no backend is configured (the app is showing sample data). */
@@ -217,6 +218,99 @@ export type Prediction = {
 export async function fetchPrediction(query: string, signal?: AbortSignal): Promise<Prediction> {
   if (!API_BASE_URL) return mockPrediction;
   return getJson<Prediction>(`/api/predict?q=${encodeURIComponent(query.trim())}`, signal);
+}
+
+// --- streaming variants ----------------------------------------------------
+//
+// The plain endpoints above still exist and still work; these add real progress
+// events. Every caller falls back to the plain one if streaming fails, so a
+// proxy that buffers SSE (or an old backend) degrades to today's behaviour
+// rather than breaking.
+
+export type StreamHandle = { cancel: () => void };
+
+/**
+ * Stage keys the backend emits, in order — these must match REPORT_STAGES in
+ * app/api/report.py and PREDICT_STAGES in app/prediction/service.py. The loader
+ * renders one step per entry, so the labels are indexed off these.
+ */
+export const REPORT_STAGES = ['news', 'prices', 'analyze', 'compose'];
+export const PREDICT_STAGES = ['resolve', 'prices', 'news', 'analyze'];
+
+function streamOrFallback<T>(
+  path: string,
+  fallback: (signal: AbortSignal) => Promise<T>,
+  onStage: (stage: string) => void,
+  onDone: (result: T) => void,
+  onError: (error: Error) => void,
+): StreamHandle {
+  let cancelled = false;
+  // Cancelling must also stop a fallback request that's already in flight.
+  const ctrl = new AbortController();
+  const handle = streamSse<T>(path, {
+    onStage,
+    onResult: (result) => !cancelled && onDone(result),
+    onError: () => {
+      if (cancelled) return;
+      // Streaming didn't work — take the ordinary path so the user still gets
+      // their answer, just without live stages.
+      fallback(ctrl.signal)
+        .then((r) => !cancelled && onDone(r))
+        .catch((e) => {
+          if (cancelled || isAborted(e)) return;
+          onError(e instanceof Error ? e : new Error(String(e)));
+        });
+    },
+  });
+  return {
+    cancel: () => {
+      cancelled = true;
+      handle.cancel();
+      ctrl.abort();
+    },
+  };
+}
+
+/** Generate a briefing, reporting real pipeline stages as they happen. */
+export function streamReport(
+  query: string | undefined,
+  onStage: (stage: string) => void,
+  onDone: (report: Report) => void,
+  onError: (error: Error) => void,
+): StreamHandle {
+  if (!API_BASE_URL) {
+    onDone(mockReport);
+    return { cancel: () => {} };
+  }
+  const q = query?.trim() ? `?q=${encodeURIComponent(query.trim())}` : '';
+  return streamOrFallback(
+    `/api/report/stream${q}`,
+    (signal) => fetchReport(query, signal),
+    onStage,
+    onDone,
+    onError,
+  );
+}
+
+/** Forward-looking read, reporting real pipeline stages as they happen. */
+export function streamPrediction(
+  query: string,
+  onStage: (stage: string) => void,
+  onDone: (prediction: Prediction) => void,
+  onError: (error: Error) => void,
+): StreamHandle {
+  if (!API_BASE_URL) {
+    onDone(mockPrediction);
+    return { cancel: () => {} };
+  }
+  const q = `?q=${encodeURIComponent(query.trim())}`;
+  return streamOrFallback(
+    `/api/predict/stream${q}`,
+    (signal) => fetchPrediction(query, signal),
+    onStage,
+    onDone,
+    onError,
+  );
 }
 
 // --- prediction strategies -------------------------------------------------

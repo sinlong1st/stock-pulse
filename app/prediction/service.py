@@ -6,6 +6,7 @@ AI only writes the narrative. See specs/STOCKPULSE_AI_PREDICTION_PLAN.md.
 """
 
 import logging
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 from app.briefing.focus import FocusTarget, build_focus_collectors, resolve_focus
@@ -24,6 +25,10 @@ from app.prices import maybe_briefing_price_client, price_freshness
 logger = logging.getLogger("stockpulse.prediction.service")
 
 _RANGE_LABEL = {1: "1mo", 3: "3mo", 6: "6mo", 12: "1y"}
+
+# The stages build_prediction reports, in order. The app renders one step per
+# entry, so changing this list changes the loader — keep them aligned.
+PREDICT_STAGES = ("resolve", "prices", "news", "analyze")
 
 
 async def _resolve(query: str, settings: Settings) -> FocusTarget:
@@ -131,23 +136,31 @@ async def build_prediction(
     analyst=None,
     language: str | None = None,
     session=None,
+    progress: Callable[[str], None] | None = None,
 ) -> dict:
     """Produce the prediction JSON (spec §2), or `{ok: False, reason}` on failure.
 
     Without an explicit `strategy`, the user's active one is used — that's what
     lets a custom lens actually change the read.
+
+    `progress` is called with a stage key as each phase begins, so a streaming
+    caller can show real progress. Stage keys are part of the API — the app maps
+    them to its step list — so keep them in sync with PREDICT_STAGES.
     """
     settings = settings or get_settings()
     if strategy is None:
         strategy = get_active_strategy(settings)
     language = language or resolve_language(settings)
     vi = language.strip().lower() == "vietnamese"
+    step = progress or (lambda _stage: None)
 
+    step("resolve")
     target = await _resolve(query, settings)
     if not target.ticker:
         return {"ok": False, "reason": f"Couldn't find a stock for '{query}'."}
     ticker, name = target.ticker, (target.name or target.ticker)
 
+    step("prices")
     months = settings.prediction_range_months
     bars = await fetch_bars(ticker, range_=_RANGE_LABEL.get(months, "6mo"))
     price, fresh = await _current_price(ticker, settings)
@@ -161,11 +174,13 @@ async def build_prediction(
         "dates": [b.t.date().isoformat() for b in recent],
     }
     support = _support_levels(bars, price)
-    earnings = (await fetch_many([ticker], settings=settings)).get(ticker)
 
+    step("news")
+    earnings = (await fetch_many([ticker], settings=settings)).get(ticker)
     news = await _news_lines(target, settings)
     horizons = [h.strip() for h in settings.prediction_horizons.split(",") if h.strip()]
 
+    step("analyze")
     try:
         analyst = analyst or build_analyst(settings)
         read = await analyst.analyze(

@@ -21,7 +21,14 @@ import { PriceChart } from '../components/PriceChart';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Segmented } from '../components/Segmented';
 import { WatchlistPicker } from '../components/WatchlistPicker';
-import { fetchPrediction, isAborted, Lean, Prediction, PredictionHorizon } from '../data/api';
+import {
+  Lean,
+  Prediction,
+  PredictionHorizon,
+  PREDICT_STAGES,
+  streamPrediction,
+  StreamHandle,
+} from '../data/api';
 import { guessTicker, useWatchlist } from '../data/useWatchlist';
 import { useI18n } from '../i18n/LanguageContext';
 import { RootStackParamList } from '../navigation/types';
@@ -103,42 +110,52 @@ export function PredictScreen() {
   // Last query that produced a read, so a language switch can re-ask the backend.
   const lastQuery = useRef<string | null>(null);
 
-  const abort = useRef<AbortController | null>(null);
+  const stream = useRef<StreamHandle | null>(null);
+  const [stageIndex, setStageIndex] = useState<number | null>(null);
 
   const run = useCallback(
     /** `silent` refreshes in the background — no takeover loader. Used by the
      *  language switch, which the user didn't ask to wait for. */
-    async (q?: string, { silent = false }: { silent?: boolean } = {}) => {
+    (q?: string, { silent = false }: { silent?: boolean } = {}) => {
       const term = (q ?? query).trim();
       if (!term) return;
-      abort.current?.abort(); // a new ticker replaces the in-flight run
-      const ctrl = new AbortController();
-      abort.current = ctrl;
-      if (!silent) setPhase('running');
-      setError(null);
-      try {
-        const p = await fetchPrediction(term, ctrl.signal);
-        const mine = abort.current === ctrl;
-        if (p.ok) {
-          setPred(p);
-          lastQuery.current = term;
-          // Only a visible run gets the 100% beat; a silent refresh never showed.
-          if (mine && !silent) setPhase('done');
-        } else {
-          setPred(null);
-          setError(p.reason ?? t('predict.genErr'));
-          if (mine && !silent) setPhase('idle');
-        }
-      } catch (e) {
-        if (isAborted(e)) return; // cancelled on purpose — keep the current read
-        setError(e instanceof Error ? e.message : t('predict.genErr'));
-        if (abort.current === ctrl && !silent) setPhase('idle'); // no fanfare on failure
-      } finally {
-        if (abort.current === ctrl) abort.current = null;
+      stream.current?.cancel(); // a new ticker replaces the in-flight run
+      if (!silent) {
+        setPhase('running');
+        setStageIndex(null);
       }
+      setError(null);
+      stream.current = streamPrediction(
+        term,
+        (stage) => !silent && setStageIndex(PREDICT_STAGES.indexOf(stage)),
+        (p) => {
+          stream.current = null;
+          if (p.ok) {
+            setPred(p);
+            lastQuery.current = term;
+            // Only a visible run gets the 100% beat; a silent refresh never showed.
+            if (!silent) setPhase('done');
+          } else {
+            setPred(null);
+            setError(p.reason ?? t('predict.genErr'));
+            if (!silent) setPhase('idle');
+          }
+        },
+        (e) => {
+          stream.current = null;
+          setError(e.message || t('predict.genErr'));
+          if (!silent) setPhase('idle'); // no fanfare on failure
+        },
+      );
     },
     [query, t],
   );
+
+  const cancel = () => {
+    stream.current?.cancel();
+    stream.current = null;
+    setPhase('idle');
+  };
 
   // See ReportScreen: guess from the watchlist while in flight, then show the
   // ticker the server actually resolved rather than echoing the user's typo.
@@ -369,12 +386,9 @@ export function PredictScreen() {
         scrambleWord={t('loader.predict.scramble')}
         headline={loaderHeadline}
         steps={loaderSteps}
+        stageIndex={stageIndex}
         logLines={loaderLogs}
-        onCancel={() => {
-          abort.current?.abort();
-          abort.current = null;
-          setPhase('idle');
-        }}
+        onCancel={cancel}
       />
 
       {/* strategy modal */}

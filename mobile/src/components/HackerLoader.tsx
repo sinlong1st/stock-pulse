@@ -92,8 +92,14 @@ export type HackerLoaderProps = {
   headline: string;
   /** Small label above the headline, e.g. "BRIEFING · ON DEMAND". */
   kicker: string;
-  /** Ordered step labels; the active one advances with the percentage. */
+  /** Ordered step labels. */
   steps: string[];
+  /**
+   * Index of the stage the server has actually reached. When provided, the step
+   * list reflects real progress; without it the list advances on the estimated
+   * percentage, which is all we can do if streaming isn't available.
+   */
+  stageIndex?: number | null;
   /** Rotating log lines — flavour, but they describe real work. */
   logLines: string[];
   onCancel?: () => void;
@@ -106,6 +112,7 @@ export function HackerLoader({
   headline,
   kicker,
   steps,
+  stageIndex,
   logLines,
   onCancel,
 }: HackerLoaderProps) {
@@ -166,6 +173,14 @@ export function HackerLoader({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [finishing]);
 
+  // Keep the bar honest against real stages: when the server reports it has
+  // reached step N, the percentage should not still be sitting below it.
+  useEffect(() => {
+    if (stageIndex == null || stageIndex < 0 || !steps.length) return;
+    const floor = (stageIndex / steps.length) * MAX_FAKE_PCT;
+    setPct((p) => (p < floor ? floor : p));
+  }, [stageIndex, steps.length]);
+
   // Append a log line every ~5 ticks, keeping a fixed-height window.
   useEffect(() => {
     if (!visible || tick % 5 !== 0) return;
@@ -211,10 +226,15 @@ export function HackerLoader({
     return rows;
   }, [tick]);
 
-  // On finish every step reads as done — activeStep past the end.
+  // On finish every step reads as done — activeStep past the end. Otherwise
+  // prefer the server's real stage; fall back to the estimate when streaming
+  // isn't available.
+  const estimated = Math.min(steps.length - 1, Math.floor((pct / MAX_FAKE_PCT) * steps.length));
   const activeStep = finishing
     ? steps.length
-    : Math.min(steps.length - 1, Math.floor((pct / MAX_FAKE_PCT) * steps.length));
+    : stageIndex != null && stageIndex >= 0
+      ? Math.min(stageIndex, steps.length - 1)
+      : estimated;
   const blinkOn = tick % 9 < 5;
   const elapsed = (tick * TICK_MS) / 1000;
   const stamp = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(
