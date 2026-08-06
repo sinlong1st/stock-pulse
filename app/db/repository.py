@@ -390,6 +390,19 @@ class PredictionRepository:
         prediction.status = PRED_SKIPPED
         prediction.evaluated_at = datetime.now(tz=UTC)
 
+    def pending_by_strategy(self) -> dict[str, int]:
+        """How many calls per strategy are still waiting for their horizon —
+        the "N maturing" count that explains a thin sample."""
+        stmt = (
+            select(PredictionRow.strategy_id, func.count())
+            .where(
+                PredictionRow.source == PRED_SOURCE_PREDICT,
+                PredictionRow.status == PRED_PENDING,
+            )
+            .group_by(PredictionRow.strategy_id)
+        )
+        return {sid: n for sid, n in self.session.execute(stmt) if sid}
+
     def list_evaluated(self, limit: int = 2000, *, source: str | None = None) -> list[PredictionRow]:
         """Evaluated predictions, most recently evaluated first.
 

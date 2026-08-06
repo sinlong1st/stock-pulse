@@ -145,6 +145,81 @@ class EvaluationReport:
     pending: int
 
 
+# Below this many decided calls, an accuracy percentage is noise. We still show
+# the number, but the UI is told not to treat it as a verdict.
+MIN_MEANINGFUL_CALLS = 10
+
+
+@dataclass
+class StrategyStat:
+    """How one strategy's Predict-tab calls have actually turned out."""
+
+    strategy_id: str
+    name: str
+    builtin: bool
+    total: int  # scored calls (hits + misses + flats)
+    hits: int
+    misses: int
+    flats: int
+    accuracy_pct: float | None
+    avg_return_pct: float | None
+    pending: int  # still waiting for their horizon
+    enough_data: bool
+
+
+def build_strategy_accuracy(session: Session, settings: Settings | None = None) -> list[StrategyStat]:
+    """Per-strategy accuracy for Predict-tab calls — "yours vs ours".
+
+    Ordered best-first among strategies with enough decided calls to mean
+    anything; thin-sample ones follow, so a 100% from two lucky calls can't
+    sit at the top pretending to be a winner.
+    """
+    from app.prediction.store import get_strategy  # local: avoids an import cycle
+
+    settings = settings or get_settings()
+    repo = PredictionRepository(session)
+    rows = repo.list_evaluated(limit=5000, source=PRED_SOURCE_PREDICT)
+    pending = repo.pending_by_strategy()
+
+    # Every strategy that has either scored or pending calls deserves a row.
+    ids: set[str] = {r.strategy_id for r in rows if r.strategy_id} | set(pending)
+    stats: list[StrategyStat] = []
+
+    for strategy_id in ids:
+        mine = [r for r in rows if r.strategy_id == strategy_id]
+        hits = sum(1 for r in mine if r.outcome == OUTCOME_HIT)
+        misses = sum(1 for r in mine if r.outcome == OUTCOME_MISS)
+        flats = sum(1 for r in mine if r.outcome == OUTCOME_FLAT)
+        returns = [r.return_pct for r in mine if r.return_pct is not None]
+        strategy = get_strategy(strategy_id, settings)
+        stats.append(
+            StrategyStat(
+                strategy_id=strategy_id,
+                # An archived strategy still names itself; one whose record is
+                # gone entirely falls back to the id so the row isn't nameless.
+                name=strategy.name if strategy else strategy_id,
+                builtin=bool(strategy and strategy.builtin),
+                total=len(mine),
+                hits=hits,
+                misses=misses,
+                flats=flats,
+                accuracy_pct=_accuracy(hits, misses),
+                avg_return_pct=(sum(returns) / len(returns)) if returns else None,
+                pending=pending.get(strategy_id, 0),
+                enough_data=(hits + misses) >= MIN_MEANINGFUL_CALLS,
+            )
+        )
+
+    stats.sort(
+        key=lambda s: (
+            not s.enough_data,  # trustworthy rows first
+            -(s.accuracy_pct if s.accuracy_pct is not None else -1),
+            -s.total,
+        )
+    )
+    return stats
+
+
 def build_evaluation_digest(report: "EvaluationReport", language: str = "English") -> str:
     """Short text summary of the evaluation, for a Telegram digest."""
     vi = language.strip().lower() == "vietnamese"

@@ -23,6 +23,7 @@ from app.evaluation import (
 from app.prices import PriceClient, PriceSnapshot
 from app.status import (
     OUTCOME_HIT,
+    OUTCOME_MISS,
     PRED_EVALUATED,
     PRED_PENDING,
     PRED_SOURCE_NEWS,
@@ -248,6 +249,140 @@ def test_predict_rows_stay_out_of_the_news_accuracy_screen(session) -> None:
     report = build_evaluation_report(session)
     assert report.total_evaluated == 1  # the news row only
     assert repo.count_by_status(PRED_EVALUATED) == 2  # both really are stored
+
+
+# --- per-strategy accuracy -------------------------------------------------
+
+
+def _scored(session, *, strategy_id: str, hits: int, misses: int, flats: int = 0) -> None:
+    """Write already-evaluated Predict rows with a known hit/miss mix."""
+    repo = PredictionRepository(session)
+    now = datetime.now(tz=UTC)
+    plan = [(OUTCOME_HIT, 5.0)] * hits + [(OUTCOME_MISS, -4.0)] * misses
+    plan += [("FLAT", 0.1)] * flats
+    for outcome, ret in plan:
+        row = repo.create(
+            source=PRED_SOURCE_PREDICT,
+            ticker="WDC",
+            sentiment="BULLISH",
+            strategy_id=strategy_id,
+            horizon="1w",
+            created_at=now,
+            evaluate_after=now,
+            baseline_price=100.0,
+            baseline_at=now,
+        )
+        repo.mark_evaluated(row, 100 + ret, ret, outcome)
+    session.commit()
+
+
+def test_accuracy_is_computed_per_strategy(session, tmp_path) -> None:
+    from app.config import Settings
+    from app.evaluation import build_strategy_accuracy
+
+    settings = Settings(_env_file=None, strategies_file=str(tmp_path / "s.json"))
+    _scored(session, strategy_id="default", hits=6, misses=4)
+    _scored(session, strategy_id="s_mine", hits=9, misses=1)
+
+    stats = {s.strategy_id: s for s in build_strategy_accuracy(session, settings)}
+    assert stats["default"].accuracy_pct == 60.0
+    assert stats["s_mine"].accuracy_pct == 90.0
+    assert stats["default"].total == 10 and stats["s_mine"].total == 10
+
+
+def test_flats_count_as_scored_but_not_against_accuracy(session, tmp_path) -> None:
+    from app.config import Settings
+    from app.evaluation import build_strategy_accuracy
+
+    settings = Settings(_env_file=None, strategies_file=str(tmp_path / "s.json"))
+    _scored(session, strategy_id="default", hits=5, misses=5, flats=4)
+
+    stat = build_strategy_accuracy(session, settings)[0]
+    assert stat.total == 14  # flats are shown in the sample size
+    assert stat.accuracy_pct == 50.0  # but excluded from the ratio
+    assert stat.flats == 4
+
+
+def test_thin_samples_are_flagged_and_never_rank_first(session, tmp_path) -> None:
+    """A 100% from two lucky calls must not crown itself the winner."""
+    from app.config import Settings
+    from app.evaluation import MIN_MEANINGFUL_CALLS, build_strategy_accuracy
+
+    settings = Settings(_env_file=None, strategies_file=str(tmp_path / "s.json"))
+    _scored(session, strategy_id="s_lucky", hits=2, misses=0)  # 100%, tiny
+    _scored(session, strategy_id="default", hits=7, misses=5)  # 58%, solid
+
+    stats = build_strategy_accuracy(session, settings)
+    assert stats[0].strategy_id == "default"  # trustworthy row leads
+    assert stats[0].enough_data is True
+    assert stats[1].strategy_id == "s_lucky"
+    assert stats[1].enough_data is False
+    assert MIN_MEANINGFUL_CALLS > 2
+
+
+def test_strategies_with_only_pending_calls_still_appear(session, tmp_path) -> None:
+    from app.config import Settings
+    from app.evaluation import build_strategy_accuracy
+
+    settings = Settings(_env_file=None, strategies_file=str(tmp_path / "s.json"))
+    record_prediction_read(
+        session, ticker="WDC", horizons=_horizons(), strategy_id="s_new", baseline_price=65.0
+    )
+    session.commit()
+
+    stat = build_strategy_accuracy(session, settings)[0]
+    assert stat.strategy_id == "s_new"
+    assert stat.total == 0 and stat.pending == 3
+    assert stat.accuracy_pct is None and stat.enough_data is False
+
+
+def test_news_rows_never_enter_the_strategy_comparison(session, tmp_path) -> None:
+    from app.config import Settings
+    from app.evaluation import build_strategy_accuracy
+
+    settings = Settings(_env_file=None, strategies_file=str(tmp_path / "s.json"))
+    repo = PredictionRepository(session)
+    now = datetime.now(tz=UTC)
+    row = repo.create(
+        source=PRED_SOURCE_NEWS,
+        classification_id=1,
+        article_id=1,
+        ticker="WDC",
+        sentiment="BULLISH",
+        importance="HIGH",
+        horizon="1d",
+        created_at=now,
+        evaluate_after=now,
+        baseline_price=100.0,
+        baseline_at=now,
+    )
+    repo.mark_evaluated(row, 110.0, 10.0, OUTCOME_HIT)
+    session.commit()
+
+    assert build_strategy_accuracy(session, settings) == []
+
+
+def test_archived_strategy_keeps_its_name_in_the_comparison(session, tmp_path) -> None:
+    import app.prediction.store as store
+    from app.config import Settings
+
+    from app.evaluation import build_strategy_accuracy
+
+    store._load.cache_clear()
+    settings = Settings(
+        _env_file=None,
+        strategies_file=str(tmp_path / "s.json"),
+        prefs_file=str(tmp_path / "p.json"),
+    )
+    mine = store.create_strategy(
+        "Deep value", "Favour quality names far off their high.", settings=settings
+    )
+    _scored(session, strategy_id=mine.id, hits=6, misses=4)
+    store.archive_strategy(mine.id, settings=settings)
+
+    stat = build_strategy_accuracy(session, settings)[0]
+    assert stat.name == "Deep value"  # history stays labelled
+    store._load.cache_clear()
 
 
 def test_news_recording_still_defaults_to_the_news_source(session) -> None:

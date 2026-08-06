@@ -305,9 +305,9 @@ async def api_report(
 @app.get("/api/evaluation")
 def api_evaluation(authorization: str | None = Header(default=None)) -> dict:
     """Self-evaluation report (AI directional accuracy) for the app."""
-    _require_mobile_api(authorization)
+    settings = _require_mobile_api(authorization)
     with SessionLocal() as session:
-        return build_evaluation(session)
+        return build_evaluation(session, settings)
 
 
 @app.get("/api/predict")

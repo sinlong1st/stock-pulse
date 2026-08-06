@@ -272,6 +272,14 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   'eval.pending': { en: 'PENDING', vi: 'CHỜ' },
   'eval.bullish': { en: '▲ BULLISH', vi: '▲ TĂNG' },
   'eval.bearish': { en: '▼ BEARISH', vi: '▼ GIẢM' },
+  'eval.byStrategy': { en: 'ACCURACY BY STRATEGY', vi: 'ĐỘ CHÍNH XÁC THEO CHIẾN LƯỢC' },
+  'eval.calls': { en: '{n} scored', vi: '{n} đã chấm' },
+  'eval.maturing': { en: '{n} maturing', vi: '{n} đang chờ' },
+  'eval.thinSample': { en: 'Too few to judge', vi: 'Chưa đủ để kết luận' },
+  'eval.strategyNote': {
+    en: 'A strategy needs about {n} scored calls before its percentage means much. Predictions are scored once their horizon passes.',
+    vi: 'Một chiến lược cần khoảng {n} nhận định đã chấm thì tỷ lệ mới có ý nghĩa. Dự đoán được chấm sau khi hết khung thời gian.',
+  },
   'eval.recent': { en: 'RECENT CALLS', vi: 'NHẬN ĐỊNH GẦN ĐÂY' },
   'eval.notEnough': { en: 'Not enough data yet', vi: 'Chưa đủ dữ liệu' },
   'eval.notEnoughBody': {

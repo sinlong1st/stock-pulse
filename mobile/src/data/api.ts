@@ -141,12 +141,30 @@ export type EvalStat = {
   total: number;
   avgReturnPct: number | null;
 };
+/** How one strategy's Predict calls have turned out. `enoughData` is false
+ *  while the sample is too thin for the percentage to mean anything. */
+export type StrategyStat = {
+  id: string;
+  name: string;
+  builtin: boolean;
+  total: number;
+  hits: number;
+  misses: number;
+  flats: number;
+  accuracyPct: number | null;
+  avgReturnPct: number | null;
+  pending: number;
+  enoughData: boolean;
+};
+
 export type EvalReport = {
   totalEvaluated: number;
   accuracyPct: number | null;
   pending: number;
   bullish: EvalStat;
   bearish: EvalStat;
+  strategies?: StrategyStat[]; // absent on older backends
+  minMeaningfulCalls?: number;
   recent: {
     ticker: string;
     sentiment: Sentiment;

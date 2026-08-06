@@ -5,7 +5,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SentimentPill } from '../components/SentimentPill';
-import { EvalReport, EvalStat, fetchEvaluation } from '../data/api';
+import { EvalReport, EvalStat, fetchEvaluation, StrategyStat } from '../data/api';
 import { useI18n } from '../i18n/LanguageContext';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeContext';
@@ -30,6 +30,56 @@ function Bar({ label, stat, color }: { label: string; stat: EvalStat; color: str
   );
 }
 
+/**
+ * One strategy's record. A thin sample is shown but visually demoted — a 100%
+ * off two lucky calls shouldn't read like a winning track record.
+ */
+function StrategyRow({ stat }: { stat: StrategyStat }) {
+  const { colors } = useTheme();
+  const { t } = useI18n();
+  const width = stat.accuracyPct == null ? 0 : Math.max(2, Math.min(100, stat.accuracyPct));
+  const solid = stat.enoughData;
+
+  const detail = [
+    t('eval.calls', { n: stat.total }),
+    stat.pending > 0 ? t('eval.maturing', { n: stat.pending }) : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  return (
+    <View style={styles.stratRow}>
+      <View style={styles.stratTop}>
+        <Text style={[styles.stratName, { color: colors.text }]} numberOfLines={1}>
+          {stat.name}
+        </Text>
+        {stat.builtin ? (
+          <Text style={[styles.stratTag, { color: colors.faint }]}>{t('strat.builtin')}</Text>
+        ) : null}
+        <Text
+          style={[
+            styles.stratPct,
+            { color: solid ? colors.text : colors.faint },
+          ]}
+        >
+          {pct(stat.accuracyPct)}
+        </Text>
+      </View>
+      <View style={[styles.barTrack, { backgroundColor: colors.neutralBg }]}>
+        <View
+          style={[
+            styles.barFill,
+            { width: `${width}%`, backgroundColor: solid ? colors.accent : colors.neutral },
+          ]}
+        />
+      </View>
+      <Text style={[styles.stratDetail, { color: colors.faint }]}>
+        {solid ? detail : `${t('eval.thinSample')} · ${detail}`}
+      </Text>
+    </View>
+  );
+}
+
 export function EvaluationScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const { t } = useI18n();
@@ -37,6 +87,9 @@ export function EvaluationScreen({ navigation }: Props) {
   const [report, setReport] = useState<EvalReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Predict-tab strategy data can exist before any news call has been scored,
+  // so the empty state must account for both sources.
+  const hasStrategyData = (report?.strategies?.length ?? 0) > 0;
 
   useEffect(() => {
     fetchEvaluation()
@@ -64,7 +117,7 @@ export function EvaluationScreen({ navigation }: Props) {
           <Feather name="alert-triangle" size={30} color={colors.accent} />
           <Text style={[styles.centerBody, { color: colors.muted }]}>{error}</Text>
         </View>
-      ) : !report || report.totalEvaluated === 0 ? (
+      ) : !report || (report.totalEvaluated === 0 && !hasStrategyData) ? (
         <View style={styles.center}>
           <Feather name="bar-chart-2" size={30} color={colors.muted} />
           <Text style={[styles.centerTitle, { color: colors.text }]}>{t('eval.notEnough')}</Text>
@@ -88,6 +141,21 @@ export function EvaluationScreen({ navigation }: Props) {
               </View>
             </View>
           </View>
+
+          {/* strategy comparison — "yours vs ours" */}
+          {report.strategies && report.strategies.length > 0 ? (
+            <View style={[styles.bars, { borderBottomColor: colors.divider }]}>
+              <Text style={[styles.recentLabel, styles.stratHead, { color: colors.muted }]}>
+                {t('eval.byStrategy')}
+              </Text>
+              {report.strategies.map((s) => (
+                <StrategyRow key={s.id} stat={s} />
+              ))}
+              <Text style={[styles.stratNote, { color: colors.faint }]}>
+                {t('eval.strategyNote', { n: report.minMeaningfulCalls ?? 10 })}
+              </Text>
+            </View>
+          ) : null}
 
           {/* per-sentiment bars */}
           <View style={[styles.bars, { borderBottomColor: colors.divider }]}>
@@ -130,6 +198,14 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
   centerTitle: { fontSize: 18, fontWeight: '900' },
   centerBody: { fontSize: 13, textAlign: 'center', lineHeight: 19, maxWidth: 250 },
+  stratHead: { marginTop: 0, marginBottom: 10, paddingHorizontal: 0 },
+  stratRow: { gap: 5, marginBottom: 14 },
+  stratTop: { flexDirection: 'row', alignItems: 'baseline', gap: 7 },
+  stratName: { fontSize: 13.5, fontWeight: '800', flexShrink: 1 },
+  stratTag: { fontSize: 8, fontWeight: '900', letterSpacing: 0.6 },
+  stratPct: { marginLeft: 'auto', fontSize: 16, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  stratDetail: { fontSize: 10, fontWeight: '600' },
+  stratNote: { fontSize: 10, lineHeight: 15, fontWeight: '600', marginTop: 2 },
   headline: { padding: 16, borderBottomWidth: 2 },
   hLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
   hRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: 8 },
