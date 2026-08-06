@@ -33,6 +33,7 @@ import {
   StrategyItem,
   updateStrategy,
 } from '../data/api';
+import { notifyActiveStrategy, primeActiveStrategy } from '../data/activeStrategy';
 import { useI18n } from '../i18n/LanguageContext';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -46,12 +47,16 @@ export function StrategiesScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Which card is mid-switch, so a slow tap doesn't look like a dead one.
+  const [pendingId, setPendingId] = useState<string | null>(null);
   // null = closed; a StrategyItem = editing it; 'new' = writing a fresh one.
   const [editing, setEditing] = useState<StrategyItem | 'new' | null>(null);
 
   const load = useCallback(async () => {
     try {
-      setInfo(await fetchStrategies());
+      const fresh = await fetchStrategies();
+      setInfo(fresh);
+      primeActiveStrategy(fresh.activeId); // baseline, don't wake anyone
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : t('strat.loadErr'));
@@ -65,16 +70,21 @@ export function StrategiesScreen() {
   }, [load]);
 
   /** Run a mutation, replacing state with the server's fresh list. */
-  const mutate = async (fn: () => Promise<StrategiesInfo>, failKey: string) => {
+  const mutate = async (fn: () => Promise<StrategiesInfo>, failKey: string, pending?: string) => {
     if (busy) return;
     setBusy(true);
+    setPendingId(pending ?? null);
     try {
-      setInfo(await fn());
+      const fresh = await fn();
+      setInfo(fresh);
       setEditing(null);
+      // Tell the Predict screen its on-screen read is now from an old lens.
+      notifyActiveStrategy(fresh.activeId);
     } catch (e) {
       Alert.alert(t(failKey), e instanceof Error ? e.message : '');
     } finally {
       setBusy(false);
+      setPendingId(null);
     }
   };
 
@@ -119,7 +129,9 @@ export function StrategiesScreen() {
           {info?.strategies.map((s) => (
             <Pressable
               key={s.id}
-              onPress={() => !s.active && mutate(() => activateStrategy(s.id), 'strat.activateErr')}
+              onPress={() =>
+                !s.active && mutate(() => activateStrategy(s.id), 'strat.activateErr', s.id)
+              }
               style={[
                 styles.card,
                 {
@@ -139,7 +151,9 @@ export function StrategiesScreen() {
                     </View>
                   ) : null}
                 </View>
-                {s.active ? (
+                {pendingId === s.id ? (
+                  <ActivityIndicator size="small" color={colors.accent} />
+                ) : s.active ? (
                   <View style={[styles.activePill, { backgroundColor: colors.accent }]}>
                     <Text style={[styles.activeText, { color: colors.onAccent }]}>
                       {t('strat.active')}
@@ -152,7 +166,10 @@ export function StrategiesScreen() {
                 )}
               </View>
 
-              <Text style={[styles.cardBody, { color: colors.muted }]}>{s.body}</Text>
+              {/* A long strategy would otherwise push the card off-screen. */}
+              <Text style={[styles.cardBody, { color: colors.muted }]} numberOfLines={6}>
+                {s.body}
+              </Text>
 
               {!s.builtin ? (
                 <View style={styles.cardActions}>

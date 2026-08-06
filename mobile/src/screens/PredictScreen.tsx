@@ -29,6 +29,7 @@ import {
   streamPrediction,
   StreamHandle,
 } from '../data/api';
+import { onActiveStrategyChange } from '../data/activeStrategy';
 import { guessTicker, useWatchlist } from '../data/useWatchlist';
 import { useI18n } from '../i18n/LanguageContext';
 import { RootStackParamList } from '../navigation/types';
@@ -183,6 +184,16 @@ export function PredictScreen() {
     fetchedLang.current = language;
     if (lastQuery.current) run(lastQuery.current, { silent: true });
   }, [language, run]);
+
+  // Switching strategy elsewhere leaves this read (and its modal) attributed to
+  // the old lens — re-ask so what's on screen matches what's now active.
+  useEffect(
+    () =>
+      onActiveStrategyChange(() => {
+        if (lastQuery.current) run(lastQuery.current, { silent: true });
+      }),
+    [run],
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -397,8 +408,18 @@ export function PredictScreen() {
           <Pressable style={[styles.sheet, { backgroundColor: colors.elevated }]} onPress={() => {}}>
             <Text style={[styles.sheetKicker, { color: colors.accent }]}>{t('predict.strategy')}</Text>
             <Text style={[styles.sheetTitle, { color: colors.text }]}>{pred?.strategy?.name}</Text>
-            <Text style={[styles.sheetBody, { color: colors.muted }]}>{pred?.strategy?.body}</Text>
-            <Text style={[styles.sheetNote, { color: colors.faint }]}>{t('predict.strategyNote')}</Text>
+            {/* A long custom strategy would push the buttons off-screen, so the
+                prose scrolls inside a bounded area and the actions stay put. */}
+            <ScrollView
+              style={styles.sheetScroll}
+              contentContainerStyle={styles.sheetScrollBody}
+              showsVerticalScrollIndicator
+            >
+              <Text style={[styles.sheetBody, { color: colors.muted }]}>{pred?.strategy?.body}</Text>
+              <Text style={[styles.sheetNote, { color: colors.faint }]}>
+                {t('predict.strategyNote')}
+              </Text>
+            </ScrollView>
             <Pressable
               onPress={() => {
                 setModal(false);
@@ -478,7 +499,9 @@ const styles = StyleSheet.create({
   stratText: { fontSize: 12, fontWeight: '800' },
   disclaimer: { fontSize: 10, fontWeight: '600', marginTop: 12 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: 24 },
-  sheet: { padding: 20, gap: 8 },
+  sheet: { padding: 20, gap: 8, maxHeight: '80%' },
+  sheetScroll: { flexShrink: 1 },
+  sheetScrollBody: { gap: 8, paddingBottom: 2 },
   sheetKicker: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
   sheetTitle: { fontSize: 20, fontWeight: '900' },
   sheetBody: { fontSize: 13.5, lineHeight: 20 },
