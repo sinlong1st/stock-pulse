@@ -96,6 +96,23 @@ class WatchlistNote(BaseModel):
         return v
 
 
+class WebSource(BaseModel):
+    """A page the briefing's web search read, shown to the user as a citation.
+
+    OpenAI requires web results shown to a user to carry visible, clickable
+    citations. Ideally these come from the API's `url_citation` annotations
+    (provably fetched), but those are only emitted for prose answers — ours is
+    structured JSON, so in practice the model reports them itself. Treat them as
+    *model-reported*: the analyst filters out anything that isn't a plausible
+    http(s) URL, but cannot prove the page was opened.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    url: str
+    title: str = ""
+
+
 class BriefingResult(BaseModel):
     """Validated analyst read for one briefing run."""
 
@@ -107,6 +124,8 @@ class BriefingResult(BaseModel):
     themes: list[BriefingTheme] = []
     watchlist_notes: list[WatchlistNote] = []
     risk_flags: list[str] = []
+    # Filled by the analyst from the response envelope, never by the model.
+    sources: list[WebSource] = []
 
     @field_validator("urgency", mode="before")
     @classmethod

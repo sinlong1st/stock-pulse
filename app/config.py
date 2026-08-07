@@ -147,7 +147,9 @@ class Settings(BaseSettings):
     # no news in the last couple hours.
     briefing_focus_window_hours: float = 48.0
     # Analyst model + retrieval. Web search (model pulls news itself) is the
-    # last build step; when enabled, point briefing_model at a tool-capable model.
+    # Web search runs on the Responses API and needs a search-capable model
+    # (gpt-4.1-mini / gpt-4.1 / gpt-5.x). gpt-4o-mini cannot search, so leaving
+    # this default with briefing_web_search_enabled=true logs a warning.
     briefing_model: str = "gpt-4o-mini"
     briefing_web_search_enabled: bool = False
     briefing_memory_hours: int = 3  # how far back trend context reaches

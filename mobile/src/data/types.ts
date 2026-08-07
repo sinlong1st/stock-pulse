@@ -58,11 +58,18 @@ export type EarningsRow = {
   verdict?: 'beat' | 'miss' | 'inline' | null;
 };
 
+/** A page the briefing's web search actually read. Must be shown clickably. */
+export type ReportSource = {
+  url: string;
+  title?: string;
+};
+
 export type Report = {
   takeaway: string;
   sections: ReportSection[];
   watchlist: WatchRow[];
   earnings?: EarningsRow[]; // absent on older backends
+  sources?: ReportSource[]; // only when briefing web search is enabled
   generatedAt?: string;
   note?: string | null;
 };

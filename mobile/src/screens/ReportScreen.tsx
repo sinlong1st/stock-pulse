@@ -3,6 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useMemo, useRef, useState } from 'react';
 import {
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -226,6 +227,31 @@ export function ReportScreen() {
             </>
           )}
 
+          {/* Citations for pages the web search read. OpenAI requires these to
+              be visible and clickable when web results are shown. */}
+          {report.sources && report.sources.length > 0 && (
+            <>
+              <Text style={[styles.watchLabel, styles.earnHead, { color: colors.muted }]}>
+                {t('report.sources')}
+              </Text>
+              {report.sources.map((s) => (
+                <Pressable
+                  key={s.url}
+                  onPress={() => Linking.openURL(s.url).catch(() => {})}
+                  style={[styles.sourceRow, { borderBottomColor: colors.divider }]}
+                >
+                  <Feather name="external-link" size={12} color={colors.accentInk} />
+                  <Text
+                    style={[styles.sourceText, { color: colors.accentInk }]}
+                    numberOfLines={2}
+                  >
+                    {s.title?.trim() || s.url}
+                  </Text>
+                </Pressable>
+              ))}
+            </>
+          )}
+
           <Text style={[styles.footnote, { color: colors.faint }]}>
             {t('report.footnote')}
           </Text>
@@ -307,6 +333,8 @@ const styles = StyleSheet.create({
   wPx: { fontSize: 12.5, fontWeight: '700', fontVariant: ['tabular-nums'] },
   wChg: { fontSize: 12, fontWeight: '800', width: 66, textAlign: 'right', fontVariant: ['tabular-nums'] },
   earnHead: { marginTop: 20, marginBottom: 4 },
+  sourceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderBottomWidth: 1 },
+  sourceText: { flex: 1, fontSize: 12, fontWeight: '600', lineHeight: 16 },
   earnNote: { fontSize: 9.5, fontWeight: '600', marginTop: 8 },
   footnote: { fontSize: 10, fontWeight: '600', lineHeight: 14, marginTop: 14 },
 });

@@ -56,6 +56,7 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   'report.regenerate': { en: 'Re-generate', vi: 'Tạo mới' },
   'report.takeaway': { en: 'TODAY’S TAKEAWAY', vi: 'ĐIỂM CHÍNH HÔM NAY' },
   'report.watchlist': { en: 'WATCHLIST', vi: 'DANH MỤC' },
+  'report.sources': { en: 'SOURCES', vi: 'NGUỒN' },
   'report.footnote': { en: 'AI-generated. Not investment advice.', vi: 'Do AI tạo. Không phải lời khuyên đầu tư.' },
   'report.genErr': { en: 'Couldn’t generate the briefing.', vi: 'Không tạo được bản tin.' },
 

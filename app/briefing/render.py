@@ -69,6 +69,25 @@ def _time_line(generated_at: datetime, tz_name: str, vi: bool) -> str:
     return f"🕒 {stamp} {abbr}".strip()
 
 
+# Enough to show the work without burying the briefing in links.
+_MAX_SOURCES = 5
+
+
+def _source_lines(result: BriefingResult, vi: bool) -> list[str]:
+    """Clickable citations for pages the web-search tool actually read.
+
+    Empty unless web search is on. OpenAI requires visible, clickable citations
+    when web results are shown to a user, so this is not decoration.
+    """
+    if not result.sources:
+        return []
+    out = ["", "🔗 " + ("Nguồn:" if vi else "Sources:")]
+    for source in result.sources[:_MAX_SOURCES]:
+        label = source.title.strip() or source.url
+        out.append(f"  • {label} — {source.url}")
+    return out
+
+
 def _price_block(
     prices: list[PriceSnapshot],
     generated_at: datetime | None,
@@ -144,6 +163,8 @@ def render_briefing(
     if result.risk_flags:
         lines.append("")
         lines.append("⚠️ " + ("Rủi ro: " if vi else "Risks: ") + "; ".join(result.risk_flags))
+
+    lines.extend(_source_lines(result, vi))
 
     lines.append("")
     lines.append(

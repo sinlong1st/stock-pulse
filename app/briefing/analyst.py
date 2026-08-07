@@ -14,7 +14,7 @@ from datetime import datetime
 import httpx
 from pydantic import ValidationError
 
-from app.briefing.models import BriefingResult
+from app.briefing.models import BriefingResult, WebSource
 from app.briefing.retrieval import RetrievalResult, RetrievedItem
 from app.config import Settings, get_settings
 from app.prefs import resolve_language
@@ -114,6 +114,31 @@ tell what company they mean, say so in the headline and set
 has_material_update=false."""
 
 
+# Only added when the web_search tool is actually attached. The base prompt says
+# the model "may" use search; with the tool present it needs firmer direction,
+# plus the freshness rules restated — a searched page is as recap-prone as a feed.
+_WEB_SEARCH_BLOCK = """
+
+WEB SEARCH: you have a web_search tool. You MUST run at least one search before
+answering — always, on every briefing. Use it to (a) confirm the headlines above
+are real and current, and (b) find anything material our feeds missed for the
+watchlist.
+
+An EMPTY or thin LATEST_NEWS list does NOT mean nothing happened — it means our
+collectors found nothing, which is exactly when searching matters most. Never
+report "no material update" without having searched first.
+
+Search a few targeted queries (the watchlist names, plus the market backdrop),
+not many broad ones. Everything you find is subject to the SAME freshness rules:
+judge the EVENT time, not the publish date, and treat roundups as background.
+Prefer primary sources and major outlets.
+
+Then list every page you actually opened in the "sources" array, each with its
+real URL and page title. These are shown to the user as citations, so they must
+be pages you genuinely retrieved with the tool — never invent or guess a URL, and
+never list one you did not open. If you did not search, leave "sources" empty."""
+
+
 def build_system_prompt(
     *,
     watchlist: list[str],
@@ -121,6 +146,7 @@ def build_system_prompt(
     window_hours: float,
     language: str,
     focus: str | None = None,
+    web_search: bool = False,
 ) -> str:
     prompt = _SYSTEM_PROMPT.format(
         watchlist=", ".join(watchlist) if watchlist else "(none configured)",
@@ -128,6 +154,8 @@ def build_system_prompt(
         window_hours=window_hours,
         language=language or "English",
     )
+    if web_search:
+        prompt += _WEB_SEARCH_BLOCK
     if focus:
         prompt += _FOCUS_BLOCK.format(focus=focus)
     return prompt
@@ -175,8 +203,141 @@ def build_user_message(
     )
 
 
+_DIRECTIONS = ["bullish", "bearish", "mixed"]
+
+# Strict Structured Outputs: every property must be listed in `required`, and
+# `additionalProperties` must be false at every level. Optional values are
+# expressed as a null union rather than by omission.
+_BRIEFING_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": [
+        "has_material_update",
+        "urgency",
+        "headline",
+        "themes",
+        "watchlist_notes",
+        "risk_flags",
+        "sources",
+    ],
+    "properties": {
+        "has_material_update": {"type": "boolean"},
+        "urgency": {"type": "string", "enum": ["routine", "notable", "urgent"]},
+        "headline": {"type": "string"},
+        "themes": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": [
+                    "theme",
+                    "direction",
+                    "tickers",
+                    "insight",
+                    "trend",
+                    "freshness",
+                    "event_time",
+                ],
+                "properties": {
+                    "theme": {"type": "string"},
+                    "direction": {"type": "string", "enum": _DIRECTIONS},
+                    "tickers": {"type": "array", "items": {"type": "string"}},
+                    "insight": {"type": "string"},
+                    "trend": {
+                        "type": "string",
+                        "enum": ["new", "strengthening", "fading", "reversing"],
+                    },
+                    "freshness": {"type": "string", "enum": ["new", "background"]},
+                    "event_time": {"type": ["string", "null"]},
+                },
+            },
+        },
+        "watchlist_notes": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["ticker", "note", "direction"],
+                "properties": {
+                    "ticker": {"type": "string"},
+                    "note": {"type": "string"},
+                    "direction": {"type": "string", "enum": _DIRECTIONS},
+                },
+            },
+        },
+        "risk_flags": {"type": "array", "items": {"type": "string"}},
+        "sources": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["url", "title"],
+                "properties": {"url": {"type": "string"}, "title": {"type": "string"}},
+            },
+        },
+    },
+}
+
+
+def _clean_sources(raw: object) -> list[WebSource]:
+    """Keep only plausible http(s) URLs, de-duplicated, order preserved."""
+    out: dict[str, WebSource] = {}
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        url = str(item.get("url") or "").strip()
+        if not url.startswith(("http://", "https://")) or url in out:
+            continue
+        out[url] = WebSource(url=url, title=str(item.get("title") or "").strip())
+    return list(out.values())
+
+
+def _extract_responses_output(data: dict) -> tuple[str, list[WebSource]]:
+    """Pull the assistant text and its url citations out of a /responses body.
+
+    The Responses API returns a list of output items — web_search_call entries
+    alongside the message — so we walk it rather than indexing a fixed position.
+    `output_text` is a convenience field the API may also provide; it is used as
+    a fallback when the walk finds nothing.
+    """
+    chunks: list[str] = []
+    sources: dict[str, WebSource] = {}  # url -> source, de-duped, order kept
+
+    for item in data.get("output") or []:
+        if not isinstance(item, dict) or item.get("type") != "message":
+            continue
+        for part in item.get("content") or []:
+            if not isinstance(part, dict):
+                continue
+            if isinstance(part.get("text"), str):
+                chunks.append(part["text"])
+            for note in part.get("annotations") or []:
+                if not isinstance(note, dict) or note.get("type") != "url_citation":
+                    continue
+                url = str(note.get("url") or "").strip()
+                if url and url not in sources:
+                    sources[url] = WebSource(url=url, title=str(note.get("title") or "").strip())
+
+    text = "".join(chunks).strip() or str(data.get("output_text") or "").strip()
+    if not text:
+        raise AnalystError("OpenAI web-search response contained no message text.")
+    return text, list(sources.values())
+
+
 class MarketAnalyst:
-    """Briefing analyst backed by the OpenAI chat completions API."""
+    """Briefing analyst backed by OpenAI.
+
+    Two request paths, because web search is only available on the newer API:
+
+    - **feeds only** (default) — `/chat/completions` with JSON mode. Cheap,
+      deterministic, and works with small models like `gpt-4o-mini`.
+    - **web search on** — `/responses` with the `web_search` tool, so the model
+      can pull and cross-check live coverage beyond our RSS feeds. Costs more,
+      is less repeatable, and needs a search-capable model.
+
+    Either way the model's JSON is validated into `BriefingResult`; the web path
+    additionally attaches the URLs it actually read as `sources`.
+    """
 
     def __init__(
         self,
@@ -188,6 +349,7 @@ class MarketAnalyst:
         language: str = "English",
         max_items: int = 40,
         timeout: float = 60.0,
+        web_search: bool = False,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         if not api_key:
@@ -201,6 +363,7 @@ class MarketAnalyst:
         self.language = language
         self.max_items = max_items
         self.timeout = timeout
+        self.web_search = web_search
         self._transport = transport
 
     async def analyze(
@@ -217,6 +380,7 @@ class MarketAnalyst:
             window_hours=retrieval.window_hours,
             language=self.language,
             focus=focus,
+            web_search=self.web_search,
         )
         user = build_user_message(
             retrieval,
@@ -225,6 +389,29 @@ class MarketAnalyst:
             focus=focus,
             price_moves=price_moves,
         )
+        if self.web_search:
+            # Strict Structured Outputs should always be valid JSON, but in
+            # testing roughly one call in five came back malformed. A scheduled
+            # briefing shouldn't be lost to that, so retry once.
+            for attempt in (1, 2):
+                content, annotated = await self._analyze_with_web_search(system, user)
+                try:
+                    result = self._parse(content)
+                    break
+                except AnalystError:
+                    if attempt == 2:
+                        raise
+                    logger.warning("Web-search briefing returned bad JSON; retrying once.")
+            # Prefer citations from the API envelope when present — those are
+            # pages the tool provably fetched. In practice OpenAI only emits
+            # them for prose answers, and ours is JSON, so we normally fall back
+            # to the source list the model reports inside its own output.
+            try:
+                reported = _clean_sources(json.loads(content).get("sources"))
+            except (json.JSONDecodeError, AttributeError):
+                reported = []
+            return result.model_copy(update={"sources": annotated or reported})
+
         payload = {
             "model": self.model,
             "temperature": 0,
@@ -236,6 +423,44 @@ class MarketAnalyst:
         }
         content = await self._request(payload)
         return self._parse(content)
+
+    async def _analyze_with_web_search(
+        self, system: str, user: str
+    ) -> tuple[str, list[WebSource]]:
+        """Call /responses with the web_search tool, returning (json, sources)."""
+        payload = {
+            "model": self.model,
+            "input": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "tools": [{"type": "web_search"}],
+            # Structured Outputs, NOT JSON mode: the API rejects web search with
+            # `json_object` ("Web Search cannot be used with JSON mode"), but a
+            # strict json_schema is accepted and also guarantees the shape.
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": "market_briefing",
+                    "schema": _BRIEFING_SCHEMA,
+                    "strict": True,
+                }
+            },
+        }
+        try:
+            async with httpx.AsyncClient(
+                timeout=self.timeout, transport=self._transport
+            ) as client:
+                response = await client.post(
+                    f"{self.base_url}/responses",
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    json=payload,
+                )
+                response.raise_for_status()
+                data = response.json()
+        except httpx.HTTPError as exc:
+            raise AnalystError(f"OpenAI web-search request failed: {exc}") from exc
+        return _extract_responses_output(data)
 
     async def _request(self, payload: dict) -> str:
         try:
@@ -269,13 +494,34 @@ class MarketAnalyst:
             raise AnalystError(f"AI output failed validation: {exc}") from exc
 
 
+# Models known to support the web_search tool on /responses. Used only to warn —
+# OpenAI's list moves, so an unknown model is allowed through rather than blocked.
+WEB_SEARCH_MODELS = ("gpt-4.1", "gpt-4.1-mini", "gpt-5")
+
+
+def supports_web_search(model: str) -> bool:
+    name = (model or "").strip().lower()
+    return any(name.startswith(prefix) for prefix in WEB_SEARCH_MODELS)
+
+
 def build_analyst(settings: Settings | None = None) -> MarketAnalyst:
     """Construct the configured analyst. Raises if no API key is set."""
     settings = settings or get_settings()
+    if settings.briefing_web_search_enabled and not supports_web_search(settings.briefing_model):
+        # Not fatal: OpenAI adds models faster than this list is updated, and a
+        # wrong guess here shouldn't block a briefing. The API will reject it if
+        # it truly can't search, and that surfaces as a normal AnalystError.
+        logger.warning(
+            "BRIEFING_WEB_SEARCH_ENABLED is on but BRIEFING_MODEL=%r is not a known "
+            "web-search model. Try one of: %s.",
+            settings.briefing_model,
+            ", ".join(WEB_SEARCH_MODELS),
+        )
     return MarketAnalyst(
         settings.openai_api_key,
         model=settings.briefing_model,
         base_url=settings.openai_base_url,
         language=resolve_language(settings),
         max_items=settings.briefing_max_items,
+        web_search=settings.briefing_web_search_enabled,
     )

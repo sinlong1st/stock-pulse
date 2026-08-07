@@ -255,8 +255,31 @@ Key settings (all in `.env`, see `.env.example`): `BRIEFING_TIMEZONE`
 values for the above), the look-back windows, `BRIEFING_MODEL`, and
 `BRIEFING_PRICES_IN_REPORT`.
 
-> ⚠️ Each briefing is one OpenAI call. Retrieval is the two RSS feeds only for
-> now (web search — `BRIEFING_WEB_SEARCH_ENABLED` — is not wired yet).
+### Web search (optional)
+
+By default a briefing reasons only over the two RSS feeds — cheap, repeatable,
+one OpenAI call. Set **`BRIEFING_WEB_SEARCH_ENABLED=true`** and the model also
+searches the live web to confirm those headlines and find what the feeds missed,
+then lists the pages it used as a clickable **Sources** block (in Telegram and in
+the app).
+
+```bash
+BRIEFING_WEB_SEARCH_ENABLED=true
+BRIEFING_MODEL=gpt-4.1-mini      # REQUIRED: gpt-4o-mini cannot search
+```
+
+Honest caveats, all observed in testing:
+
+- **It costs more.** Web search runs on OpenAI's Responses API and adds a search
+  tool charge on top of tokens, on every briefing — and briefings run ~6×/day.
+- **`gpt-4o-mini` cannot search.** Use `gpt-4.1-mini`, `gpt-4.1` or `gpt-5.x`.
+  The wrong model logs a warning at startup and the API rejects the call.
+- **Sources are model-reported, not verified.** OpenAI only emits provable
+  `url_citation` annotations for prose answers; ours is structured JSON, so the
+  model lists the URLs itself. They're filtered to plausible http(s) links and
+  de-duplicated, but a URL can still be a quote page rather than the article.
+- **It's less repeatable.** Two runs minutes apart can differ, and occasionally
+  the model returns malformed JSON (the analyst retries once).
 
 ## Telegram commands
 

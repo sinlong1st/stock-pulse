@@ -109,6 +109,7 @@ async def build_report(
             "sections": [],
             "watchlist": watchlist,
             "earnings": earnings,
+            "sources": [],
             "generatedAt": generated_at,
             "note": run.skipped_reason or "No report available right now.",
         }
@@ -126,6 +127,8 @@ async def build_report(
         "sections": sections,
         "watchlist": watchlist,
         "earnings": earnings,
+        # Present only when web search is on; the app must render them clickably.
+        "sources": [{"url": s.url, "title": s.title} for s in result.sources],
         "generatedAt": generated_at,
         "note": None,
     }

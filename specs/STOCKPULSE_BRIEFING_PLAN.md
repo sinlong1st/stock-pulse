@@ -320,7 +320,7 @@ BRIEFING_MEMORY_HOURS=3                 # trend-context reach
 | E | Scheduled cadence (08:30 → every 2h → 18:00) + verbosity-by-materiality | ✅ done |
 | F | Telegram `/report` listener (getUpdates, auth to your chat) | ✅ done |
 | G | Rolling theme memory (trend continuity + cross-brief dedupe) | ✅ done |
-| H | Turn on web-search tool | ⏳ deferred (open question #2) |
+| H | Turn on web-search tool | ✅ done (opt-in, 2026-08-06) |
 
 On-demand (D + F) landed **before** the scheduled cadence (E): once `/report`
 works you can pull a briefing whenever, and the scheduled tiers are the same job
@@ -351,7 +351,19 @@ off by default (`BRIEFING_ENABLED`, `BRIEFING_COMMAND_ENABLED`).
    intraday updates (10:30–16:30) → 18:00 PT end-of-day wrap**, all
    `America/Los_Angeles`; plus on-demand `/report` anytime. Scheduled briefs
    always send (short when quiet).
-2. **Web search:** on from the start, or ship A–G first and add it after?
+2. ~~**Web search:** on from the start, or ship A–G first and add it after?~~
+   **Decided:** shipped A–G feeds-only, added H later as **opt-in, default off**
+   (`BRIEFING_WEB_SEARCH_ENABLED`). Implementation notes worth keeping:
+   - Web search needs the **Responses API**, not chat completions, and a
+     search-capable model — `gpt-4o-mini` **cannot** search.
+   - The API **rejects `json_object`** with web search ("Web Search cannot be
+     used with JSON mode"); a strict `json_schema` is accepted, so the schema is
+     hand-written in `analyst.py` rather than using JSON mode.
+   - `url_citation` annotations are only emitted for **prose** answers. With
+     structured output they never appear, so sources are **model-reported** and
+     filtered, not envelope-verified.
+   - The model will **skip searching** on an empty feed unless told explicitly
+     that an empty feed is when search matters most — the prompt says so.
 3. **Quiet hours:** should routine briefings be *held and flushed* (like alerts)
    or simply *skipped* overnight? (A held brief may be stale by morning.)
 4. **Memory store:** small DB table vs a JSON file for rolling themes?
