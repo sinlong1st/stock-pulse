@@ -288,6 +288,9 @@ BRIEFING_ENABLED=true
 # Scheduled cadence — weekday, your local (Pacific) / US-market time.
 BRIEFING_TIMEZONE=America/Los_Angeles   # independent of app TIMEZONE
 BRIEFING_SCHEDULE_DAYS=mon-fri
+# SHIPPED 2026-08-06: these four are now DEFAULTS only — the app edits the live
+# schedule (Settings -> Briefing schedule, POST /api/briefing) and the saved
+# values in runtime_prefs.json win. See app/briefing/schedule.py.
 BRIEFING_MORNING_AT=08:30               # full morning brief
 BRIEFING_INTRADAY_EVERY_HOURS=2         # updates at 10:30, 12:30, 14:30, 16:30
 BRIEFING_INTRADAY_UNTIL=16:30           # last intraday check-in

@@ -58,12 +58,16 @@ OUTPUT_LANGUAGE=Vietnamese
 
 # Turn the automation on (off by default so nothing runs unexpectedly):
 SCHEDULER_ENABLED=true     # runs the news-alert jobs AND the briefing schedule
-BRIEFING_ENABLED=true      # 08:30 -> every 2h -> 18:00 PT briefs
+BRIEFING_ENABLED=true      # 08:30 -> every 2h -> 18:00 PT briefs (starting times;
+                           # change them later from the app, no restart needed)
 BRIEFING_COMMAND_ENABLED=true   # /report from your phone (needs Telegram creds)
 ```
 
 > The `DATABASE_URL` and `BRIEFING_MEMORY_FILE` are overridden by
-> `docker-compose.yml` to live in the `./data` volume — leave them alone.
+> `docker-compose.yml` to live in the `./data` volume — leave them alone. Same
+> for `PREFS_FILE`, `PUSH_TOKENS_FILE` and `STRATEGIES_FILE`, which hold state
+> you set from the app (language, briefing schedule, custom strategies) and must
+> survive a rebuild.
 
 ## 5. Launch
 

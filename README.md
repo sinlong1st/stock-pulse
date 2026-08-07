@@ -200,6 +200,29 @@ Three ways to get a briefing:
 - **Scheduled:** set `BRIEFING_ENABLED=true` (and `SCHEDULER_ENABLED=true`). On
   US-market/Pacific time, Mon–Fri: a full **08:30** morning brief, short
   **every-2h** updates (10:30–16:30), and an **18:00** end-of-day wrap.
+  **Editable from the app** — Settings → Briefing schedule; see below.
+
+### How a briefing is built
+
+1. **Retrieve news** from the RSS collectors, limited to a look-back window that
+   *differs per trigger* — the morning brief reaches back overnight, an intraday
+   check-in only a couple of hours, so it doesn't re-report the morning's news.
+2. **Fetch prices** — before the AI call, not after, so notable movers can be fed
+   into the prompt. That's how a briefing can flag "MU −10% today" even when no
+   headline explains it.
+3. **One OpenAI call.** The analyst sees the news, the **prior themes** from
+   rolling memory (`BRIEFING_MEMORY_HOURS`), the price moves, and — for a focused
+   report — a hint about which stock you meant.
+4. **Decide whether to send.** The anchors (morning, wrap) and anything you asked
+   for always send. **Intraday check-ins only send if the AI reports a material
+   update**, which is what stops "nothing much happened" arriving four times a day.
+5. **Deliver** — rendered to text for Telegram, or shaped to JSON for the app.
+6. **Record the themes** so the next run knows what it already told you and won't
+   re-announce the same storyline as breaking news.
+
+A **single-stock** report narrows the collectors to that name, uses a shorter
+window, prices only that stock, and deliberately does **not** feed the theme
+memory — a one-off lookup shouldn't pollute your watchlist's trend history.
 
 Every report carries a **timestamp** (in `BRIEFING_TIMEZONE`) and an **open +
 current price** line per relevant ticker (a full `/report` prices your whole
@@ -211,10 +234,26 @@ free, keyless, consolidated across venues and including pre/post-market, so it's
 close to a phone stocks app; set it to `alpaca` to use the IEX feed instead.
 Toggle the whole block with `BRIEFING_PRICES_IN_REPORT`.
 
+### Changing the schedule
+
+**From the app:** Settings → **Briefing schedule**. Set the morning time, how
+often to check in, when check-ins stop, and the wrap time — or switch scheduled
+briefings off entirely (on-demand `/report` keeps working). Saving reinstalls the
+cron jobs immediately; **no restart needed**.
+
+The times are validated before they're stored — they build cron triggers, and an
+invalid one would stop the scheduler from starting at all.
+
+> **The `.env` times are defaults, not the source of truth.** Once you save from
+> the app, the saved values win. They live in `runtime_prefs.json` (inside the
+> mounted `./data` volume in Docker, so they survive rebuilds). Clear that file
+> and the `.env` values apply again.
+
 Key settings (all in `.env`, see `.env.example`): `BRIEFING_TIMEZONE`
 (defaults to `America/Los_Angeles`, independent of `TIMEZONE`),
-`BRIEFING_MORNING_AT` / `BRIEFING_INTRADAY_UNTIL` / `BRIEFING_WRAP_AT`, the
-look-back windows, `BRIEFING_MODEL`, and `BRIEFING_PRICES_IN_REPORT`.
+`BRIEFING_MORNING_AT` / `BRIEFING_INTRADAY_UNTIL` / `BRIEFING_WRAP_AT` (starting
+values for the above), the look-back windows, `BRIEFING_MODEL`, and
+`BRIEFING_PRICES_IN_REPORT`.
 
 > ⚠️ Each briefing is one OpenAI call. Retrieval is the two RSS feeds only for
 > now (web search — `BRIEFING_WEB_SEARCH_ENABLED` — is not wired yet).

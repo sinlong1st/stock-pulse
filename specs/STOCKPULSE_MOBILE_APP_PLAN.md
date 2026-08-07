@@ -186,6 +186,9 @@ empty / error states):
   per-sentiment accuracy bars, recent-calls history.
 - **Settings** (tab 4) — language, quiet hours, briefing schedule, push toggle,
   link Telegram, manage subscription, sign out, delete account.
+  *Shipped: language, briefing schedule (editable, live), push + Telegram
+  toggles, strategies, theme. Still placeholders: manage subscription, sign out,
+  delete account — they need the multi-user work in §5.*
 - **Paywall** (modal) — Free vs Pro comparison + pricing (§6).
 
 All screens are thin clients over the Phase-1 API. No business logic in the app.
