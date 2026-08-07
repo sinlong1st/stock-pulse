@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NextEarningsChip } from '../components/Earnings';
+import { ConfidenceBasis, RiskReward, WhyThisCall } from '../components/EntryEvidence';
 import { HackerLoader, LoaderPhase } from '../components/HackerLoader';
 import { MiniBars } from '../components/MiniBars';
 import { PriceChart } from '../components/PriceChart';
@@ -300,6 +301,14 @@ export function PredictScreen() {
                   <SupportRow label={t('predict.supportNear')} levels={nearSupport} />
                   <SupportRow label={t('predict.supportLong')} levels={longSupport} />
                 </View>
+              ) : null}
+
+              {/* The working behind the call, so it can be audited rather than
+                  taken on trust. Absent on older backends. */}
+              {pred.evidence ? <RiskReward evidence={pred.evidence} /> : null}
+              {pred.evidence ? <WhyThisCall evidence={pred.evidence} /> : null}
+              {pred.confidence ? (
+                <ConfidenceBasis confidence={pred.confidence} risks={pred.entry.risks} />
               ) : null}
             </View>
           ) : null}

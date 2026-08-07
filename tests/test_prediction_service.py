@@ -68,7 +68,8 @@ async def test_build_prediction_assembles(monkeypatch) -> None:
         "nearLevels": [99.0],
         "longLevels": [],
     }
-    assert out["entry"] == {"assessment": "fair", "note": ""}  # default from the fake analyst
+    # default from the fake analyst
+    assert out["entry"] == {"assessment": "fair", "note": "", "risks": []}
     assert out["language"] == "English"
 
 

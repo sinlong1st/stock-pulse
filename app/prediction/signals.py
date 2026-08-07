@@ -136,6 +136,32 @@ def _distinct(levels: list[float], *, count: int, band: float = 0.015) -> list[f
     return out
 
 
+def _pivot_highs(bars: list[Bar], *, k: int = 2) -> list[float]:
+    """Swing highs — the mirror of `_pivot_lows`. Ceilings price turned at."""
+    out: list[float] = []
+    for i in range(k, len(bars) - k):
+        high = bars[i].high
+        if high is None:
+            continue
+        window = [b.high for b in bars[i - k : i + k + 1] if b.high is not None]
+        if window and high >= max(window):
+            out.append(high)
+    return out
+
+
+def nearest_resistance(bars: list[Bar], price: float | None) -> float | None:
+    """The closest swing high above `price`, or None.
+
+    Used as the reward leg of risk/reward. The window's absolute high is a poor
+    target — on a stock 75% off its high it produces a flattering, meaningless
+    ratio — so this asks where price actually stalled most recently instead.
+    """
+    if not price or not bars:
+        return None
+    above = sorted(h for h in _pivot_highs(bars) if h > price)
+    return round(above[0], 2) if above else None
+
+
 def support_levels(bars: list[Bar], price: float | None, *, count: int = 3) -> list[float]:
     """Up to `count` grounded support levels below `price`, closest first.
 

@@ -16,7 +16,12 @@ from app.config import Settings, get_settings, resolve_briefing_timezone
 from app.earnings import fetch_many, local_today
 from app.evaluation import record_prediction_read
 from app.prediction.analyst import PredictionError, build_analyst
-from app.prediction.signals import compute_signals, fetch_bars, support_levels
+from app.prediction.signals import (
+    compute_signals,
+    fetch_bars,
+    nearest_resistance,
+    support_levels,
+)
 from app.prediction.store import get_active_strategy
 from app.prediction.strategies import Strategy
 from app.prefs import resolve_language
@@ -91,6 +96,83 @@ def _support_levels(bars: list, price: float | None) -> dict:
         "long": long[0] if long else None,
         "nearLevels": near,
         "longLevels": long,
+    }
+
+
+def _pct(from_price: float, to_level: float) -> float:
+    """Signed move from the current price to a level, in percent."""
+    return round((to_level - from_price) / from_price * 100, 1)
+
+
+def _evidence(
+    *,
+    price: float | None,
+    signals,
+    support: dict,
+    resistance: float | None,
+    news_count: int,
+    earnings,
+    today,
+) -> dict:
+    """The checkable facts the entry advice rests on — all arithmetic, no AI.
+
+    Sent as numbers rather than sentences so the app can phrase them in the
+    user's language. Anything we can't compute is null and the app hides it.
+    """
+    near = support.get("nearLevels") or []
+    long = support.get("longLevels") or []
+    nearest = near[0] if near else (long[0] if long else None)
+    # The entry thesis rests on the near-term floor structure; a close under the
+    # deepest of those levels is what breaks it.
+    invalidation = min(near) if near else (long[0] if long else None)
+
+    support_pct = _pct(price, nearest) if price and nearest else None
+    # The reward leg is the nearest level price actually stalled at, NOT the
+    # window's absolute high — on a stock far off its high the latter yields a
+    # flattering ratio (75% upside "vs" 5% risk) that means nothing.
+    target_pct = _pct(price, resistance) if price and resistance else None
+    reward_risk = None
+    if support_pct is not None and target_pct is not None and support_pct < 0 < target_pct:
+        reward_risk = round(target_pct / abs(support_pct), 1)
+
+    return {
+        "rangeLow": round(signals.range_low, 2) if signals.range_low else None,
+        "rangeHigh": round(signals.range_high, 2) if signals.range_high else None,
+        "resistance": resistance,
+        "targetPct": target_pct,
+        "discountLevel": signals.discount_level,  # cheap | fair | rich
+        "trend": signals.trend,
+        "nearestSupport": nearest,
+        "supportPct": support_pct,
+        "rewardRisk": reward_risk,
+        "invalidation": invalidation,
+        "earningsInDays": earnings.days_until(today) if earnings else None,
+        "newsCount": news_count,
+        "enoughHistory": signals.enough_history,
+    }
+
+
+def _confidence(horizons: list, signals) -> dict:
+    """Why the confidence is what it is, as facts the app can phrase.
+
+    Three things a reader would actually want to know: do the horizons agree,
+    do the deterministic signals point the same way, and was there enough news
+    to judge on.
+    """
+    leans = [h.lean for h in horizons]
+    top = max(set(leans), key=leans.count) if leans else None
+    agree = leans.count(top) if top else 0
+
+    # A cheap price in a downtrend (or a rich one in an uptrend) is the classic
+    # conflict: value says buy, momentum says wait.
+    conflict = (signals.discount_level == "cheap" and signals.trend == "down") or (
+        signals.discount_level == "rich" and signals.trend == "up"
+    )
+    return {
+        "agree": agree,
+        "total": len(leans),
+        "lean": top,
+        "signalsConflict": conflict,
     }
 
 
@@ -208,7 +290,27 @@ async def build_prediction(
         "series": series,
         "support": support,
         "earnings": earnings.as_dict(local_today(settings)) if earnings else None,
-        "entry": {"assessment": read.entry.assessment, "note": read.entry.note},
+        "entry": {
+            "assessment": read.entry.assessment,
+            "note": read.entry.note,
+            # With no headlines the model has nothing company-specific to point
+            # at and reliably falls back to restating the trend ("the downtrend
+            # may continue"), which the evidence chips already say. Better to
+            # show nothing than filler dressed up as insight.
+            "risks": read.entry.risks if news else [],
+        },
+        # Checkable facts behind the entry advice, and why confidence is what it
+        # is. Numbers, not sentences — the app phrases them per language.
+        "evidence": _evidence(
+            price=price,
+            signals=signals,
+            support=support,
+            resistance=nearest_resistance(bars, price),
+            news_count=len(news),
+            earnings=earnings,
+            today=local_today(settings),
+        ),
+        "confidence": _confidence(read.horizons, signals),
         "horizons": [
             {
                 "horizon": h.horizon,

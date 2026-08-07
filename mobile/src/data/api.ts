@@ -199,7 +199,37 @@ export type Prediction = {
   enoughHistory?: boolean;
   horizons?: PredictionHorizon[];
   drivers?: string[];
-  entry?: { assessment: 'good' | 'fair' | 'wait'; note: string };
+  entry?: {
+    assessment: 'good' | 'fair' | 'wait';
+    note: string;
+    risks?: string[]; // stock-specific, AI-written
+  };
+  /** Checkable facts behind the entry call — arithmetic, not AI. Sent as
+   *  numbers so the app can phrase them in the user's language. */
+  evidence?: {
+    rangeLow: number | null;
+    rangeHigh: number | null;
+    discountLevel: 'cheap' | 'fair' | 'rich';
+    trend: 'up' | 'down' | 'sideways';
+    nearestSupport: number | null;
+    supportPct: number | null; // signed % from price to that support
+    /** Nearest swing high above the price — the reward target. Deliberately not
+     *  the range high, which is too far away to be a meaningful target. */
+    resistance: number | null;
+    targetPct: number | null; // signed % from price to that resistance
+    rewardRisk: number | null; // upside / downside, null when not meaningful
+    invalidation: number | null; // a close below this breaks the entry thesis
+    earningsInDays: number | null;
+    newsCount: number;
+    enoughHistory: boolean;
+  };
+  /** Why the confidence is what it is. */
+  confidence?: {
+    agree: number;
+    total: number;
+    lean: Lean | null;
+    signalsConflict: boolean;
+  };
   // near/long are the closest level of each (kept for older payloads);
   // nearLevels/longLevels carry up to three, closest first.
   support?: {

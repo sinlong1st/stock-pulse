@@ -156,6 +156,31 @@ export const mockPrediction = {
   entry: {
     assessment: 'fair' as const,
     note: 'A fair entry here, but not a screaming buy while the trend is soft. A pullback toward the $63 near support would be a better spot, and $60 marks the longer-term floor to watch.',
+    risks: [
+      'NAND pricing has rolled over twice this cycle after similar bounces.',
+      'A large share of revenue sits with two hyperscaler customers.',
+    ],
+  },
+  evidence: {
+    rangeLow: 52.8,
+    rangeHigh: 78.4,
+    discountLevel: 'cheap' as const,
+    trend: 'down' as const,
+    nearestSupport: 63.0,
+    supportPct: -3.4,
+    resistance: 69.8,
+    targetPct: 7.0,
+    rewardRisk: 2.1,
+    invalidation: 60.0,
+    earningsInDays: 7,
+    newsCount: 4,
+    enoughHistory: true,
+  },
+  confidence: {
+    agree: 2,
+    total: 3,
+    lean: 'bounce' as const,
+    signalsConflict: true,
   },
   support: {
     near: 63.0,

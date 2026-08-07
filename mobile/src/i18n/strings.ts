@@ -265,6 +265,45 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
     vi: 'GẦN ĐÂY là quý tài chính của số EPS, không phải ngày công bố — kết quả thường công bố vài tuần sau khi quý kết thúc.',
   },
 
+  // entry evidence (Predict) — the working behind the entry advice
+  'ev.riskReward': { en: 'RISK / REWARD', vi: 'RỦI RO / LỢI NHUẬN' },
+  'ev.toSupport': { en: 'to nearest support', vi: 'đến hỗ trợ gần nhất' },
+  'ev.toResistance': { en: 'to nearest resistance', vi: 'đến kháng cự gần nhất' },
+  'ev.ratio': { en: 'REWARD PER UNIT OF RISK', vi: 'LỢI NHUẬN TRÊN RỦI RO' },
+  'ev.invalidation': {
+    en: 'A close below {level} would break this read.',
+    vi: 'Đóng cửa dưới {level} sẽ phá vỡ nhận định này.',
+  },
+  'ev.basedOn': { en: 'WHAT THIS IS BASED ON', vi: 'DỰA TRÊN ĐIỀU GÌ' },
+  'ev.range.cheap': { en: 'Lower third of its range', vi: 'Vùng 1/3 dưới của khoảng giá' },
+  'ev.range.fair': { en: 'Middle of its range', vi: 'Vùng giữa của khoảng giá' },
+  'ev.range.rich': { en: 'Upper third of its range', vi: 'Vùng 1/3 trên của khoảng giá' },
+  'ev.trend.up': { en: 'Trend is up', vi: 'Xu hướng tăng' },
+  'ev.trend.down': { en: 'Trend is down', vi: 'Xu hướng giảm' },
+  'ev.trend.sideways': { en: 'Trend is flat', vi: 'Xu hướng đi ngang' },
+  'ev.thinHistory': {
+    en: 'Not enough price history to judge the range',
+    vi: 'Chưa đủ lịch sử giá để đánh giá khoảng',
+  },
+  'ev.aboveSupport': { en: '{pct}% above nearest support', vi: 'Cao hơn hỗ trợ gần nhất {pct}%' },
+  'ev.earningsIn': { en: 'Earnings in {n} days', vi: 'Báo cáo sau {n} ngày' },
+  'ev.headlines': { en: '{n} fresh headlines read', vi: 'Đã đọc {n} tin mới' },
+  'ev.noHeadlines': { en: 'No fresh headlines found', vi: 'Không tìm thấy tin mới' },
+  'ev.confidence': { en: 'CONFIDENCE', vi: 'ĐỘ TIN CẬY' },
+  'ev.allAgree': {
+    en: 'All {n} horizons agree ({lean})',
+    vi: 'Cả {n} khung thời gian đồng thuận ({lean})',
+  },
+  'ev.someAgree': {
+    en: '{n} of {total} horizons agree ({lean})',
+    vi: '{n}/{total} khung thời gian đồng thuận ({lean})',
+  },
+  'ev.conflict': {
+    en: 'Value and momentum disagree',
+    vi: 'Định giá và đà giá trái chiều',
+  },
+  'ev.risks': { en: 'WHAT COULD MAKE THIS WRONG', vi: 'ĐIỀU GÌ CÓ THỂ LÀM SAI' },
+
   // watchlist quick-picker (Report + Predict)
   'picker.label': { en: 'FROM YOUR WATCHLIST', vi: 'TỪ DANH MỤC CỦA BẠN' },
   'picker.less': { en: 'Less', vi: 'Thu gọn' },

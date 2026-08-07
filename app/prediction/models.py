@@ -60,6 +60,17 @@ class EntryRead(BaseModel):
 
     assessment: EntryAssessment = "fair"
     note: str = ""  # e.g. "Fair here; a better entry sits near the $58 support."
+    # What would make this read wrong, in this company's own terms. The numeric
+    # risk/reward is computed separately — this is for things arithmetic can't
+    # see (a pending ruling, a customer concentration, a guidance cut).
+    risks: list[str] = []
+
+    @field_validator("risks", mode="before")
+    @classmethod
+    def _clean_risks(cls, v: object) -> object:
+        if isinstance(v, list):
+            return [str(r).strip() for r in v if str(r).strip()][:3]
+        return []
 
     @field_validator("assessment", mode="before")
     @classmethod
