@@ -462,7 +462,7 @@ def test_settings_channels_and_toggle(monkeypatch) -> None:
         h = {"Authorization": "Bearer s3cret"}
         got = client.get("/api/settings", headers=h).json()
         assert "telegram" in got["channels"] and "push" in got["channels"]
-        assert got["briefing"]["editable"] is False
+        assert got["briefing"]["editable"] is True  # the app can now edit the schedule
 
         ok = client.post(
             "/api/settings/channels", json={"channel": "push", "enabled": False}, headers=h

@@ -36,6 +36,12 @@ from app.db import (
     ClassificationRepository,
     SessionLocal,
 )
+from app.briefing.schedule import (
+    BriefingSchedule,
+    ScheduleError,
+    resolve_briefing_schedule,
+    save_briefing_schedule,
+)
 from app.evaluation import build_evaluation_report, horizons_from_settings
 from app.jobs import (
     analyze_relevant_articles,
@@ -83,6 +89,69 @@ from app.watchlist import add_ticker, remove_ticker
 from app.web import render_alerts_page, render_evaluation_page, render_news_page
 
 logger = logging.getLogger("stockpulse")
+
+
+_BRIEFING_JOB_IDS = ("briefing_morning", "briefing_intraday", "briefing_wrap")
+
+
+def apply_briefing_schedule(scheduler, settings) -> None:
+    """(Re)install the three briefing cron jobs from the schedule in force.
+
+    Called at startup and again whenever the app saves a new schedule, so a
+    change takes effect without restarting the container. Existing jobs are
+    removed first — APScheduler has no "replace this trigger" operation, and a
+    stale job would otherwise keep firing at the old time.
+    """
+    for job_id in _BRIEFING_JOB_IDS:
+        job = scheduler.get_job(job_id)
+        if job is not None:
+            scheduler.remove_job(job_id)
+
+    schedule = resolve_briefing_schedule(settings)
+    if not schedule.enabled:
+        logger.info("Briefing schedule disabled — no briefing jobs installed.")
+        return
+
+    btz = resolve_briefing_timezone(settings)
+    days = settings.briefing_schedule_days
+    mh, mm = parse_hhmm(schedule.morning_at)
+    scheduler.add_job(
+        run_morning_brief,
+        CronTrigger(day_of_week=days, hour=mh, minute=mm, timezone=btz),
+        id="briefing_morning",
+        max_instances=1,
+        coalesce=True,
+    )
+    hours = intraday_hours(schedule)
+    if hours:
+        scheduler.add_job(
+            run_intraday_update,
+            CronTrigger(
+                day_of_week=days,
+                hour=",".join(str(h) for h in hours),
+                minute=mm,
+                timezone=btz,
+            ),
+            id="briefing_intraday",
+            max_instances=1,
+            coalesce=True,
+        )
+    wh, wm = parse_hhmm(schedule.wrap_at)
+    scheduler.add_job(
+        run_end_of_day_wrap,
+        CronTrigger(day_of_week=days, hour=wh, minute=wm, timezone=btz),
+        id="briefing_wrap",
+        max_instances=1,
+        coalesce=True,
+    )
+    logger.info(
+        "Briefing scheduled (%s): morning %s, intraday hours=%s, wrap %s %s.",
+        days,
+        schedule.morning_at,
+        hours or "none",
+        schedule.wrap_at,
+        btz,
+    )
 
 
 @asynccontextmanager
@@ -137,49 +206,7 @@ async def lifespan(app: FastAPI):
                     settings.evaluation_digest_hour,
                     digest_tz,
                 )
-        if settings.briefing_enabled:
-            btz = resolve_briefing_timezone(settings)
-            days = settings.briefing_schedule_days
-            mh, mm = parse_hhmm(settings.briefing_morning_at)
-            scheduler.add_job(
-                run_morning_brief,
-                CronTrigger(day_of_week=days, hour=mh, minute=mm, timezone=btz),
-                id="briefing_morning",
-                max_instances=1,
-                coalesce=True,
-            )
-            hours = intraday_hours(settings)
-            if hours:
-                scheduler.add_job(
-                    run_intraday_update,
-                    CronTrigger(
-                        day_of_week=days,
-                        hour=",".join(str(h) for h in hours),
-                        minute=mm,
-                        timezone=btz,
-                    ),
-                    id="briefing_intraday",
-                    max_instances=1,
-                    coalesce=True,
-                )
-            wh, wm = parse_hhmm(settings.briefing_wrap_at)
-            scheduler.add_job(
-                run_end_of_day_wrap,
-                CronTrigger(day_of_week=days, hour=wh, minute=wm, timezone=btz),
-                id="briefing_wrap",
-                max_instances=1,
-                coalesce=True,
-            )
-            logger.info(
-                "Briefing scheduled (%s): morning %02d:%02d, intraday hours=%s, wrap %02d:%02d %s.",
-                days,
-                mh,
-                mm,
-                hours or "none",
-                wh,
-                wm,
-                btz,
-            )
+        apply_briefing_schedule(scheduler, settings)
         scheduler.start()
         logger.info(
             "Scheduler ENABLED — watchlist every %d min, macro every %d min%s.",
@@ -193,6 +220,10 @@ async def lifespan(app: FastAPI):
         )
     else:
         logger.info("Scheduler disabled (set SCHEDULER_ENABLED=true to automate).")
+
+    # The schedule endpoint needs the live scheduler to reinstall jobs. None when
+    # automation is off — saving still persists, it just takes effect next boot.
+    app.state.scheduler = scheduler
 
     # On-demand /report Telegram command — independent of the scheduler, so it
     # works even when automation is off. Locked to the owner chat.
@@ -483,16 +514,50 @@ def api_settings(authorization: str | None = Header(default=None)) -> dict:
             },
             "push": {"enabled": push_delivery_enabled(settings)},
         },
-        "briefing": {
-            "enabled": settings.briefing_enabled,
-            "timezone": settings.briefing_timezone,
-            "morningAt": settings.briefing_morning_at,
-            "intradayEveryHours": settings.briefing_intraday_every_hours,
-            "intradayUntil": settings.briefing_intraday_until,
-            "wrapAt": settings.briefing_wrap_at,
-            "editable": False,  # scheduled server-side; app editing not wired yet
-        },
+        "briefing": resolve_briefing_schedule(settings).as_dict(
+            timezone=settings.briefing_timezone
+        ),
     }
+
+
+class BriefingScheduleBody(BaseModel):
+    enabled: bool
+    morningAt: str
+    intradayEveryHours: int
+    intradayUntil: str
+    wrapAt: str
+
+
+@app.post("/api/briefing")
+def api_set_briefing_schedule(
+    payload: BriefingScheduleBody, authorization: str | None = Header(default=None)
+) -> dict:
+    """Save the briefing schedule and reinstall the cron jobs immediately."""
+    settings = _require_mobile_api(authorization)
+    try:
+        saved = save_briefing_schedule(
+            BriefingSchedule(
+                enabled=payload.enabled,
+                morning_at=payload.morningAt,
+                intraday_every_hours=payload.intradayEveryHours,
+                intraday_until=payload.intradayUntil,
+                wrap_at=payload.wrapAt,
+            ),
+            settings=settings,
+        )
+    except ScheduleError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # Apply live. With the scheduler off there is nothing to reinstall — the
+    # saved schedule is picked up the next time it starts.
+    scheduler = getattr(app.state, "scheduler", None)
+    if scheduler is not None:
+        try:
+            apply_briefing_schedule(scheduler, settings)
+        except Exception:
+            logger.exception("Saved the schedule but could not reinstall the jobs")
+
+    return saved.as_dict(timezone=settings.briefing_timezone)
 
 
 class ChannelBody(BaseModel):

@@ -13,6 +13,7 @@ import {
   setLanguage,
   usingMockData,
 } from '../data/api';
+import { BriefingScheduleEditor } from '../components/BriefingScheduleEditor';
 import { Logo } from '../components/Logo';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { RootStackParamList } from '../navigation/types';
@@ -83,6 +84,7 @@ export function SettingsScreen() {
   const { colors, mode, toggle } = useTheme();
   const { t, language, setLanguage: setCtxLanguage } = useI18n();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [editingBriefing, setEditingBriefing] = useState(false);
   const [languages, setLanguages] = useState<Language[]>([]);
   const [channels, setChannels] = useState<Channels | null>(null);
   const [briefing, setBriefing] = useState<BriefingInfo | null>(null);
@@ -188,19 +190,23 @@ export function SettingsScreen() {
         <Row
           label={t('set.briefing')}
           value={briefingValue}
+          // Older backends report editable:false; fall back to the read-only
+          // summary rather than opening an editor whose save would 404.
           onPress={() =>
-            Alert.alert(
-              t('set.briefing'),
-              briefing
-                ? t('set.briefingDetail', {
-                    morning: briefing.morningAt,
-                    hours: briefing.intradayEveryHours,
-                    until: briefing.intradayUntil,
-                    wrap: briefing.wrapAt,
-                    tz: briefing.timezone,
-                  })
-                : '',
-            )
+            briefing?.editable
+              ? setEditingBriefing(true)
+              : Alert.alert(
+                  t('set.briefing'),
+                  briefing
+                    ? t('set.briefingDetail', {
+                        morning: briefing.morningAt,
+                        hours: briefing.intradayEveryHours,
+                        until: briefing.intradayUntil,
+                        wrap: briefing.wrapAt,
+                        tz: briefing.timezone,
+                      })
+                    : '',
+                )
           }
         />
         <View style={[styles.row, { borderTopColor: colors.divider }]}>
@@ -227,6 +233,13 @@ export function SettingsScreen() {
           {t('set.disclaimer')}
         </Text>
       </ScrollView>
+
+      <BriefingScheduleEditor
+        visible={editingBriefing}
+        briefing={briefing}
+        onClose={() => setEditingBriefing(false)}
+        onSaved={setBriefing}
+      />
     </View>
   );
 }

@@ -328,6 +328,22 @@ export type StrategiesInfo = {
   limits: { nameChars: number; bodyChars: number; minBodyChars: number };
 };
 
+/** Save the briefing schedule. The server validates and reinstalls its cron
+ *  jobs immediately, so a change takes effect without a restart. */
+export async function saveBriefingSchedule(schedule: {
+  enabled: boolean;
+  morningAt: string;
+  intradayEveryHours: number;
+  intradayUntil: string;
+  wrapAt: string;
+}): Promise<BriefingInfo> {
+  requireBackend();
+  return request<BriefingInfo>('/api/briefing', {
+    method: 'POST',
+    body: JSON.stringify(schedule),
+  });
+}
+
 export async function fetchStrategies(): Promise<StrategiesInfo> {
   requireBackend();
   return getJson<StrategiesInfo>('/api/strategies');

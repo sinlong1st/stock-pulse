@@ -311,18 +311,5 @@ async def run_end_of_day_wrap() -> BriefingRun:
     return await run_briefing(trigger="wrap", always_send=True)
 
 
-def parse_hhmm(value: str) -> tuple[int, int]:
-    """Parse "HH:MM" into (hour, minute)."""
-    hour, minute = value.strip().split(":")
-    return int(hour), int(minute)
-
-
-def intraday_hours(settings: Settings) -> list[int]:
-    """Hours the intraday updates fire at (anchored after the morning brief).
-
-    e.g. morning 08:30, every 2h, until 16:30 -> [10, 12, 14, 16].
-    """
-    start_h, _ = parse_hhmm(settings.briefing_morning_at)
-    until_h, _ = parse_hhmm(settings.briefing_intraday_until)
-    every = max(1, settings.briefing_intraday_every_hours)
-    return list(range(start_h + every, until_h + 1, every))
+# `parse_hhmm` and `intraday_hours` moved to app/briefing/schedule.py, which owns
+# the (now runtime-editable) schedule. They are re-exported from app.jobs.

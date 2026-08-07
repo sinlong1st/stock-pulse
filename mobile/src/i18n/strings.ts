@@ -156,6 +156,48 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   'loader.predict.log7': { en: 'strategy lens applied', vi: 'áp dụng chiến lược' },
   'loader.predict.log8': { en: 'validating AI output', vi: 'kiểm tra kết quả AI' },
 
+  // briefing schedule editor
+  'brief.enabled': { en: 'Scheduled briefings', vi: 'Bản tin theo lịch' },
+  'brief.enabledHint': {
+    en: 'Turn off to stop all automatic briefings. On-demand reports still work.',
+    vi: 'Tắt để dừng mọi bản tin tự động. Bản tin theo yêu cầu vẫn hoạt động.',
+  },
+  'brief.morning': { en: 'MORNING BRIEFING', vi: 'BẢN TIN SÁNG' },
+  'brief.morningHint': {
+    en: 'The full start-of-day briefing.',
+    vi: 'Bản tin đầy đủ đầu ngày.',
+  },
+  'brief.every': { en: 'CHECK IN EVERY (HOURS)', vi: 'CẬP NHẬT MỖI (GIỜ)' },
+  'brief.everyHint': {
+    en: 'Short intraday updates between the morning briefing and the cut-off.',
+    vi: 'Cập nhật ngắn trong ngày, giữa bản tin sáng và giờ kết thúc.',
+  },
+  'brief.until': { en: 'LAST CHECK-IN', vi: 'CẬP NHẬT CUỐI' },
+  'brief.untilHint': {
+    en: 'No intraday updates after this time.',
+    vi: 'Không cập nhật trong ngày sau giờ này.',
+  },
+  'brief.wrap': { en: 'END-OF-DAY WRAP', vi: 'TỔNG KẾT CUỐI NGÀY' },
+  'brief.wrapHint': { en: 'The closing recap.', vi: 'Bản tổng kết cuối ngày.' },
+  'brief.timezone': { en: 'All times in {tz}.', vi: 'Giờ theo múi {tz}.' },
+  'brief.errTime': {
+    en: '{field} must be a time like 08:30.',
+    vi: '{field} phải là giờ dạng 08:30.',
+  },
+  'brief.errEvery': {
+    en: 'Check in every 1 to {max} hours.',
+    vi: 'Cập nhật mỗi 1 đến {max} giờ.',
+  },
+  'brief.errUntilBefore': {
+    en: 'The last check-in can’t come before the morning briefing.',
+    vi: 'Cập nhật cuối không thể trước bản tin sáng.',
+  },
+  'brief.errWrapBefore': {
+    en: 'The wrap-up can’t come before the morning briefing.',
+    vi: 'Tổng kết không thể trước bản tin sáng.',
+  },
+  'brief.saveErr': { en: 'Couldn’t save the schedule.', vi: 'Không lưu được lịch.' },
+
   // prediction strategies
   'strat.kicker': { en: 'AI · HOW IT THINKS', vi: 'AI · CÁCH SUY LUẬN' },
   'strat.title': { en: 'Strategies', vi: 'Chiến lược' },

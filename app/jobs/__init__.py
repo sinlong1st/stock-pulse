@@ -1,9 +1,8 @@
 """Background jobs."""
 
+from app.briefing.schedule import intraday_hours, parse_hhmm
 from app.jobs.briefing import (
     BriefingRun,
-    intraday_hours,
-    parse_hhmm,
     run_briefing,
     run_end_of_day_wrap,
     run_intraday_update,
