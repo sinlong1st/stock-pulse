@@ -279,7 +279,7 @@ async def _report_with(monkeypatch, *, focus_ticker, symbol=None, wl_rows=None):
     monkeypatch.setattr(
         report_api, "resolve_focus", lambda q: FocusTarget(q, focus_ticker, None, q)
     )
-    monkeypatch.setattr(report_api, "resolve_symbol", fake_symbol)
+    monkeypatch.setattr(report_api, "resolve_symbol_smart", fake_symbol)
     monkeypatch.setattr(report_api, "fetch_many", no_earnings)  # never touch Yahoo in tests
     return report_api, seen
 

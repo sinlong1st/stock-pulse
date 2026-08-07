@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 
 from app.briefing.focus import FocusTarget, build_focus_collectors, resolve_focus
 from app.briefing.retrieval import retrieve_fresh_news
-from app.commands.symbols import resolve_symbol
+from app.commands.symbols import resolve_symbol_smart
 from app.config import Settings, get_settings, resolve_briefing_timezone
 from app.earnings import fetch_many, local_today
 from app.evaluation import record_prediction_read
@@ -37,11 +37,15 @@ PREDICT_STAGES = ("resolve", "prices", "news", "analyze")
 
 
 async def _resolve(query: str, settings: Settings) -> FocusTarget:
-    """Watchlist match first (typo-tolerant); else a Yahoo symbol search."""
+    """Watchlist match first (typo-tolerant), then search, then an AI guess.
+
+    The watchlist match only covers stocks you already track, so anything else
+    leans on `resolve_symbol_smart` to survive typos and run-together words.
+    """
     target = resolve_focus(query)
     if target.ticker:
         return target
-    found = await resolve_symbol(query, settings=settings)
+    found = await resolve_symbol_smart(query, settings=settings)
     if found:
         symbol, name = found
         return FocusTarget(query=query, ticker=symbol, name=name, search_term=name or symbol)

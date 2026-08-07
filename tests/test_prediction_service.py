@@ -245,7 +245,7 @@ async def test_build_prediction_unknown_ticker(monkeypatch) -> None:
     async def none_symbol(q, *, settings):
         return None
 
-    monkeypatch.setattr(svc, "resolve_symbol", none_symbol)
+    monkeypatch.setattr(svc, "resolve_symbol_smart", none_symbol)
     out = await svc.build_prediction(Settings(_env_file=None), query="zzzz", analyst=_FakeAnalyst())
     assert out["ok"] is False and "Couldn't find" in out["reason"]
 

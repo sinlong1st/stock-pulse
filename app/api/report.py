@@ -14,7 +14,7 @@ import logging
 
 from app.api.watchlist import build_watchlist
 from app.briefing.focus import resolve_focus
-from app.commands.symbols import resolve_symbol
+from app.commands.symbols import resolve_symbol_smart
 from app.config import Settings
 from app.earnings import fetch_many, local_today
 from app.jobs.briefing import REPORT_STAGES as _PIPELINE_STAGES
@@ -36,7 +36,7 @@ async def _resolve_ticker(query: str, settings: Settings) -> tuple[str | None, s
     if target.ticker:
         return target.ticker, target.name
     try:
-        found = await resolve_symbol(query, settings=settings)
+        found = await resolve_symbol_smart(query, settings=settings)
     except Exception:
         logger.debug("Symbol search failed for %r", query, exc_info=True)
         return None, None
