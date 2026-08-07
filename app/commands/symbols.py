@@ -141,8 +141,10 @@ async def resolve_symbol(
 _TICKER_RE = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
 
 _ASK_TICKER = (
-    "Which US-listed stock ticker does this refer to? The user may have "
-    "misspelled it or run the words together.\n\n"
+    "The user is searching for a company. Which US-listed stock ticker do they "
+    "mean? The text is a COMPANY NAME, not a ticker — it may be misspelled or "
+    "have the words run together (e.g. 'rocketlab' or 'rocketlub' both mean "
+    "Rocket Lab -> RKLB).\n\n"
     "Reply with ONLY the ticker symbol in capitals (e.g. RKLB), or the single "
     "word NONE if you are not confident. No explanation, no punctuation."
 )
@@ -162,7 +164,12 @@ async def _ask_ai_for_ticker(
         "max_tokens": 8,  # a ticker, nothing more
         "messages": [
             {"role": "system", "content": _ASK_TICKER},
-            {"role": "user", "content": query},
+            # Lowercased on purpose. The app's search box uppercases everything,
+            # and an ALL-CAPS misspelling reads to the model as a ticker symbol
+            # it doesn't recognise — "ROCKETLUB" returned NONE where
+            # "rocketlub" returns RKLB. A real ticker never reaches here anyway:
+            # the exact search above would already have resolved it.
+            {"role": "user", "content": query.strip().lower()},
         ],
     }
     try:

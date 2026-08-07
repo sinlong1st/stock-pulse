@@ -132,6 +132,27 @@ async def test_ai_resolves_run_together_words_and_is_verified() -> None:
     assert got == ("RKLB", "Rocket Lab Corporation")
 
 
+async def test_the_query_reaches_the_model_in_lower_case() -> None:
+    """Regression: the app uppercases the search box, and an ALL-CAPS typo reads
+    to the model as an unknown ticker — 'ROCKETLUB' returned NONE in production
+    where 'rocketlub' returns RKLB."""
+    seen: dict = {}
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/chat/completions"):
+            seen["user"] = json.loads(request.content)["messages"][-1]["content"]
+            return httpx.Response(200, json={"choices": [{"message": {"content": "RKLB"}}]})
+        q = request.url.params.get("q", "")
+        body = _quotes(("RKLB", "Rocket Lab")) if q == "RKLB" else {"quotes": []}
+        return httpx.Response(200, json=body)
+
+    got = await resolve_symbol_smart(
+        "ROCKETLUB", settings=_settings(), transport=httpx.MockTransport(handle)
+    )
+    assert seen["user"] == "rocketlub"
+    assert got == ("RKLB", "Rocket Lab")
+
+
 async def test_a_hallucinated_ticker_is_rejected() -> None:
     """The model's guess must exist; ZZZZ resolves to nothing, so we give up."""
     transport = _with_ai("ZZZZ")  # no Yahoo hit for it
