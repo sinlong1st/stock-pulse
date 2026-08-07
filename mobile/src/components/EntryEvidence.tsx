@@ -17,6 +17,22 @@ import { useTheme } from '../theme/ThemeContext';
 
 const signed = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(1)}%`;
 
+/**
+ * Whole-number reward : risk. A raw ratio reads badly below 1 — "0.1 : 1" is
+ * hard to parse — so the smaller side is normalised to 1 and the label stays
+ * "reward : risk" either way. 2.1 -> "2 : 1"; 0.1 -> "1 : 10".
+ *
+ * The tone is derived from the *rendered* pair, not the raw ratio, so a 0.9 that
+ * displays as "1 : 1" isn't also painted red as though it were lopsided.
+ */
+export function formatRatio(ratio: number): { text: string; reward: number; risk: number } {
+  const [reward, risk] =
+    ratio >= 1
+      ? [Math.max(1, Math.round(ratio)), 1]
+      : [1, Math.max(1, Math.round(1 / ratio))];
+  return { text: `${reward} : ${risk}`, reward, risk };
+}
+
 /** Distance to support vs distance to the range high, and what breaks the read. */
 export function RiskReward({ evidence }: { evidence: NonNullable<Prediction['evidence']> }) {
   const { colors } = useTheme();
@@ -50,14 +66,22 @@ export function RiskReward({ evidence }: { evidence: NonNullable<Prediction['evi
         </View>
       ) : null}
 
-      {rewardRisk != null ? (
-        <View style={[styles.ratioRow, { backgroundColor: colors.accentBg }]}>
-          <Text style={[styles.ratioLabel, { color: colors.accentInk }]}>{t('ev.ratio')}</Text>
-          <Text style={[styles.ratioValue, { color: colors.accentInk }]}>
-            {rewardRisk.toFixed(1)} : 1
-          </Text>
-        </View>
-      ) : null}
+      {rewardRisk != null ? (() => {
+        const { text, reward, risk } = formatRatio(rewardRisk);
+        const lopsided = risk > reward; // shows as 1 : 2 or worse
+        const tone = reward >= 2 ? colors.bull : lopsided ? colors.bear : colors.accentInk;
+        return (
+          <View style={[styles.ratioRow, { backgroundColor: colors.accentBg }]}>
+            <Text style={[styles.ratioLabel, { color: colors.accentInk }]}>{t('ev.ratio')}</Text>
+            <View style={styles.ratioRight}>
+              <Text style={[styles.ratioValue, { color: tone }]}>{text}</Text>
+              {lopsided ? (
+                <Text style={[styles.ratioNote, { color: colors.bear }]}>{t('ev.poorRatio')}</Text>
+              ) : null}
+            </View>
+          </View>
+        );
+      })() : null}
 
       {invalidation != null ? (
         <Text style={[styles.invalidation, { color: colors.faint }]}>
@@ -173,8 +197,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginTop: 3,
   },
-  ratioLabel: { fontSize: 9.5, fontWeight: '900', letterSpacing: 0.8 },
-  ratioValue: { fontSize: 14, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  ratioLabel: { fontSize: 9.5, fontWeight: '900', letterSpacing: 0.8, flex: 1 },
+  ratioRight: { alignItems: 'flex-end' },
+  ratioValue: { fontSize: 15, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  ratioNote: { fontSize: 8.5, fontWeight: '800', letterSpacing: 0.3, marginTop: 1 },
   invalidation: { fontSize: 10, lineHeight: 15, marginTop: 3 },
   bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 7 },
   bullet: { fontSize: 7, lineHeight: 16 },

@@ -269,7 +269,11 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   'ev.riskReward': { en: 'RISK / REWARD', vi: 'RỦI RO / LỢI NHUẬN' },
   'ev.toSupport': { en: 'to nearest support', vi: 'đến hỗ trợ gần nhất' },
   'ev.toResistance': { en: 'to nearest resistance', vi: 'đến kháng cự gần nhất' },
-  'ev.ratio': { en: 'REWARD PER UNIT OF RISK', vi: 'LỢI NHUẬN TRÊN RỦI RO' },
+  'ev.ratio': { en: 'REWARD : RISK', vi: 'LỢI NHUẬN : RỦI RO' },
+  'ev.poorRatio': {
+    en: 'risking more than the upside',
+    vi: 'rủi ro lớn hơn lợi nhuận',
+  },
   'ev.invalidation': {
     en: 'A close below {level} would break this read.',
     vi: 'Đóng cửa dưới {level} sẽ phá vỡ nhận định này.',
