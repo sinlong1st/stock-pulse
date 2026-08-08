@@ -77,6 +77,12 @@ class Settings(BaseSettings):
     prediction_rules_enabled: bool = True
     prediction_min_reward_risk: float = 1.5  # below this, entry is downgraded
     prediction_avoid_earnings_days: int = 2  # a report this close overrides the read
+
+    # DeepSeek — an OpenAI-compatible endpoint, used as the second analyst in the
+    # committee work. Leave the key blank and everything degrades to OpenAI only.
+    deepseek_api_key: str = ""
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-v4-flash"  # the cheap tier; see the plan
     # Language for AI-written summary + why-it-matters (e.g. "English",
     # "Vietnamese"). Alerts inherit this since they use those fields.
     output_language: str = "English"

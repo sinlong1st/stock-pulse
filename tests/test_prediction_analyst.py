@@ -5,10 +5,22 @@ import json
 import httpx
 import pytest
 
+from app.llm import ChatProvider
 from app.prediction.analyst import PredictionAnalyst, PredictionError, _user_message
 from app.prediction.models import PredictionRead
 from app.prediction.signals import Signals
 from app.prediction.strategies import DEFAULT_STRATEGY, Strategy
+
+
+def _provider(handler, *, name: str = "openai") -> ChatProvider:
+    """The analyst now runs on a provider; this is the injection seam."""
+    return ChatProvider(
+        name=name,
+        api_key="k",
+        base_url="https://api.example.com/v1",
+        model="test-model",
+        transport=httpx.MockTransport(handler),
+    )
 
 _SIGNALS = Signals(
     range_low=100.0,
@@ -85,7 +97,7 @@ async def test_analyze_parses_and_validates() -> None:
             }
         )
 
-    analyst = PredictionAnalyst("k", transport=httpx.MockTransport(handler))
+    analyst = PredictionAnalyst(_provider(handler))
     read = await analyst.analyze(
         ticker="WDC", name="Western Digital", signals=_SIGNALS,
         news_lines=["headline"], horizons=["1w", "1mo"], strategy=DEFAULT_STRATEGY,
@@ -101,7 +113,7 @@ async def test_analyze_raises_on_bad_json() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"choices": [{"message": {"content": "not json"}}]})
 
-    analyst = PredictionAnalyst("k", transport=httpx.MockTransport(handler))
+    analyst = PredictionAnalyst(_provider(handler))
     with pytest.raises(PredictionError):
         await analyst.analyze(
             ticker="WDC", name="WD", signals=_SIGNALS, news_lines=[], horizons=["1w"],

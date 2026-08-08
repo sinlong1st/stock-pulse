@@ -6,13 +6,10 @@ validated into `PredictionRead`. Mirrors the classifier/briefing analyst pattern
 (httpx, JSON mode, injectable transport, never trust raw output).
 """
 
-import json
 import logging
 
-import httpx
-from pydantic import ValidationError
-
 from app.config import Settings, get_settings
+from app.llm import ChatProvider, ProviderError, Usage, build_provider
 from app.prediction.models import PredictionRead
 from app.prediction.signals import Signals
 from app.prediction.strategies import DEFAULT_STRATEGY, Strategy
@@ -125,22 +122,19 @@ def _user_message(
 
 
 class PredictionAnalyst:
-    def __init__(
-        self,
-        api_key: str,
-        *,
-        model: str = "gpt-4o-mini",
-        base_url: str = "https://api.openai.com/v1",
-        timeout: float = 30.0,
-        transport: httpx.BaseTransport | None = None,
-    ) -> None:
-        if not api_key:
-            raise PredictionError("OPENAI_API_KEY is not set.")
-        self.api_key = api_key
-        self.model = model
-        self.base_url = base_url.rstrip("/")
-        self.timeout = timeout
-        self._transport = transport
+    """Writes the forward-looking read, on whichever provider it's given.
+
+    The prompt is the same whoever answers — that's what makes an OpenAI read and
+    a DeepSeek read comparable in the accuracy loop.
+    """
+
+    def __init__(self, provider: ChatProvider) -> None:
+        self.provider = provider
+        # Kept so callers and logs can say which model produced a read.
+        self.name = provider.name
+        self.model = provider.model
+        # What the last analyze() cost, for per-provider cost comparison.
+        self.last_usage: Usage | None = None
 
     async def analyze(
         self,
@@ -156,55 +150,32 @@ class PredictionAnalyst:
         strategy: Strategy = DEFAULT_STRATEGY,
         language: str = "English",
     ) -> PredictionRead:
-        payload = {
-            "model": self.model,
-            "temperature": 0.2,
-            "response_format": {"type": "json_object"},
-            "messages": [
-                {"role": "system", "content": _system_prompt(language)},
-                {
-                    "role": "user",
-                    "content": _user_message(
-                        ticker=ticker, name=name, price=price, signals=signals,
-                        support=support or {}, news_lines=news_lines,
-                        horizons=horizons, strategy=strategy, earnings=earnings,
-                    ),
-                },
-            ],
-        }
-        content = await self._request(payload)
         try:
-            raw = json.loads(content)
-        except json.JSONDecodeError as exc:
-            raise PredictionError(f"AI did not return valid JSON: {exc}") from exc
-        try:
-            return PredictionRead.model_validate(raw)
-        except ValidationError as exc:
-            raise PredictionError(f"AI output failed validation: {exc}") from exc
-
-    async def _request(self, payload: dict) -> str:
-        try:
-            async with httpx.AsyncClient(timeout=self.timeout, transport=self._transport) as client:
-                response = await client.post(
-                    f"{self.base_url}/chat/completions",
-                    headers={"Authorization": f"Bearer {self.api_key}"},
-                    json=payload,
-                )
-                response.raise_for_status()
-                data = response.json()
-        except httpx.HTTPError as exc:
-            raise PredictionError(f"OpenAI request failed: {exc}") from exc
-        try:
-            return data["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, TypeError) as exc:
-            raise PredictionError(f"Unexpected OpenAI response shape: {exc}") from exc
+            read, result = await self.provider.complete_model(
+                PredictionRead,
+                system=_system_prompt(language),
+                user=_user_message(
+                    ticker=ticker, name=name, price=price, signals=signals,
+                    support=support or {}, news_lines=news_lines,
+                    horizons=horizons, strategy=strategy, earnings=earnings,
+                ),
+                temperature=0.2,
+            )
+        except ProviderError as exc:
+            # Keep the exception type callers already handle.
+            raise PredictionError(str(exc)) from exc
+        self.last_usage = result.usage
+        return read
 
 
-def build_analyst(settings: Settings | None = None) -> PredictionAnalyst:
-    """Construct the configured prediction analyst. Raises if no API key."""
+def build_analyst(
+    settings: Settings | None = None, *, provider: str = "openai"
+) -> PredictionAnalyst:
+    """Construct the prediction analyst on a named provider."""
     settings = settings or get_settings()
-    return PredictionAnalyst(
-        settings.openai_api_key,
-        model=settings.prediction_model,
-        base_url=settings.openai_base_url,
-    )
+    try:
+        return PredictionAnalyst(build_provider(provider, settings))
+    except ProviderError as exc:
+        raise PredictionError(str(exc)) from exc
+
+
