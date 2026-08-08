@@ -72,6 +72,11 @@ class Settings(BaseSettings):
     # loop scores it later — the data behind per-strategy accuracy. Recording is
     # cheap and best-effort; it reuses the price already fetched for the read.
     prediction_recording_enabled: bool = True
+    # Deterministic risk rules that can downgrade the AI's entry advice
+    # (committee plan Phase 1). They only ever make it more cautious.
+    prediction_rules_enabled: bool = True
+    prediction_min_reward_risk: float = 1.5  # below this, entry is downgraded
+    prediction_avoid_earnings_days: int = 2  # a report this close overrides the read
     # Language for AI-written summary + why-it-matters (e.g. "English",
     # "Vietnamese"). Alerts inherit this since they use those fields.
     output_language: str = "English"

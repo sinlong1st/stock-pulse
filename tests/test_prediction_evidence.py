@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.prediction.indicators import compute_indicators
 from app.prediction.service import _confidence, _evidence
 
 
@@ -41,6 +42,7 @@ def _ev(**kw):
         signals=_signals(),
         support=_support(),
         resistance=71.5,
+        indicators=compute_indicators([]),  # all None; not what these tests cover
         news_count=4,
         earnings=None,
         today=None,

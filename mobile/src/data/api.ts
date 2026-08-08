@@ -223,6 +223,14 @@ export type Prediction = {
     newsCount: number;
     enoughHistory: boolean;
   };
+  /** Deterministic risk rules applied over the AI's entry call. They only ever
+   *  make it more cautious; `findings` explains any downgrade. */
+  rules?: {
+    original: 'good' | 'fair' | 'wait';
+    final: 'good' | 'fair' | 'wait';
+    overridden: boolean;
+    findings: { code: string; params: Record<string, number> }[];
+  };
   /** Why the confidence is what it is. */
   confidence?: {
     agree: number;

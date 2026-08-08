@@ -182,6 +182,17 @@ export const mockPrediction = {
     lean: 'bounce' as const,
     signalsConflict: true,
   },
+  rules: {
+    original: 'good' as const,
+    final: 'fair' as const,
+    overridden: true,
+    // Annotated because TS would otherwise union the two param shapes and
+    // decide `{}` isn't a Record<string, number>.
+    findings: [
+      { code: 'earnings-imminent', params: { days: 7 } },
+      { code: 'high-volatility', params: {} },
+    ] as { code: string; params: Record<string, number> }[],
+  },
   support: {
     near: 63.0,
     long: 60.0,

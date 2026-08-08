@@ -16,6 +16,8 @@ from app.config import Settings, get_settings, resolve_briefing_timezone
 from app.earnings import fetch_many, local_today
 from app.evaluation import record_prediction_read
 from app.prediction.analyst import PredictionError, build_analyst
+from app.prediction import rules as rule_engine
+from app.prediction.indicators import compute_indicators
 from app.prediction.signals import (
     compute_signals,
     fetch_bars,
@@ -114,6 +116,7 @@ def _evidence(
     signals,
     support: dict,
     resistance: float | None,
+    indicators,
     news_count: int,
     earnings,
     today,
@@ -140,6 +143,9 @@ def _evidence(
         reward_risk = round(target_pct / abs(support_pct), 1)
 
     return {
+        # The price everything else here is measured from, so the block is
+        # self-contained for the rule engine and for later replay.
+        "price": round(price, 2) if price else None,
         "rangeLow": round(signals.range_low, 2) if signals.range_low else None,
         "rangeHigh": round(signals.range_high, 2) if signals.range_high else None,
         "resistance": resistance,
@@ -153,6 +159,9 @@ def _evidence(
         "earningsInDays": earnings.days_until(today) if earnings else None,
         "newsCount": news_count,
         "enoughHistory": signals.enough_history,
+        # Standard indicators (committee plan Phase 0). Each is null when there
+        # aren't enough bars — the rule engine treats missing as a reason to wait.
+        "indicators": indicators.as_dict(),
     }
 
 
@@ -260,6 +269,7 @@ async def build_prediction(
         "dates": [b.t.date().isoformat() for b in recent],
     }
     support = _support_levels(bars, price)
+    indicators = compute_indicators(bars)
 
     step("news")
     earnings = (await fetch_many([ticker], settings=settings)).get(ticker)
@@ -278,6 +288,38 @@ async def build_prediction(
         logger.warning("Prediction analysis failed: %s", exc)
         return {"ok": False, "reason": "AI is unavailable right now (check the OpenAI key)."}
 
+    evidence = _evidence(
+        price=price,
+        signals=signals,
+        support=support,
+        resistance=nearest_resistance(bars, price),
+        indicators=indicators,
+        news_count=len(news),
+        earnings=earnings,
+        today=local_today(settings),
+    )
+    # Deterministic vetoes over the AI's entry call. Only ever more cautious.
+    rules = (
+        rule_engine.evaluate(
+            read.entry.assessment,
+            evidence,
+            min_reward_risk=settings.prediction_min_reward_risk,
+            avoid_earnings_within_days=settings.prediction_avoid_earnings_days,
+        )
+        if settings.prediction_rules_enabled
+        else rule_engine.RuleResult(
+            original=read.entry.assessment, final=read.entry.assessment, findings=[]
+        )
+    )
+    if rules.overridden:
+        logger.info(
+            "Rules downgraded %s entry %s -> %s (%s)",
+            ticker,
+            rules.original,
+            rules.final,
+            ", ".join(f.code for f in rules.findings),
+        )
+
     payload = {
         "ok": True,
         "ticker": ticker,
@@ -295,7 +337,9 @@ async def build_prediction(
         "support": support,
         "earnings": earnings.as_dict(local_today(settings)) if earnings else None,
         "entry": {
-            "assessment": read.entry.assessment,
+            # The rule engine may have downgraded this; `rules` below shows what
+            # the AI originally said and why it was overridden.
+            "assessment": rules.final,
             "note": read.entry.note,
             # With no headlines the model has nothing company-specific to point
             # at and reliably falls back to restating the trend ("the downtrend
@@ -305,16 +349,10 @@ async def build_prediction(
         },
         # Checkable facts behind the entry advice, and why confidence is what it
         # is. Numbers, not sentences — the app phrases them per language.
-        "evidence": _evidence(
-            price=price,
-            signals=signals,
-            support=support,
-            resistance=nearest_resistance(bars, price),
-            news_count=len(news),
-            earnings=earnings,
-            today=local_today(settings),
-        ),
+        "evidence": evidence,
         "confidence": _confidence(read.horizons, signals),
+        # What the deterministic rules made of it.
+        "rules": rules.as_dict(),
         "horizons": [
             {
                 "horizon": h.horizon,

@@ -308,6 +308,45 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   },
   'ev.risks': { en: 'WHAT COULD MAKE THIS WRONG', vi: 'ĐIỀU GÌ CÓ THỂ LÀM SAI' },
 
+  // deterministic risk rules (Predict) — codes must match app/prediction/rules.py
+  'rules.title': { en: 'RISK RULES APPLIED', vi: 'QUY TẮC RỦI RO ĐÃ ÁP DỤNG' },
+  'rules.downgraded': {
+    en: 'StockPulse lowered the AI’s call from {from} to {to}:',
+    vi: 'StockPulse hạ nhận định của AI từ {from} xuống {to}:',
+  },
+  'rules.weak-reward-risk': {
+    en: 'Reward:risk of {ratio} is below the {minimum} minimum.',
+    vi: 'Tỷ lệ lợi nhuận/rủi ro {ratio} thấp hơn mức tối thiểu {minimum}.',
+  },
+  'rules.earnings-imminent': {
+    en: 'Earnings in {days} days will move this more than the setup does.',
+    vi: 'Báo cáo sau {days} ngày sẽ tác động mạnh hơn cả thiết lập kỹ thuật.',
+  },
+  'rules.extreme-volatility': {
+    en: 'Volatility is extreme for this stock — price levels are unreliable.',
+    vi: 'Biến động cực lớn — các vùng giá không đáng tin cậy.',
+  },
+  'rules.high-volatility': {
+    en: 'Volatility is high for this stock, so levels are looser than usual.',
+    vi: 'Biến động cao hơn bình thường, các vùng giá kém chắc chắn.',
+  },
+  'rules.chasing': {
+    en: 'Price is {atrs} average days above the nearest support — the good entry has gone.',
+    vi: 'Giá đã cao hơn hỗ trợ gần nhất {atrs} phiên trung bình — điểm vào đẹp đã qua.',
+  },
+  'rules.stop-too-tight': {
+    en: 'Invalidation is only {atrs} of an average day away — normal movement would hit it.',
+    vi: 'Mức phá vỡ chỉ cách {atrs} phiên trung bình — biến động thường ngày sẽ chạm tới.',
+  },
+  'rules.invalid-stop': {
+    en: 'The invalidation level sits above the current price.',
+    vi: 'Mức phá vỡ nằm trên giá hiện tại.',
+  },
+  'rules.missing-data': {
+    en: 'Not enough price history to judge this setup.',
+    vi: 'Chưa đủ lịch sử giá để đánh giá thiết lập này.',
+  },
+
   // watchlist quick-picker (Report + Predict)
   'picker.label': { en: 'FROM YOUR WATCHLIST', vi: 'TỪ DANH MỤC CỦA BẠN' },
   'picker.less': { en: 'Less', vi: 'Thu gọn' },

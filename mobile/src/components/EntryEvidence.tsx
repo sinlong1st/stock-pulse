@@ -92,6 +92,45 @@ export function RiskReward({ evidence }: { evidence: NonNullable<Prediction['evi
   );
 }
 
+/**
+ * Why the risk rules overrode the AI's entry call.
+ *
+ * Only rendered when something was actually downgraded — a silent override would
+ * be worse than none, since the user would see a verdict with no explanation.
+ * The backend sends codes plus numbers, so the wording is localized here.
+ */
+export function RuleOverride({ rules }: { rules: NonNullable<Prediction['rules']> }) {
+  const { colors } = useTheme();
+  const { t } = useI18n();
+
+  if (!rules.overridden || !rules.findings.length) return null;
+
+  return (
+    <View style={[styles.block, styles.override, { borderColor: colors.bear }]}>
+      <View style={styles.overrideTop}>
+        <Feather name="shield" size={12} color={colors.bear} />
+        <Text style={[styles.label, { color: colors.bear }]}>{t('rules.title')}</Text>
+      </View>
+      <Text style={[styles.overrideLead, { color: colors.text }]}>
+        {t('rules.downgraded', {
+          from: t(`predict.entry.${rules.original}`),
+          to: t(`predict.entry.${rules.final}`),
+        })}
+      </Text>
+      {rules.findings.map((f) => (
+        <View key={f.code} style={styles.bulletRow}>
+          <Text style={[styles.bullet, { color: colors.faint }]}>●</Text>
+          {/* Unknown codes fall back to the key, so a new backend rule shows
+              something rather than an empty bullet. */}
+          <Text style={[styles.bulletText, { color: colors.muted }]}>
+            {t(`rules.${f.code}`, f.params)}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 /** The deterministic inputs the read rests on, as scannable bullets. */
 export function WhyThisCall({ evidence }: { evidence: NonNullable<Prediction['evidence']> }) {
   const { colors } = useTheme();
@@ -184,6 +223,9 @@ export function ConfidenceBasis({
 
 const styles = StyleSheet.create({
   block: { borderTopWidth: 1, paddingTop: 10, marginTop: 10, gap: 5 },
+  override: { borderTopWidth: 0, borderWidth: 1, padding: 10 },
+  overrideTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  overrideLead: { fontSize: 12, fontWeight: '700', lineHeight: 17, marginBottom: 2 },
   label: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   rowLabel: { fontSize: 11, flex: 1 },
