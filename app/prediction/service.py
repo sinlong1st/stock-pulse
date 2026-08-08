@@ -5,6 +5,7 @@ behind one call. Best-effort on the data fetches; the numbers stay real and the
 AI only writes the narrative. See specs/STOCKPULSE_AI_PREDICTION_PLAN.md.
 """
 
+import asyncio
 import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -15,6 +16,8 @@ from app.commands.symbols import resolve_symbol_smart
 from app.config import Settings, get_settings, resolve_briefing_timezone
 from app.earnings import fetch_many, local_today
 from app.evaluation import record_prediction_read
+from app.llm import available_providers
+from app.prediction.models import PredictionRead
 from app.prediction.analyst import PredictionError, build_analyst
 from app.prediction import rules as rule_engine
 from app.prediction.indicators import compute_indicators
@@ -203,24 +206,57 @@ async def _news_lines(target: FocusTarget, settings: Settings) -> list[str]:
         return []
 
 
-def _record(session, settings: Settings, payload: dict, price: float | None) -> None:
-    """Persist the read for later scoring. Best-effort: a bookkeeping failure
-    must never cost the user the prediction they just paid for."""
+def _record(
+    session,
+    settings: Settings,
+    payload: dict,
+    price: float | None,
+    *,
+    horizons: list[dict] | None = None,
+    provider: str | None = None,
+) -> None:
+    """Persist a read for later scoring. Best-effort: a bookkeeping failure
+    must never cost the user the prediction they just paid for.
+
+    `horizons`/`provider` let the second opinion be recorded too, so per-provider
+    accuracy has both sides to compare.
+    """
     if session is None or not settings.prediction_recording_enabled:
         return
     try:
         record_prediction_read(
             session,
             ticker=payload["ticker"],
-            horizons=payload["horizons"],
+            horizons=horizons if horizons is not None else payload["horizons"],
             strategy_id=payload["strategy"]["id"],
             baseline_price=price,
+            provider=provider,
             dedupe_minutes=settings.prediction_cache_minutes,
         )
         session.commit()
     except Exception:
         logger.warning("Could not record prediction for evaluation", exc_info=True)
         session.rollback()
+
+
+async def _second_opinion(
+    settings: Settings, *, primary: str, **analyze_kwargs
+) -> tuple[str, PredictionRead] | None:
+    """Run the same prompt through the other configured provider.
+
+    Returns None when there's no second provider or it fails — a second opinion
+    is a bonus, never a reason to lose the prediction the user asked for.
+    """
+    others = [p for p in available_providers(settings) if p != primary]
+    if not others:
+        return None
+    name = others[0]
+    try:
+        analyst = build_analyst(settings, provider=name)
+        return name, await analyst.analyze(**analyze_kwargs)
+    except PredictionError as exc:
+        logger.info("Second opinion from %s unavailable: %s", name, exc)
+        return None
 
 
 async def build_prediction(
@@ -277,16 +313,28 @@ async def build_prediction(
     horizons = [h.strip() for h in settings.prediction_horizons.split(",") if h.strip()]
 
     step("analyze")
+    analyze_kwargs = dict(
+        ticker=ticker, name=name, signals=signals, news_lines=news,
+        horizons=horizons, price=price, support=support,
+        earnings=earnings, strategy=strategy, language=language,
+    )
+    # The second opinion runs concurrently, so it costs latency only when it is
+    # slower than the primary — DeepSeek currently is, by roughly 3x.
+    second_task = (
+        asyncio.create_task(_second_opinion(settings, primary="openai", **analyze_kwargs))
+        if settings.prediction_second_opinion_enabled and analyst is None
+        else None
+    )
     try:
         analyst = analyst or build_analyst(settings)
-        read = await analyst.analyze(
-            ticker=ticker, name=name, signals=signals, news_lines=news,
-            horizons=horizons, price=price, support=support,
-            earnings=earnings, strategy=strategy, language=language,
-        )
+        read = await analyst.analyze(**analyze_kwargs)
     except PredictionError as exc:
         logger.warning("Prediction analysis failed: %s", exc)
+        if second_task:
+            second_task.cancel()
         return {"ok": False, "reason": "AI is unavailable right now (check the OpenAI key)."}
+
+    second = await second_task if second_task else None
 
     evidence = _evidence(
         price=price,
@@ -353,6 +401,23 @@ async def build_prediction(
         "confidence": _confidence(read.horizons, signals),
         # What the deterministic rules made of it.
         "rules": rules.as_dict(),
+        # An independent read of the same evidence by the other model, when one
+        # is configured. Deliberately not merged into the main verdict — the
+        # point is to see whether they agree, not to average them away.
+        "secondOpinion": (
+            {
+                "provider": second[0],
+                "entry": second[1].entry.assessment,
+                "note": second[1].entry.note,
+                "horizons": [
+                    {"horizon": h.horizon, "lean": h.lean, "confidence": h.confidence}
+                    for h in second[1].horizons
+                ],
+                "agrees": second[1].entry.assessment == read.entry.assessment,
+            }
+            if second
+            else None
+        ),
         "horizons": [
             {
                 "horizon": h.horizon,
@@ -377,5 +442,20 @@ async def build_prediction(
         ),
     }
 
-    _record(session, settings, payload, price)
+    # An injected analyst (tests, or a future custom one) may not be provider-backed.
+    _record(session, settings, payload, price, provider=getattr(analyst, "name", None))
+    if second:
+        # Recorded separately so the accuracy loop can score each model on its
+        # own calls — that comparison is the whole point of the second opinion.
+        _record(
+            session,
+            settings,
+            payload,
+            price,
+            horizons=[
+                {"horizon": h.horizon, "lean": h.lean, "confidence": h.confidence}
+                for h in second[1].horizons
+            ],
+            provider=second[0],
+        )
     return payload

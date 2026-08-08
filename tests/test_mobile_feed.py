@@ -438,6 +438,7 @@ def test_evaluation_endpoint_maps_report(monkeypatch) -> None:
     # This test covers the response mapping, not the DB — stub the per-strategy
     # aggregation too so it doesn't reach for a real predictions table.
     monkeypatch.setattr(eval_api, "build_strategy_accuracy", lambda session, settings=None: [])
+    monkeypatch.setattr(eval_api, "build_provider_accuracy", lambda session: [])
     monkeypatch.setattr(main, "build_evaluation", eval_api.build_evaluation)
 
     with _client_with(monkeypatch, enabled=True, token="s3cret") as client:

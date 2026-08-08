@@ -165,6 +165,17 @@ export type EvalReport = {
   bullish: EvalStat;
   bearish: EvalStat;
   strategies?: StrategyStat[]; // absent on older backends
+  /** Accuracy per model — "does the second opinion actually help?". */
+  providers?: {
+    provider: string;
+    total: number;
+    hits: number;
+    misses: number;
+    flats: number;
+    accuracyPct: number | null;
+    pending: number;
+    enoughData: boolean;
+  }[];
   minMeaningfulCalls?: number;
   recent: {
     ticker: string;
@@ -223,6 +234,15 @@ export type Prediction = {
     newsCount: number;
     enoughHistory: boolean;
   };
+  /** An independent read of the same evidence by the other model. Deliberately
+   *  kept separate from the main verdict — disagreement is the useful signal. */
+  secondOpinion?: {
+    provider: string;
+    entry: 'good' | 'fair' | 'wait';
+    note: string;
+    horizons: { horizon: string; lean: Lean; confidence: string }[];
+    agrees: boolean;
+  } | null;
   /** Deterministic risk rules applied over the AI's entry call. They only ever
    *  make it more cautious; `findings` explains any downgrade. */
   rules?: {

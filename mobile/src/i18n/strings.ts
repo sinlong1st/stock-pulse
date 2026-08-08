@@ -308,6 +308,22 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   },
   'ev.risks': { en: 'WHAT COULD MAKE THIS WRONG', vi: 'ĐIỀU GÌ CÓ THỂ LÀM SAI' },
 
+  // second opinion (Predict) — an independent read by the other model
+  'second.title': { en: 'SECOND OPINION · {model}', vi: 'Ý KIẾN THỨ HAI · {model}' },
+  'second.agrees': {
+    en: '✓ Agrees with the read above.',
+    vi: '✓ Đồng thuận với nhận định ở trên.',
+  },
+  'second.disagrees': {
+    en: '✕ Disagrees — the setup is ambiguous, treat it with more caution.',
+    vi: '✕ Không đồng thuận — thiết lập chưa rõ ràng, hãy thận trọng hơn.',
+  },
+  'eval.byProvider': { en: 'ACCURACY BY MODEL', vi: 'ĐỘ CHÍNH XÁC THEO MÔ HÌNH' },
+  'eval.providerNote': {
+    en: 'Both models read the same evidence, so this compares the models themselves.',
+    vi: 'Cả hai mô hình đọc cùng dữ liệu, nên đây là so sánh giữa các mô hình.',
+  },
+
   // deterministic risk rules (Predict) — codes must match app/prediction/rules.py
   'rules.title': { en: 'RISK RULES APPLIED', vi: 'QUY TẮC RỦI RO ĐÃ ÁP DỤNG' },
   'rules.titleChecks': { en: 'RISK CHECKS', vi: 'KIỂM TRA RỦI RO' },

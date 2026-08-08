@@ -19,6 +19,7 @@ import {
   ConfidenceBasis,
   RiskReward,
   RuleOverride,
+  SecondOpinion,
   WhyThisCall,
 } from '../components/EntryEvidence';
 import { HackerLoader, LoaderPhase } from '../components/HackerLoader';
@@ -310,6 +311,7 @@ export function PredictScreen() {
 
               {/* An override changes the verdict above, so it goes first. */}
               {pred.rules ? <RuleOverride rules={pred.rules} /> : null}
+              {pred.secondOpinion ? <SecondOpinion second={pred.secondOpinion} /> : null}
 
               {/* The working behind the call, so it can be audited rather than
                   taken on trust. Absent on older backends. */}

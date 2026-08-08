@@ -110,6 +110,9 @@ class PredictionRow(Base):
     # strategy id is what makes per-strategy accuracy possible.
     strategy_id: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
     confidence: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # Which model wrote this read ("openai" | "deepseek"). Null on rows recorded
+    # before the second-opinion work; those were all OpenAI.
+    provider: Mapped[str | None] = mapped_column(String(32), index=True, nullable=True)
     horizon: Mapped[str] = mapped_column(String(8))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     evaluate_after: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)

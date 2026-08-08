@@ -142,6 +142,43 @@ export function RuleOverride({ rules }: { rules: NonNullable<Prediction['rules']
   );
 }
 
+/**
+ * A second model's independent read of the same evidence.
+ *
+ * Shown as its own verdict rather than blended into the main one. Two models
+ * agreeing is weak evidence — they train on overlapping data and can be wrong
+ * together — but two models *disagreeing* is a genuine signal that the setup is
+ * ambiguous, and averaging them away would destroy exactly that.
+ */
+export function SecondOpinion({
+  second,
+}: {
+  second: NonNullable<Prediction['secondOpinion']>;
+}) {
+  const { colors } = useTheme();
+  const { t } = useI18n();
+
+  const tone = second.agrees ? colors.bull : colors.bear;
+
+  return (
+    <View style={[styles.block, styles.override, { borderColor: colors.dividerStrong }]}>
+      <View style={styles.overrideTop}>
+        <Feather name="users" size={12} color={colors.muted} />
+        <Text style={[styles.label, { color: colors.muted }]}>
+          {t('second.title', { model: second.provider })}
+        </Text>
+        <Text style={[styles.secondVerdict, { color: tone }]}>
+          {t(`predict.entry.${second.entry}`)}
+        </Text>
+      </View>
+      <Text style={[styles.bulletText, { color: colors.muted }]}>{second.note}</Text>
+      <Text style={[styles.secondAgree, { color: tone }]}>
+        {second.agrees ? t('second.agrees') : t('second.disagrees')}
+      </Text>
+    </View>
+  );
+}
+
 /** The deterministic inputs the read rests on, as scannable bullets. */
 export function WhyThisCall({ evidence }: { evidence: NonNullable<Prediction['evidence']> }) {
   const { colors } = useTheme();
@@ -237,6 +274,8 @@ const styles = StyleSheet.create({
   override: { borderTopWidth: 0, borderWidth: 1, padding: 10 },
   overrideTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   overrideLead: { fontSize: 12, fontWeight: '700', lineHeight: 17, marginBottom: 2 },
+  secondVerdict: { marginLeft: 'auto', fontSize: 11, fontWeight: '900', letterSpacing: 0.4 },
+  secondAgree: { fontSize: 10, fontWeight: '800', letterSpacing: 0.3, marginTop: 2 },
   label: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   rowLabel: { fontSize: 11, flex: 1 },

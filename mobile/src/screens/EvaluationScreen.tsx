@@ -89,7 +89,8 @@ export function EvaluationScreen({ navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
   // Predict-tab strategy data can exist before any news call has been scored,
   // so the empty state must account for both sources.
-  const hasStrategyData = (report?.strategies?.length ?? 0) > 0;
+  const hasStrategyData =
+    (report?.strategies?.length ?? 0) > 0 || (report?.providers?.length ?? 0) > 0;
 
   useEffect(() => {
     fetchEvaluation()
@@ -153,6 +154,37 @@ export function EvaluationScreen({ navigation }: Props) {
               ))}
               <Text style={[styles.stratNote, { color: colors.faint }]}>
                 {t('eval.strategyNote', { n: report.minMeaningfulCalls ?? 10 })}
+              </Text>
+            </View>
+          ) : null}
+
+          {/* accuracy per model — the second-opinion comparison */}
+          {report.providers && report.providers.length > 0 ? (
+            <View style={[styles.bars, { borderBottomColor: colors.divider }]}>
+              <Text style={[styles.recentLabel, styles.stratHead, { color: colors.muted }]}>
+                {t('eval.byProvider')}
+              </Text>
+              {report.providers.map((p) => (
+                <StrategyRow
+                  key={p.provider}
+                  stat={{
+                    id: p.provider,
+                    // Providers have no display name of their own; the id is it.
+                    name: p.provider,
+                    builtin: false,
+                    total: p.total,
+                    hits: p.hits,
+                    misses: p.misses,
+                    flats: p.flats,
+                    accuracyPct: p.accuracyPct,
+                    avgReturnPct: null,
+                    pending: p.pending,
+                    enoughData: p.enoughData,
+                  }}
+                />
+              ))}
+              <Text style={[styles.stratNote, { color: colors.faint }]}>
+                {t('eval.providerNote')}
               </Text>
             </View>
           ) : null}

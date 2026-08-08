@@ -220,6 +220,59 @@ def build_strategy_accuracy(session: Session, settings: Settings | None = None) 
     return stats
 
 
+@dataclass
+class ProviderStat:
+    """How one model's Predict calls have turned out."""
+
+    provider: str
+    total: int
+    hits: int
+    misses: int
+    flats: int
+    accuracy_pct: float | None
+    pending: int
+    enough_data: bool
+
+
+def build_provider_accuracy(session: Session) -> list[ProviderStat]:
+    """Per-model accuracy — "does a second opinion actually help?".
+
+    Same shape and the same small-sample honesty as the per-strategy view: a
+    model with two lucky calls must not outrank one with a real record.
+    """
+    repo = PredictionRepository(session)
+    rows = repo.list_evaluated(limit=5000, source=PRED_SOURCE_PREDICT)
+    pending = repo.pending_by_provider()
+
+    names = {r.provider for r in rows if r.provider} | set(pending)
+    stats: list[ProviderStat] = []
+    for provider in names:
+        mine = [r for r in rows if r.provider == provider]
+        hits = sum(1 for r in mine if r.outcome == OUTCOME_HIT)
+        misses = sum(1 for r in mine if r.outcome == OUTCOME_MISS)
+        stats.append(
+            ProviderStat(
+                provider=provider,
+                total=len(mine),
+                hits=hits,
+                misses=misses,
+                flats=sum(1 for r in mine if r.outcome == OUTCOME_FLAT),
+                accuracy_pct=_accuracy(hits, misses),
+                pending=pending.get(provider, 0),
+                enough_data=(hits + misses) >= MIN_MEANINGFUL_CALLS,
+            )
+        )
+
+    stats.sort(
+        key=lambda s: (
+            not s.enough_data,
+            -(s.accuracy_pct if s.accuracy_pct is not None else -1),
+            -s.total,
+        )
+    )
+    return stats
+
+
 def build_evaluation_digest(report: "EvaluationReport", language: str = "English") -> str:
     """Short text summary of the evaluation, for a Telegram digest."""
     vi = language.strip().lower() == "vietnamese"
@@ -494,6 +547,7 @@ def record_prediction_read(
     horizons: list[dict],
     strategy_id: str,
     baseline_price: float | None,
+    provider: str | None = None,
     dedupe_minutes: float = 180.0,
     now: datetime | None = None,
 ) -> int:
@@ -526,7 +580,11 @@ def record_prediction_read(
             logger.warning("Skipping unparsable prediction horizon %r", label)
             continue
         if repo.has_recent_pending(
-            ticker=ticker, horizon=label, strategy_id=strategy_id, since=cutoff
+            ticker=ticker,
+            horizon=label,
+            strategy_id=strategy_id,
+            provider=provider,
+            since=cutoff,
         ):
             continue  # same call already awaiting evaluation
         repo.create(
@@ -534,6 +592,7 @@ def record_prediction_read(
             ticker=ticker,
             sentiment=sentiment,
             strategy_id=strategy_id,
+            provider=provider,
             confidence=str(entry.get("confidence") or "").strip().lower() or None,
             horizon=label,
             created_at=now,

@@ -9,6 +9,7 @@ from app.evaluation import (
     MIN_MEANINGFUL_CALLS,
     SentimentStat,
     build_evaluation_report,
+    build_provider_accuracy,
     build_strategy_accuracy,
 )
 
@@ -46,6 +47,20 @@ def build_evaluation(session: Session, settings: Settings | None = None) -> dict
                 "enoughData": s.enough_data,
             }
             for s in strategies
+        ],
+        # Which model made the call — the second-opinion comparison.
+        "providers": [
+            {
+                "provider": s.provider,
+                "total": s.total,
+                "hits": s.hits,
+                "misses": s.misses,
+                "flats": s.flats,
+                "accuracyPct": s.accuracy_pct,
+                "pending": s.pending,
+                "enoughData": s.enough_data,
+            }
+            for s in build_provider_accuracy(session)
         ],
         "minMeaningfulCalls": MIN_MEANINGFUL_CALLS,
         "bullish": _stat(r.bullish),

@@ -83,6 +83,10 @@ class Settings(BaseSettings):
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-v4-flash"  # the cheap tier; see the plan
+    # Run the same prompt through the second provider as well, so the accuracy
+    # loop can compare them. Does nothing without a second key configured, and
+    # runs concurrently — it costs latency only when the other model is slower.
+    prediction_second_opinion_enabled: bool = True
     # Language for AI-written summary + why-it-matters (e.g. "English",
     # "Vietnamese"). Alerts inherit this since they use those fields.
     output_language: str = "English"

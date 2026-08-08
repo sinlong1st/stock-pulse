@@ -308,6 +308,7 @@ class PredictionRepository:
         importance: str | None = None,
         strategy_id: str | None = None,
         confidence: str | None = None,
+        provider: str | None = None,
     ) -> PredictionRow:
         """Record a prediction with its baseline price (does not commit).
 
@@ -324,6 +325,7 @@ class PredictionRepository:
             importance=importance,
             strategy_id=strategy_id,
             confidence=confidence,
+            provider=provider,
             horizon=horizon,
             created_at=created_at,
             evaluate_after=evaluate_after,
@@ -335,7 +337,13 @@ class PredictionRepository:
         return row
 
     def has_recent_pending(
-        self, *, ticker: str, horizon: str, strategy_id: str | None, since: datetime
+        self,
+        *,
+        ticker: str,
+        horizon: str,
+        strategy_id: str | None,
+        since: datetime,
+        provider: str | None = None,
     ) -> bool:
         """True if an equivalent Predict row is already awaiting evaluation.
 
@@ -351,6 +359,9 @@ class PredictionRepository:
                 PredictionRow.ticker == ticker,
                 PredictionRow.horizon == horizon,
                 PredictionRow.strategy_id == strategy_id,
+                # Scoped per provider: two models reading the same stock are two
+                # genuine data points, not a duplicate.
+                PredictionRow.provider == provider,
                 PredictionRow.status == PRED_PENDING,
                 PredictionRow.created_at >= since,
             )
@@ -389,6 +400,18 @@ class PredictionRepository:
     def mark_skipped(self, prediction: PredictionRow) -> None:
         prediction.status = PRED_SKIPPED
         prediction.evaluated_at = datetime.now(tz=UTC)
+
+    def pending_by_provider(self) -> dict[str, int]:
+        """Predict calls per model still waiting for their horizon."""
+        stmt = (
+            select(PredictionRow.provider, func.count())
+            .where(
+                PredictionRow.source == PRED_SOURCE_PREDICT,
+                PredictionRow.status == PRED_PENDING,
+            )
+            .group_by(PredictionRow.provider)
+        )
+        return {name: n for name, n in self.session.execute(stmt) if name}
 
     def pending_by_strategy(self) -> dict[str, int]:
         """How many calls per strategy are still waiting for their horizon —
