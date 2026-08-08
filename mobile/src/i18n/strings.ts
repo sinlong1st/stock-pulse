@@ -310,9 +310,14 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
 
   // deterministic risk rules (Predict) — codes must match app/prediction/rules.py
   'rules.title': { en: 'RISK RULES APPLIED', vi: 'QUY TẮC RỦI RO ĐÃ ÁP DỤNG' },
+  'rules.titleChecks': { en: 'RISK CHECKS', vi: 'KIỂM TRA RỦI RO' },
   'rules.downgraded': {
     en: 'StockPulse lowered the AI’s call from {from} to {to}:',
     vi: 'StockPulse hạ nhận định của AI từ {from} xuống {to}:',
+  },
+  'rules.confirmed': {
+    en: 'The risk rules independently agree with {verdict}:',
+    vi: 'Quy tắc rủi ro độc lập cũng cho kết quả {verdict}:',
   },
   'rules.weak-reward-risk': {
     en: 'Reward:risk of {ratio} is below the {minimum} minimum.',

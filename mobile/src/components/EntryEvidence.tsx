@@ -93,29 +93,40 @@ export function RiskReward({ evidence }: { evidence: NonNullable<Prediction['evi
 }
 
 /**
- * Why the risk rules overrode the AI's entry call.
+ * What the deterministic risk rules found.
  *
- * Only rendered when something was actually downgraded — a silent override would
- * be worse than none, since the user would see a verdict with no explanation.
+ * Rendered whenever any rule fires, not only when one changed the verdict. A rule
+ * that merely *agrees* with the AI's caution is still telling you something
+ * concrete ("price is 7.6 average days above support") that the prose isn't —
+ * hiding it wasted the most checkable part of the analysis.
+ *
  * The backend sends codes plus numbers, so the wording is localized here.
  */
 export function RuleOverride({ rules }: { rules: NonNullable<Prediction['rules']> }) {
   const { colors } = useTheme();
   const { t } = useI18n();
 
-  if (!rules.overridden || !rules.findings.length) return null;
+  if (!rules.findings.length) return null;
+
+  // An override changed the answer and is worth alarming about; a confirmation
+  // is context, so it gets a calmer treatment.
+  const tone = rules.overridden ? colors.bear : colors.muted;
 
   return (
-    <View style={[styles.block, styles.override, { borderColor: colors.bear }]}>
+    <View style={[styles.block, styles.override, { borderColor: tone }]}>
       <View style={styles.overrideTop}>
-        <Feather name="shield" size={12} color={colors.bear} />
-        <Text style={[styles.label, { color: colors.bear }]}>{t('rules.title')}</Text>
+        <Feather name="shield" size={12} color={tone} />
+        <Text style={[styles.label, { color: tone }]}>
+          {rules.overridden ? t('rules.title') : t('rules.titleChecks')}
+        </Text>
       </View>
       <Text style={[styles.overrideLead, { color: colors.text }]}>
-        {t('rules.downgraded', {
-          from: t(`predict.entry.${rules.original}`),
-          to: t(`predict.entry.${rules.final}`),
-        })}
+        {rules.overridden
+          ? t('rules.downgraded', {
+              from: t(`predict.entry.${rules.original}`),
+              to: t(`predict.entry.${rules.final}`),
+            })
+          : t('rules.confirmed', { verdict: t(`predict.entry.${rules.final}`) })}
       </Text>
       {rules.findings.map((f) => (
         <View key={f.code} style={styles.bulletRow}>
