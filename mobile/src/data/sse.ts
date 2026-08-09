@@ -6,15 +6,18 @@
  * `responseText` as bytes arrive. We track how much we've already parsed and
  * only handle the new tail.
  *
- * Deliberately tiny: it understands the two event types this app sends
- * (`stage` and `result`) and nothing else. Any failure is reported through
- * `onError` so callers can fall back to the plain JSON endpoint.
+ * Deliberately tiny: it understands the three event types this app sends
+ * (`stage`, `result` and `second`) and nothing else. Any failure is reported
+ * through `onError` so callers can fall back to the plain JSON endpoint.
  */
 import { API_BASE_URL, API_TOKEN } from '../config';
 
-export type SseHandlers<T> = {
+export type SseHandlers<T, L = unknown> = {
   onStage?: (stage: string) => void;
   onResult: (result: T) => void;
+  /** A `second` event, which arrives *after* `onResult`. Predict streams the
+   *  slower model's opinion this way so the main read isn't held up by it. */
+  onLate?: (payload: L) => void;
   onError: (error: Error) => void;
 };
 
@@ -28,11 +31,17 @@ function splitBlocks(text: string): { blocks: string[]; rest: string } {
   return { blocks: parts, rest };
 }
 
-export function streamSse<T>(path: string, handlers: SseHandlers<T>): SseHandle {
+export function streamSse<T, L = unknown>(
+  path: string,
+  handlers: SseHandlers<T, L>,
+): SseHandle {
   const xhr = new XMLHttpRequest();
   let consumed = 0; // characters of responseText already parsed
   let buffer = '';
-  let settled = false;
+  let settled = false; // a result has been delivered
+  // Separate from `settled` on purpose: `second` legitimately arrives after the
+  // result, so it can't key off that — but it must still stop on cancel.
+  let cancelled = false;
 
   const fail = (message: string) => {
     if (settled) return;
@@ -62,6 +71,9 @@ export function streamSse<T>(path: string, handlers: SseHandlers<T>): SseHandle 
       if (settled) return;
       settled = true;
       handlers.onResult(parsed as T);
+    } else if (event === 'second') {
+      if (cancelled) return;
+      handlers.onLate?.(parsed as L);
     }
   };
 
@@ -109,6 +121,7 @@ export function streamSse<T>(path: string, handlers: SseHandlers<T>): SseHandle 
   return {
     cancel: () => {
       settled = true; // suppress the abort-triggered error
+      cancelled = true; // and drop a second opinion still in flight
       xhr.abort();
     },
   };

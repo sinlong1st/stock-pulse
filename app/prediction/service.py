@@ -16,11 +16,11 @@ from app.commands.symbols import resolve_symbol_smart
 from app.config import Settings, get_settings, resolve_briefing_timezone
 from app.earnings import fetch_many, local_today
 from app.evaluation import record_prediction_read
-from app.llm import available_providers
 from app.prediction import rules as rule_engine
 from app.prediction.agreement import evaluate as evaluate_agreement
 from app.prediction.analyst import PredictionError, build_analyst
 from app.prediction.indicators import compute_indicators
+from app.prediction.mode import plan as analysis_plan
 from app.prediction.models import PredictionRead
 from app.prediction.signals import (
     compute_signals,
@@ -240,23 +240,47 @@ def _record(
         session.rollback()
 
 
-async def _second_opinion(
-    settings: Settings, *, primary: str, **analyze_kwargs
-) -> tuple[str, PredictionRead] | None:
-    """Run the same prompt through the other configured provider.
+def _second_payload(read: PredictionRead, second: tuple[str, PredictionRead] | None) -> dict | None:
+    """The second-opinion block, or None when there isn't one (yet).
 
-    Returns None when there's no second provider or it fails — a second opinion
-    is a bonus, never a reason to lose the prediction the user asked for.
+    Split out because it is built at two different moments: inline for the plain
+    endpoint, and late for the streaming one once the slower model returns.
     """
-    others = [p for p in available_providers(settings) if p != primary]
-    if not others:
+    if not second:
         return None
-    name = others[0]
+    provider, other = second
+    return {
+        "provider": provider,
+        "entry": other.entry.assessment,
+        "note": other.entry.note,
+        "horizons": [
+            {"horizon": h.horizon, "lean": h.lean, "confidence": h.confidence}
+            for h in other.horizons
+        ],
+        # Kept for the app already in people's hands: the backend and the OTA
+        # bundle deploy separately, so removing this would break whatever build
+        # is live. `agreement` supersedes it.
+        "agrees": other.entry.assessment == read.entry.assessment,
+        # Structured agreement (§11): catches the two cases the boolean cannot —
+        # same entry grade with opposite directional leans, and a wide gap in
+        # how sure the two models are.
+        "agreement": evaluate_agreement(read, other).as_dict(),
+    }
+
+
+async def _second_opinion(
+    settings: Settings, *, provider: str, **analyze_kwargs
+) -> tuple[str, PredictionRead] | None:
+    """Run the same prompt through a named second provider.
+
+    Returns None when it fails — a second opinion is a bonus, never a reason to
+    lose the prediction the user asked for.
+    """
     try:
-        analyst = build_analyst(settings, provider=name)
-        return name, await analyst.analyze(**analyze_kwargs)
+        analyst = build_analyst(settings, provider=provider)
+        return provider, await analyst.analyze(**analyze_kwargs)
     except PredictionError as exc:
-        logger.info("Second opinion from %s unavailable: %s", name, exc)
+        logger.info("Second opinion from %s unavailable: %s", provider, exc)
         return None
 
 
@@ -268,16 +292,27 @@ async def build_prediction(
     analyst=None,
     language: str | None = None,
     session=None,
+    mode: str | None = None,
     progress: Callable[[str], None] | None = None,
+    emit: Callable[[str, dict], None] | None = None,
 ) -> dict:
     """Produce the prediction JSON (spec §2), or `{ok: False, reason}` on failure.
 
     Without an explicit `strategy`, the user's active one is used — that's what
     lets a custom lens actually change the read.
 
+    `mode` picks the analyst(s) — "openai", "deepseek" or "both". Omitted, the
+    user's saved choice applies. It is a request, not a guarantee: a mode naming
+    a provider with no key falls back to one that works and says so in `analysis`.
+
     `progress` is called with a stage key as each phase begins, so a streaming
     caller can show real progress. Stage keys are part of the API — the app maps
     them to its step list — so keep them in sync with PREDICT_STAGES.
+
+    `emit(name, payload)` turns on split delivery: the main read is emitted as
+    `result` the moment it is ready, and the slower second opinion follows as a
+    `second` event. Without it the second opinion is awaited inline and folded
+    into the single returned payload, exactly as before.
     """
     settings = settings or get_settings()
     if strategy is None:
@@ -319,15 +354,25 @@ async def build_prediction(
         horizons=horizons, price=price, support=support,
         earnings=earnings, strategy=strategy, language=language,
     )
+    # Who runs: the user's model choice, reconciled against the keys actually
+    # configured. An injected analyst (tests, custom) bypasses the whole thing.
+    analysis = analysis_plan(settings, mode=mode) if analyst is None else None
+    if analyst is None and analysis is None:
+        return {"ok": False, "reason": "No AI provider is configured (set an API key)."}
+    # `prediction_second_opinion_enabled` stays a master kill-switch above the
+    # user's choice, so an operator can stop the extra spend without touching it.
+    run_second = bool(
+        analysis and analysis.second and settings.prediction_second_opinion_enabled
+    )
     # The second opinion runs concurrently, so it costs latency only when it is
     # slower than the primary — DeepSeek currently is, by roughly 3x.
     second_task = (
-        asyncio.create_task(_second_opinion(settings, primary="openai", **analyze_kwargs))
-        if settings.prediction_second_opinion_enabled and analyst is None
+        asyncio.create_task(_second_opinion(settings, provider=analysis.second, **analyze_kwargs))
+        if run_second
         else None
     )
     try:
-        analyst = analyst or build_analyst(settings)
+        analyst = analyst or build_analyst(settings, provider=analysis.primary)
         read = await analyst.analyze(**analyze_kwargs)
     except PredictionError as exc:
         logger.warning("Prediction analysis failed: %s", exc)
@@ -335,7 +380,12 @@ async def build_prediction(
             second_task.cancel()
         return {"ok": False, "reason": "AI is unavailable right now (check the OpenAI key)."}
 
-    second = await second_task if second_task else None
+    # With `emit`, the slow model is NOT awaited here — the primary read goes out
+    # as soon as it is ready and the second opinion follows in its own event.
+    # Measured live: OpenAI ~6s, DeepSeek ~20s, so blocking costs ~11s of staring
+    # at a loader for a result that was already finished.
+    defer_second = bool(emit and second_task)
+    second = None if defer_second else (await second_task if second_task else None)
 
     evidence = _evidence(
         price=price,
@@ -402,30 +452,15 @@ async def build_prediction(
         "confidence": _confidence(read.horizons, signals),
         # What the deterministic rules made of it.
         "rules": rules.as_dict(),
+        # Which analyst(s) actually ran. `downgraded` tells the app to explain
+        # why the user didn't get the model they picked.
+        "analysis": analysis.as_dict() if analysis else None,
         # An independent read of the same evidence by the other model, when one
         # is configured. Deliberately not merged into the main verdict — the
         # point is to see whether they agree, not to average them away.
-        "secondOpinion": (
-            {
-                "provider": second[0],
-                "entry": second[1].entry.assessment,
-                "note": second[1].entry.note,
-                "horizons": [
-                    {"horizon": h.horizon, "lean": h.lean, "confidence": h.confidence}
-                    for h in second[1].horizons
-                ],
-                # Kept for the app already in people's hands: the backend and the
-                # OTA bundle deploy separately, so removing this would break
-                # whatever build is live. `agreement` below supersedes it.
-                "agrees": second[1].entry.assessment == read.entry.assessment,
-                # Structured agreement (§11): catches the two cases the boolean
-                # above cannot — same entry grade with opposite directional
-                # leans, and a wide confidence gap.
-                "agreement": evaluate_agreement(read, second[1]).as_dict(),
-            }
-            if second
-            else None
-        ),
+        # None here when the second opinion is being streamed separately; the
+        # `second` SSE event carries it instead.
+        "secondOpinion": _second_payload(read, second),
         "horizons": [
             {
                 "horizon": h.horizon,
@@ -452,6 +487,21 @@ async def build_prediction(
 
     # An injected analyst (tests, or a future custom one) may not be provider-backed.
     _record(session, settings, payload, price, provider=getattr(analyst, "name", None))
+
+    if defer_second:
+        # The headline read is complete — send it now, then wait on the slower
+        # model. The request stays open until the second event goes out, so the
+        # opinion is still recorded even though the user is already reading.
+        emit("result", payload)
+        second = await second_task
+        payload["secondOpinion"] = _second_payload(read, second)
+        if payload["secondOpinion"]:
+            emit("second", {"secondOpinion": payload["secondOpinion"]})
+        else:
+            # It failed or returned nothing. Say so rather than leaving the app
+            # waiting on a card that will never arrive.
+            emit("second", {"secondOpinion": None})
+
     if second:
         # Recorded separately so the accuracy loop can score each model on its
         # own calls — that comparison is the whole point of the second opinion.

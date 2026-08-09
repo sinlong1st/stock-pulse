@@ -106,7 +106,7 @@ AUTH = {"Authorization": "Bearer s3cret"}
 
 
 def test_predict_stream_emits_real_stages(client, monkeypatch) -> None:
-    async def fake_build(settings, *, query, session=None, progress=None):
+    async def fake_build(settings, *, query, session=None, mode=None, progress=None, emit=None):
         for stage in ("resolve", "prices", "news", "analyze"):
             progress(stage)
         return {"ok": True, "ticker": query.upper()}
@@ -164,3 +164,52 @@ def test_predict_stream_404_when_prediction_is_off(monkeypatch) -> None:
     with TestClient(main.app) as c:
         assert c.get("/api/predict/stream?q=wdc", headers=AUTH).status_code == 404
     config.get_settings.cache_clear()
+
+
+# --- split delivery: the slow second opinion must not gate the main read ----
+
+
+async def test_run_can_emit_its_own_result_then_a_later_event() -> None:
+    """The whole point: `result` goes out before the slow model has finished."""
+    from app.api.stream import sse_events
+
+    async def run(emit):
+        emit("stage", {"stage": "analyze"})
+        emit("result", {"ok": True, "ticker": "WDC"})
+        await asyncio.sleep(0)  # stand-in for the slower model
+        emit("second", {"secondOpinion": {"provider": "deepseek", "entry": "wait"}})
+        return {"ok": True, "ticker": "WDC"}
+
+    events = _parse([c async for c in sse_events(run)])
+    assert [name for name, _ in events] == ["stage", "result", "second"]
+    # The return value must NOT be re-sent as a duplicate result.
+    assert sum(1 for name, _ in events if name == "result") == 1
+    assert events[-1][1]["secondOpinion"]["provider"] == "deepseek"
+
+
+async def test_return_value_is_sent_when_run_never_emits_a_result() -> None:
+    """Early error paths don't emit; their return value still has to reach the app."""
+    from app.api.stream import sse_events
+
+    async def run(emit):
+        return {"ok": False, "reason": "no provider"}
+
+    events = _parse([c async for c in sse_events(run)])
+    assert events == [("result", {"ok": False, "reason": "no provider"})]
+
+
+async def test_predict_stream_sends_the_second_opinion_last(client, monkeypatch) -> None:
+    async def fake_build(settings, *, query, session=None, mode=None, progress=None, emit=None):
+        progress("analyze")
+        emit("result", {"ok": True, "ticker": "WDC", "secondOpinion": None})
+        emit("second", {"secondOpinion": {"provider": "deepseek", "entry": "wait"}})
+        return {"ok": True}
+
+    monkeypatch.setattr(main, "build_prediction", fake_build)
+    res = client.get("/api/predict/stream?q=wdc", headers=AUTH)
+    events = _parse([res.text])
+
+    assert [name for name, _ in events] == ["stage", "result", "second"]
+    # The main read arrives with no second opinion attached — the app renders it
+    # immediately and fills the card in when the later event lands.
+    assert events[1][1]["secondOpinion"] is None

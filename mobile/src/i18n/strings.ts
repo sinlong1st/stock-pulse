@@ -318,6 +318,19 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
     en: '✕ Disagrees — the setup is ambiguous, treat it with more caution.',
     vi: '✕ Không đồng thuận — thiết lập chưa rõ ràng, hãy thận trọng hơn.',
   },
+  'second.pending': {
+    en: 'Asking {model} for a second opinion…',
+    vi: 'Đang hỏi {model} ý kiến thứ hai…',
+  },
+  // Which model(s) run. `both` is the default: it is the only mode that produces
+  // paired samples for the accuracy comparison.
+  'predict.mode.openai': { en: 'OPENAI', vi: 'OPENAI' },
+  'predict.mode.deepseek': { en: 'DEEPSEEK', vi: 'DEEPSEEK' },
+  'predict.mode.both': { en: 'BOTH', vi: 'CẢ HAI' },
+  'predict.mode.downgraded': {
+    en: 'You picked {asked}, but only {used} is set up on the server.',
+    vi: 'Bạn chọn {asked}, nhưng máy chủ chỉ có {used}.',
+  },
   // Three-way agreement (backend §11). "Partial" is the common case and used to
   // be shown as outright disagreement, which overstated it.
   'second.strong': {

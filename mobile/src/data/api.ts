@@ -234,6 +234,15 @@ export type Prediction = {
     newsCount: number;
     enoughHistory: boolean;
   };
+  /** Which analyst(s) actually ran. `downgraded` means the requested mode
+   *  couldn't be honoured (a missing key) and we fell back. */
+  analysis?: {
+    requested: string;
+    effective: string;
+    primary: string;
+    second: string | null;
+    downgraded: boolean;
+  } | null;
   /** An independent read of the same evidence by the other model. Deliberately
    *  kept separate from the main verdict — disagreement is the useful signal. */
   secondOpinion?: {
@@ -284,9 +293,44 @@ export type Prediction = {
   disclaimer?: string;
 };
 
-export async function fetchPrediction(query: string, signal?: AbortSignal): Promise<Prediction> {
+export async function fetchPrediction(
+  query: string,
+  signal?: AbortSignal,
+  mode?: string,
+): Promise<Prediction> {
   if (!API_BASE_URL) return mockPrediction;
-  return getJson<Prediction>(`/api/predict?q=${encodeURIComponent(query.trim())}`, signal);
+  const m = mode ? `&mode=${encodeURIComponent(mode)}` : '';
+  return getJson<Prediction>(
+    `/api/predict?q=${encodeURIComponent(query.trim())}${m}`,
+    signal,
+  );
+}
+
+// --- which model(s) run ----------------------------------------------------
+
+export type AnalysisMode = 'openai' | 'deepseek' | 'both';
+export type ModeInfo = {
+  mode: AnalysisMode;
+  /** Only the modes a configured key can actually deliver. */
+  available: AnalysisMode[];
+  providers: string[];
+};
+
+export async function fetchMode(signal?: AbortSignal): Promise<ModeInfo> {
+  if (!API_BASE_URL) {
+    return { mode: 'both', available: ['openai', 'deepseek', 'both'], providers: [] };
+  }
+  return getJson<ModeInfo>('/api/predict/mode', signal);
+}
+
+export async function saveMode(mode: AnalysisMode): Promise<ModeInfo> {
+  if (!API_BASE_URL) {
+    return { mode, available: ['openai', 'deepseek', 'both'], providers: [] };
+  }
+  return request<ModeInfo>('/api/predict/mode', {
+    method: 'PUT',
+    body: JSON.stringify({ mode }),
+  });
 }
 
 // --- streaming variants ----------------------------------------------------
@@ -306,19 +350,21 @@ export type StreamHandle = { cancel: () => void };
 export const REPORT_STAGES = ['news', 'prices', 'analyze', 'compose'];
 export const PREDICT_STAGES = ['resolve', 'prices', 'news', 'analyze'];
 
-function streamOrFallback<T>(
+function streamOrFallback<T, L = unknown>(
   path: string,
   fallback: (signal: AbortSignal) => Promise<T>,
   onStage: (stage: string) => void,
   onDone: (result: T) => void,
   onError: (error: Error) => void,
+  onLate?: (payload: L) => void,
 ): StreamHandle {
   let cancelled = false;
   // Cancelling must also stop a fallback request that's already in flight.
   const ctrl = new AbortController();
-  const handle = streamSse<T>(path, {
+  const handle = streamSse<T, L>(path, {
     onStage,
     onResult: (result) => !cancelled && onDone(result),
+    onLate: (payload) => !cancelled && onLate?.(payload),
     onError: () => {
       if (cancelled) return;
       // Streaming didn't work — take the ordinary path so the user still gets
@@ -361,24 +407,37 @@ export function streamReport(
   );
 }
 
-/** Forward-looking read, reporting real pipeline stages as they happen. */
+/** Payload of the late `second` event — the slower model's opinion. */
+export type SecondOpinionLate = { secondOpinion: Prediction['secondOpinion'] };
+
+/**
+ * Forward-looking read, reporting real pipeline stages as they happen.
+ *
+ * In `both` mode the second opinion arrives *after* the main result (measured
+ * live: ~6s vs ~18s), so `onSecond` fires later and the screen fills the card in
+ * then. On the fallback path there is no late event — the plain endpoint waits
+ * for both and returns them together, which is slower but still correct.
+ */
 export function streamPrediction(
   query: string,
   onStage: (stage: string) => void,
   onDone: (prediction: Prediction) => void,
   onError: (error: Error) => void,
+  options?: { mode?: string; onSecond?: (payload: SecondOpinionLate) => void },
 ): StreamHandle {
   if (!API_BASE_URL) {
     onDone(mockPrediction);
     return { cancel: () => {} };
   }
-  const q = `?q=${encodeURIComponent(query.trim())}`;
-  return streamOrFallback(
+  const mode = options?.mode ? `&mode=${encodeURIComponent(options.mode)}` : '';
+  const q = `?q=${encodeURIComponent(query.trim())}${mode}`;
+  return streamOrFallback<Prediction, SecondOpinionLate>(
     `/api/predict/stream${q}`,
-    (signal) => fetchPrediction(query, signal),
+    (signal) => fetchPrediction(query, signal, options?.mode),
     onStage,
     onDone,
     onError,
+    options?.onSecond,
   );
 }
 

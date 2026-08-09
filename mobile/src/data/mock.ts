@@ -182,6 +182,13 @@ export const mockPrediction = {
     lean: 'bounce' as const,
     signalsConflict: true,
   },
+  analysis: {
+    requested: 'both',
+    effective: 'both',
+    primary: 'openai',
+    second: 'deepseek',
+    downgraded: false,
+  },
   secondOpinion: {
     provider: 'deepseek',
     entry: 'wait' as const,

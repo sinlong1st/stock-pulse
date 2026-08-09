@@ -24,8 +24,14 @@ from app.alerts.telegram_listener import build_command_listener
 from app.api.evaluation import build_evaluation
 from app.api.feed import build_feed
 from app.api.report import build_report as build_mobile_report
-from app.api.stream import SSE_HEADERS, sse_with_progress
+from app.api.stream import SSE_HEADERS, sse_events, sse_with_progress
 from app.api.watchlist import build_watchlist
+from app.briefing.schedule import (
+    BriefingSchedule,
+    ScheduleError,
+    resolve_briefing_schedule,
+    save_briefing_schedule,
+)
 from app.collectors import build_all_collectors, collect_from
 from app.commands import build_command_handlers
 from app.commands.symbols import resolve_symbol
@@ -35,12 +41,6 @@ from app.db import (
     ArticleRepository,
     ClassificationRepository,
     SessionLocal,
-)
-from app.briefing.schedule import (
-    BriefingSchedule,
-    ScheduleError,
-    resolve_briefing_schedule,
-    save_briefing_schedule,
 )
 from app.evaluation import build_evaluation_report, horizons_from_settings
 from app.jobs import (
@@ -57,10 +57,14 @@ from app.jobs import (
     run_report,
     run_watchlist_monitor,
 )
+from app.llm import available_providers
 from app.logging_config import configure_logging
 from app.pipeline.classifier import ClassificationError, build_classifier
 from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
+from app.prediction.mode import MODES as analysis_modes
+from app.prediction.mode import resolve_mode as resolve_analysis_mode
+from app.prediction.mode import set_mode as set_analysis_mode
 from app.prediction.service import build_prediction
 from app.prediction.store import (
     MAX_BODY_CHARS,
@@ -344,9 +348,14 @@ def api_evaluation(authorization: str | None = Header(default=None)) -> dict:
 
 @app.get("/api/predict")
 async def api_predict(
-    q: str | None = None, authorization: str | None = Header(default=None)
+    q: str | None = None,
+    mode: str | None = None,
+    authorization: str | None = Header(default=None),
 ) -> dict:
-    """Forward-looking AI read for one stock (on-demand, one OpenAI call)."""
+    """Forward-looking AI read for one stock (on-demand, one or two AI calls).
+
+    `?mode=` overrides the saved model choice for this call only.
+    """
     settings = _require_mobile_api(authorization)
     if not settings.prediction_enabled:
         raise HTTPException(status_code=404, detail="Not found")
@@ -355,7 +364,7 @@ async def api_predict(
     # The session lets the read be recorded for later scoring (per-strategy
     # accuracy); build_prediction treats that as best-effort.
     with SessionLocal() as session:
-        return await build_prediction(settings, query=q, session=session)
+        return await build_prediction(settings, query=q, session=session, mode=mode)
 
 
 @app.get("/api/report/stream")
@@ -375,7 +384,9 @@ async def api_report_stream(
 
 @app.get("/api/predict/stream")
 async def api_predict_stream(
-    q: str | None = None, authorization: str | None = Header(default=None)
+    q: str | None = None,
+    mode: str | None = None,
+    authorization: str | None = Header(default=None),
 ):
     """Same as /api/predict, but streams stage events while it works."""
     settings = _require_mobile_api(authorization)
@@ -384,15 +395,62 @@ async def api_predict_stream(
     if not q or not q.strip():
         raise HTTPException(status_code=400, detail="Missing ?q=<ticker or name>")
 
-    async def run(progress):
+    async def run(emit):
         with SessionLocal() as session:
             return await build_prediction(
-                settings, query=q, session=session, progress=progress
+                settings,
+                query=q,
+                session=session,
+                mode=mode,
+                progress=lambda stage: emit("stage", {"stage": stage}),
+                emit=emit,
             )
 
     return StreamingResponse(
-        sse_with_progress(run), media_type="text/event-stream", headers=SSE_HEADERS
+        sse_events(run), media_type="text/event-stream", headers=SSE_HEADERS
     )
+
+
+class ModeBody(BaseModel):
+    mode: str
+
+
+def _mode_payload(settings) -> dict:
+    """The chosen mode plus which options are actually usable right now.
+
+    `available` is what the picker should offer: a mode naming a provider with no
+    key would silently fall back, and offering a choice that doesn't do what it
+    says is worse than not offering it.
+    """
+    have = available_providers(settings)
+    options = [p for p in analysis_modes if p != "both" and p in have]
+    if len(have) >= 2:
+        options.append("both")
+    return {
+        "mode": resolve_analysis_mode(settings),
+        "available": options,
+        "providers": have,
+    }
+
+
+@app.get("/api/predict/mode")
+def api_predict_mode(authorization: str | None = Header(default=None)) -> dict:
+    """Which analyst(s) Predict will use, and which choices are configured."""
+    settings = _require_mobile_api(authorization)
+    return _mode_payload(settings)
+
+
+@app.put("/api/predict/mode")
+def api_set_predict_mode(
+    payload: ModeBody, authorization: str | None = Header(default=None)
+) -> dict:
+    """Change the analysis mode. Persists like the language choice."""
+    settings = _require_mobile_api(authorization)
+    try:
+        set_analysis_mode(payload.mode)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _mode_payload(settings)
 
 
 class StrategyBody(BaseModel):

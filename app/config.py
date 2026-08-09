@@ -87,6 +87,14 @@ class Settings(BaseSettings):
     # loop can compare them. Does nothing without a second key configured, and
     # runs concurrently — it costs latency only when the other model is slower.
     prediction_second_opinion_enabled: bool = True
+    # Which analyst(s) Predict uses: "openai", "deepseek" or "both". Only the
+    # *default* — the app's picker overrides it at runtime via prefs.
+    #
+    # `both` on purpose. It is the only setting that produces paired samples
+    # (same stock, same evidence, same minute), which is what makes the
+    # per-provider accuracy comparison mean anything. Single-model runs on
+    # different stocks on different days compare the stocks, not the models.
+    prediction_analysis_mode: str = "both"
     # Language for AI-written summary + why-it-matters (e.g. "English",
     # "Vietnamese"). Alerts inherit this since they use those fields.
     output_language: str = "English"

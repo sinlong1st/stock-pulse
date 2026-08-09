@@ -29,10 +29,14 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Segmented } from '../components/Segmented';
 import { WatchlistPicker } from '../components/WatchlistPicker';
 import {
+  AnalysisMode,
+  fetchMode,
   Lean,
+  ModeInfo,
   Prediction,
   PredictionHorizon,
   PREDICT_STAGES,
+  saveMode,
   streamPrediction,
   StreamHandle,
 } from '../data/api';
@@ -115,6 +119,10 @@ export function PredictScreen() {
   const loading = phase !== 'idle';
   const [modal, setModal] = useState(false);
   const [range, setRange] = useState('3M');
+  // Which model(s) to ask. Loaded from the server so the choice survives a
+  // reinstall and stays in step with which keys are actually configured.
+  const [modeInfo, setModeInfo] = useState<ModeInfo | null>(null);
+  const mode = modeInfo?.mode;
   // Last query that produced a read, so a language switch can re-ask the backend.
   const lastQuery = useRef<string | null>(null);
 
@@ -123,8 +131,15 @@ export function PredictScreen() {
 
   const run = useCallback(
     /** `silent` refreshes in the background — no takeover loader. Used by the
-     *  language switch, which the user didn't ask to wait for. */
-    (q?: string, { silent = false }: { silent?: boolean } = {}) => {
+     *  language switch, which the user didn't ask to wait for.
+     *
+     *  `modeOverride` exists because React state hasn't applied yet when the
+     *  picker re-runs — reading `mode` here would use the model you just
+     *  switched *away* from. */
+    (
+      q?: string,
+      { silent = false, modeOverride }: { silent?: boolean; modeOverride?: AnalysisMode } = {},
+    ) => {
       const term = (q ?? query).trim();
       if (!term) return;
       stream.current?.cancel(); // a new ticker replaces the in-flight run
@@ -154,9 +169,16 @@ export function PredictScreen() {
           setError(e.message || t('predict.genErr'));
           if (!silent) setPhase('idle'); // no fanfare on failure
         },
+        {
+          mode: modeOverride ?? mode,
+          // Arrives ~12s after the main read in `both` mode, so the card fills
+          // itself in rather than holding the whole screen back.
+          onSecond: ({ secondOpinion }) =>
+            setPred((prev) => (prev ? { ...prev, secondOpinion } : prev)),
+        },
       );
     },
-    [query, t],
+    [query, t, mode],
   );
 
   const cancel = () => {
@@ -164,6 +186,32 @@ export function PredictScreen() {
     stream.current = null;
     setPhase('idle');
   };
+
+  // Best-effort: if this fails the picker just stays hidden and predictions run
+  // on the server's default, which is exactly the old behaviour.
+  useEffect(() => {
+    let alive = true;
+    fetchMode()
+      .then((info) => alive && setModeInfo(info))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const pickMode = useCallback(
+    (next: AnalysisMode) => {
+      if (next === mode) return;
+      setModeInfo((prev) => (prev ? { ...prev, mode: next } : prev)); // optimistic
+      saveMode(next)
+        .then((info) => setModeInfo(info))
+        .catch(() => setModeInfo((prev) => (prev ? { ...prev, mode: mode! } : prev)));
+      // Re-ask with the new model rather than leaving a stale read on screen
+      // under a picker that now says something else.
+      if (lastQuery.current) run(lastQuery.current, { modeOverride: next });
+    },
+    [mode, run],
+  );
 
   // See ReportScreen: guess from the watchlist while in flight, then show the
   // ticker the server actually resolved rather than echoing the user's typo.
@@ -242,6 +290,37 @@ export function PredictScreen() {
         />
       </View>
 
+      {/* Model choice. Hidden unless there is a real choice to make — with one
+          key configured this is a row of one, which is just noise. */}
+      {modeInfo && modeInfo.available.length > 1 ? (
+        <View style={styles.modeRow}>
+          {modeInfo.available.map((option) => {
+            const on = option === mode;
+            return (
+              <Pressable
+                key={option}
+                onPress={() => pickMode(option)}
+                disabled={loading}
+                style={[
+                  styles.modeChip,
+                  {
+                    borderColor: on ? colors.accent : colors.divider,
+                    backgroundColor: on ? colors.accent + '18' : 'transparent',
+                    opacity: loading ? 0.5 : 1,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.modeChipText, { color: on ? colors.accent : colors.muted }]}
+                >
+                  {t(`predict.mode.${option}`)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+
       {error ? (
         <View style={styles.center}>
           <Feather name="alert-triangle" size={30} color={colors.accent} />
@@ -311,7 +390,28 @@ export function PredictScreen() {
 
               {/* An override changes the verdict above, so it goes first. */}
               {pred.rules ? <RuleOverride rules={pred.rules} /> : null}
-              {pred.secondOpinion ? <SecondOpinion second={pred.secondOpinion} /> : null}
+              {pred.secondOpinion ? (
+                <SecondOpinion second={pred.secondOpinion} />
+              ) : pred.analysis?.second ? (
+                // The second model is still running — it lands ~12s after this
+                // read. Saying so beats a card that silently pops in later.
+                <View style={[styles.secondPending, { borderColor: colors.divider }]}>
+                  <ActivityIndicator size="small" color={colors.muted} />
+                  <Text style={[styles.secondPendingText, { color: colors.muted }]}>
+                    {t('second.pending', { model: pred.analysis.second })}
+                  </Text>
+                </View>
+              ) : null}
+              {/* Asked for a model we have no key for — say so rather than
+                  quietly returning a different one. */}
+              {pred.analysis?.downgraded ? (
+                <Text style={[styles.modeNote, { color: colors.faint }]}>
+                  {t('predict.mode.downgraded', {
+                    asked: t(`predict.mode.${pred.analysis.requested}`),
+                    used: t(`predict.mode.${pred.analysis.effective}`),
+                  })}
+                </Text>
+              ) : null}
 
               {/* The working behind the call, so it can be audited rather than
                   taken on trust. Absent on older backends. */}
@@ -466,6 +566,20 @@ const styles = StyleSheet.create({
   topbarTitle: { fontSize: 14, fontWeight: '800' },
   inputRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
   picker: { paddingLeft: 16, paddingBottom: 10 },
+  modeRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 10 },
+  modeChip: { borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5 },
+  modeChipText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
+  modeNote: { fontSize: 10, marginTop: 8, lineHeight: 15 },
+  secondPending: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    padding: 10,
+    marginTop: 10,
+  },
+  secondPendingText: { fontSize: 11, fontWeight: '600' },
   input: { flex: 1, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontWeight: '600' },
   go: { paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', minWidth: 84 },
   goText: { fontSize: 14, fontWeight: '800' },

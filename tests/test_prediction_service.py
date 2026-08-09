@@ -271,13 +271,50 @@ def test_predict_endpoint_404_when_disabled(monkeypatch) -> None:
 
 
 def test_predict_endpoint_200(monkeypatch) -> None:
-    async def fake_build(settings, *, query, session=None):
-        return {"ok": True, "ticker": query.upper()}
+    async def fake_build(settings, *, query, session=None, mode=None):
+        return {"ok": True, "ticker": query.upper(), "mode": mode}
 
     monkeypatch.setattr(main, "build_prediction", fake_build)
     with _client(monkeypatch) as client:
         h = {"Authorization": "Bearer s3cret"}
         assert client.get("/api/predict", headers=h).status_code == 400  # missing q
         ok = client.get("/api/predict?q=wdc", headers=h)
-        assert ok.status_code == 200 and ok.json() == {"ok": True, "ticker": "WDC"}
+        assert ok.status_code == 200
+        assert ok.json() == {"ok": True, "ticker": "WDC", "mode": None}
+        # ?mode= overrides the saved choice for this call only.
+        picked = client.get("/api/predict?q=wdc&mode=deepseek", headers=h)
+        assert picked.json()["mode"] == "deepseek"
+    config.get_settings.cache_clear()
+
+
+def test_mode_endpoint_reports_and_saves(monkeypatch, tmp_path) -> None:
+    """The picker only offers modes that a configured key can actually deliver."""
+    monkeypatch.setenv("OPENAI_API_KEY", "oa")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "ds")
+    monkeypatch.setenv("PREFS_FILE", str(tmp_path / "prefs.json"))
+    with _client(monkeypatch) as client:
+        h = {"Authorization": "Bearer s3cret"}
+        got = client.get("/api/predict/mode", headers=h).json()
+        assert got["mode"] == "both"
+        assert set(got["available"]) == {"openai", "deepseek", "both"}
+
+        saved = client.put("/api/predict/mode", json={"mode": "deepseek"}, headers=h)
+        assert saved.status_code == 200 and saved.json()["mode"] == "deepseek"
+        assert client.get("/api/predict/mode", headers=h).json()["mode"] == "deepseek"
+
+        bad = client.put("/api/predict/mode", json={"mode": "claude"}, headers=h)
+        assert bad.status_code == 400
+    config.get_settings.cache_clear()
+
+
+def test_mode_endpoint_hides_options_without_a_key(monkeypatch, tmp_path) -> None:
+    # Only OpenAI configured: offering "deepseek" or "both" would be offering a
+    # choice that silently does something else.
+    monkeypatch.setenv("OPENAI_API_KEY", "oa")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "")
+    monkeypatch.setenv("PREFS_FILE", str(tmp_path / "prefs.json"))
+    with _client(monkeypatch) as client:
+        got = client.get("/api/predict/mode", headers={"Authorization": "Bearer s3cret"}).json()
+        assert got["available"] == ["openai"]
+        assert got["providers"] == ["openai"]
     config.get_settings.cache_clear()

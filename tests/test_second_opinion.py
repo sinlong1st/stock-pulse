@@ -13,6 +13,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+import app.prediction.mode as mode_mod
 import app.prediction.service as svc
 from app.config import Settings
 from app.db.database import Base
@@ -152,22 +153,26 @@ def _settings(tmp_path, **kw) -> Settings:
 async def test_second_opinion_is_reported_without_being_merged(monkeypatch, tmp_path) -> None:
     """Disagreement must stay visible — averaging would hide the useful signal."""
     svc._wired = None
-    monkeypatch.setattr(svc, "available_providers", lambda s: ["openai", "deepseek"])
+    monkeypatch.setattr(mode_mod, "available_providers", lambda s: ["openai", "deepseek"])
     monkeypatch.setattr(
         svc, "build_analyst", lambda s, provider="openai": _Analyst(provider, _read("dip", "wait"))
     )
 
     got = await svc._second_opinion(
-        _settings(tmp_path, deepseek_api_key="ds"), primary="openai", ticker="NVDA"
+        _settings(tmp_path, deepseek_api_key="ds"), provider="deepseek", ticker="NVDA"
     )
     assert got is not None
     name, read = got
     assert name == "deepseek" and read.entry.assessment == "wait"
 
 
-async def test_no_second_provider_means_no_second_opinion(monkeypatch, tmp_path) -> None:
-    monkeypatch.setattr(svc, "available_providers", lambda s: ["openai"])
-    assert await svc._second_opinion(_settings(tmp_path), primary="openai") is None
+def test_no_second_provider_means_no_second_opinion(monkeypatch, tmp_path) -> None:
+    """Choosing who runs is `plan`'s job now, not `_second_opinion`'s."""
+    from app.prediction import mode as mode_mod
+
+    monkeypatch.setattr(mode_mod, "available_providers", lambda s: ["openai"])
+    got = mode_mod.plan(_settings(tmp_path), mode="both")
+    assert got is not None and got.primary == "openai" and got.second is None
 
 
 async def test_a_failing_second_opinion_is_swallowed(monkeypatch, tmp_path) -> None:
@@ -177,9 +182,9 @@ async def test_a_failing_second_opinion_is_swallowed(monkeypatch, tmp_path) -> N
     def boom(settings, provider="openai"):
         raise PredictionError("deepseek is down")
 
-    monkeypatch.setattr(svc, "available_providers", lambda s: ["openai", "deepseek"])
+    monkeypatch.setattr(mode_mod, "available_providers", lambda s: ["openai", "deepseek"])
     monkeypatch.setattr(svc, "build_analyst", boom)
 
     assert await svc._second_opinion(
-        _settings(tmp_path, deepseek_api_key="ds"), primary="openai"
+        _settings(tmp_path, deepseek_api_key="ds"), provider="deepseek"
     ) is None
