@@ -20,9 +20,12 @@ env/
 *.sqlite3
 stockpulse.db
 
-# Local config files (edit the .json; commit the .example.json templates)
-watchlist.json
-keywords.json
+# Local config files (edit the .json; commit the .example.json templates).
+# Anchored to the repo root on purpose: unanchored, these match at ANY depth and
+# silently swallowed tests/fixtures/watchlist.json, which must be committed for
+# CI to pass. Docker mounts both from the root (see docker-compose.yml).
+/watchlist.json
+/keywords.json
 
 # Briefing rolling theme memory (runtime state, not config)
 briefing_memory.json

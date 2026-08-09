@@ -234,6 +234,31 @@ The genuine exceptions, roughly in order of likelihood:
   the real `stockpulse.db`, which exists on your laptop but never on a runner.
   That test now mocks the database. CI is good at surfacing this class of bug,
   because a fresh machine has none of your local state.
+
+> ### The first run went red — and it was worth it
+>
+> Three tests failed on the very first CI run. All three did `/report wdc` and
+> expected it to resolve to **WDC**.
+>
+> `watchlist.json` is gitignored — it's your personal list, not the project's. On
+> your laptop it has WDC in it, so `resolve_focus("wdc")` found the ticker. On the
+> runner the file doesn't exist, the loader fell back to the ten built-in defaults
+> (which don't include WDC), and the lookup returned nothing. The giveaway was in
+> the captured log: `Watchlist file 'watchlist.json' not found; using built-in
+> defaults.`
+>
+> **The tests were wrong, not the app.** They read the ambient watchlist instead
+> of stating what they needed, so they were really asserting *"this passes on a
+> machine whose owner happens to hold WDC"*. Eight modules read that file; any
+> test touching one of them had the same latent bug.
+>
+> The fix is `tests/conftest.py` — an autouse fixture pointing every test at a
+> committed `tests/fixtures/watchlist.json`. Now the suite means the same thing
+> everywhere.
+>
+> This is the entire argument for CI in one incident. Those tests had been
+> passing for months and were *never* testing what they claimed. Nothing on your
+> laptop could have told you — only a machine with none of your state could.
 - **A test depends on the clock or timezone.** Runners are UTC. The
   `daysUntil` timezone bug found earlier this session is exactly this shape — it
   behaved differently depending on what time of day it ran.
@@ -273,9 +298,25 @@ deliberately omitted. Two small deviations from the sample, both intentional:
   Faster feedback, and no point finishing a run for code that's already stale.
 
 Before wiring it up I checked the things that pass locally but fail on a fresh
-runner: no test reads a real `.env`, none uses a naive `datetime.now()` that a
-UTC runner would shift, none touches the real `stockpulse.db`, and `npm ci`
-resolves the lockfile cleanly. Those are the four usual culprits.
+runner: no test uses a naive `datetime.now()` that a UTC runner would shift, none
+touches the real `stockpulse.db`, and `npm ci` resolves the lockfile cleanly.
+
+I missed one — the gitignored `watchlist.json`, which three tests were quietly
+depending on (see [§5](#5-reading-a-failed-run)). Worth being honest about,
+because it's the point: **you cannot audit your way to this**. A machine with
+none of your local state finds it in ninety seconds.
+
+There's now a check for it. Hiding both `.env` and `watchlist.json` and running
+the suite reproduces CI conditions locally:
+
+```bash
+mv .env .env.bak && mv watchlist.json watchlist.json.bak
+pytest -q
+mv .env.bak .env && mv watchlist.json.bak watchlist.json
+```
+
+All 527 pass that way, so `.env` turned out not to matter — but it's the fastest
+way to check before a push.
 
 ### One thing to deal with first
 

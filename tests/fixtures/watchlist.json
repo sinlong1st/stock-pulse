@@ -1,0 +1,7 @@
+{
+  "NVDA": ["Nvidia"],
+  "MSFT": ["Microsoft"],
+  "WDC": ["Western Digital"],
+  "MU": ["Micron", "Micron Technology"],
+  "SPCX": ["SpaceX"]
+}
