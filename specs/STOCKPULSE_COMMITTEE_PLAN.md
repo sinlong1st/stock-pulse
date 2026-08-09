@@ -112,6 +112,27 @@ Only if Phase 3 shows the second opinion adds something. Implement §11 agreemen
 scoring and §14 fresh anonymous judge. Early-stop per §22.1 when the models agree —
 that's what keeps typical cost near two calls, not seven.
 
+**§11 agreement scoring: done** (`app/prediction/agreement.py`). Deterministic,
+free, and it replaces a boolean that compared entry grades only. Two adaptations
+were forced by our smaller vocabulary:
+
+- The spec assumes continuous 0–1 confidence and triggers on a 0.25 gap. Our
+  analysts emit three levels, so the gap is counted in **ordinal steps** (2 = the
+  low/high extremes). Mapping three levels onto decimals to fit the threshold
+  would be the false precision §3.5 rules out.
+- §11.2's entry-zone and invalidation ATR comparisons are **not implemented**.
+  Both models receive the same deterministically-computed levels, so there is
+  nothing to compare — this only becomes real if analysts propose their own zones.
+
+`requiresDebate` is computed and exposed but nothing consumes it yet; it is the
+Phase 5 gate.
+
+**§14 fresh judge: not started.** It is a third LLM call, so it needs a decision
+first — run automatically whenever `requiresDebate` is true, or on demand only.
+Per §7 it should ship behind a default-off flag either way. Worth noting that on
+live runs so far, `requiresDebate` comes back **false** — the models differ in
+emphasis, not direction — so a judge would rarely fire.
+
 ### Phase 5 — Cross-critique and rebuttal (Full Debate)
 
 Only on material conflict or explicit request. §12–13.

@@ -17,10 +17,11 @@ from app.config import Settings, get_settings, resolve_briefing_timezone
 from app.earnings import fetch_many, local_today
 from app.evaluation import record_prediction_read
 from app.llm import available_providers
-from app.prediction.models import PredictionRead
-from app.prediction.analyst import PredictionError, build_analyst
 from app.prediction import rules as rule_engine
+from app.prediction.agreement import evaluate as evaluate_agreement
+from app.prediction.analyst import PredictionError, build_analyst
 from app.prediction.indicators import compute_indicators
+from app.prediction.models import PredictionRead
 from app.prediction.signals import (
     compute_signals,
     fetch_bars,
@@ -413,7 +414,14 @@ async def build_prediction(
                     {"horizon": h.horizon, "lean": h.lean, "confidence": h.confidence}
                     for h in second[1].horizons
                 ],
+                # Kept for the app already in people's hands: the backend and the
+                # OTA bundle deploy separately, so removing this would break
+                # whatever build is live. `agreement` below supersedes it.
                 "agrees": second[1].entry.assessment == read.entry.assessment,
+                # Structured agreement (§11): catches the two cases the boolean
+                # above cannot — same entry grade with opposite directional
+                # leans, and a wide confidence gap.
+                "agreement": evaluate_agreement(read, second[1]).as_dict(),
             }
             if second
             else None
