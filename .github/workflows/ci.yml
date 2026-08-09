@@ -1,0 +1,66 @@
+# Runs the checks that would otherwise depend on someone remembering to.
+#
+# Two independent jobs in parallel, so a failure says which half broke without
+# reading logs. Both are hermetic: every external service is mocked in tests, so
+# no API keys, no .env and no network are needed — that is what makes CI viable
+# here at all.
+#
+# Linting is deliberately NOT wired up yet: `ruff check .` currently reports ~96
+# pre-existing violations (mostly long lines in tests). A permanently-red build
+# teaches you to ignore red, which is worse than no CI. See CI.md.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: # adds a "Run workflow" button, handy for re-running
+
+# A newer push makes an in-flight run pointless; cancel it rather than wait.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12" # pyproject requires >=3.12
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Test
+        run: pytest -q
+
+  mobile:
+    name: Mobile typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      # `npm ci` installs exactly the lockfile — it cannot quietly upgrade us off
+      # the pinned Expo SDK 54, which `npm install` is allowed to do.
+      - name: Install dependencies
+        run: npm ci
+
+      # Catches the class of bug where a backend field is renamed and the app is
+      # not updated to match.
+      - name: Typecheck
+        run: npx tsc --noEmit

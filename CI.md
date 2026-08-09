@@ -65,11 +65,12 @@ Three independent checks, matching what's already run by hand:
 | Check | Command | Catches |
 |---|---|---|
 | **Backend tests** | `pytest` | broken logic, changed signatures, bad SQL |
-| **Backend lint** | `ruff check .` | unused imports, bad formatting, likely bugs |
 | **Mobile typecheck** | `npx tsc --noEmit` | wrong types, renamed fields, missing props |
+| ~~Backend lint~~ | ~~`ruff check .`~~ | **not wired up** — see [§7](#one-thing-to-deal-with-first) |
 
-⚠️ The lint step currently fails on existing code (96 violations, none of them
-bugs). See [§7](#one-thing-to-deal-with-first) before you turn it on.
+> **Status: live.** The workflow is at `.github/workflows/ci.yml` and runs on every
+> push to `main`, on pull requests, and on demand. Linting is deliberately left
+> out until the existing violations are cleared.
 
 That third one matters more than it sounds. When the backend renamed `lastDate`
 → `quarterEnd`, `tsc` is what proves the app was updated to match. A backend
@@ -262,18 +263,19 @@ the most time because you're not looking for them.
 
 ---
 
-## 7. Adding it
+## 7. What actually shipped
 
-```bash
-mkdir -p .github/workflows
-# create ci.yml with the contents above
-git add .github/workflows/ci.yml
-git commit -m "ci: run backend tests, lint and mobile typecheck on push"
-git push
-```
+The live workflow is **tests-only** — the `Lint` step from the example above is
+deliberately omitted. Two small deviations from the sample, both intentional:
 
-Then open the **Actions** tab on GitHub. The first run starts within seconds of
-the push.
+- **Node 22**, matching the local toolchain rather than the 20 in the example.
+- **A `concurrency` block** that cancels a run when a newer push supersedes it.
+  Faster feedback, and no point finishing a run for code that's already stale.
+
+Before wiring it up I checked the things that pass locally but fail on a fresh
+runner: no test reads a real `.env`, none uses a naive `datetime.now()` that a
+UTC runner would shift, none touches the real `stockpulse.db`, and `npm ci`
+resolves the lockfile cleanly. Those are the four usual culprits.
 
 ### One thing to deal with first
 
@@ -281,15 +283,13 @@ I ran the lint step against the current codebase. It reports **96 errors** —
 mostly `E501 Line too long` in tests, 36 of them auto-fixable. The tests all pass;
 linting has simply never been enforced, so violations accumulated.
 
-That means if you add the workflow exactly as written above, **your first CI run
-goes red**, and it'll be the lint job, not the tests. Three ways to handle it,
+That's why lint isn't in the workflow. Three ways to bring it in when you want to,
 best first:
 
 1. **Clean it up, then enforce.** `ruff check --fix .` handles 36 automatically;
    the rest are mostly long lines needing a manual wrap. An hour of tidying, and
    the lint step stays meaningful forever after.
-2. **Ship tests-only now, add lint later.** Delete the `Lint` step, get the
-   valuable half working today, come back to linting when you feel like it.
+2. **Leave it out** — where we are now. The tests are where the value is.
 3. **Warn without failing.** `run: ruff check . || true` — reports problems but
    never fails the build.
 
@@ -297,9 +297,6 @@ best first:
 ignore the red, and then it catches nothing — worse than having no CI, because
 you think you're covered. Green-by-default is the whole point: red has to *mean*
 something.
-
-My recommendation: option 2 today, option 1 when you have a spare hour. The
-tests are where the value is; lint is a nice-to-have.
 
 ---
 
