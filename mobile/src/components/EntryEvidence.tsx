@@ -158,7 +158,26 @@ export function SecondOpinion({
   const { colors } = useTheme();
   const { t } = useI18n();
 
-  const tone = second.agrees ? colors.bull : colors.bear;
+  // `agreement` is absent when the droplet is still on an older build, so the
+  // boolean stays as the fallback. It only ever compared entry grades, which is
+  // why it reported a red "disagrees" for reads that pointed the same way.
+  const level = second.agreement?.actionAgreement ?? (second.agrees ? 'strong' : 'conflict');
+  const tone =
+    level === 'strong' ? colors.bull : level === 'conflict' ? colors.bear : colors.muted;
+
+  // Params arrive as backend codes ("fair", "bounce"); localize them here rather
+  // than shipping English through a Vietnamese sentence.
+  const localize = (code: string, params: Record<string, string | number>) => {
+    const out: Record<string, string | number> = { ...params };
+    if (code === 'entry-differs') {
+      out.primary = t(`predict.entry.${params.primary}`);
+      out.second = t(`predict.entry.${params.second}`);
+    } else if (code === 'direction-opposed') {
+      out.primary = t(`predict.lean.${params.primary}`);
+      out.second = t(`predict.lean.${params.second}`);
+    }
+    return t(`second.${code}`, out);
+  };
 
   return (
     <View style={[styles.block, styles.override, { borderColor: colors.dividerStrong }]}>
@@ -172,9 +191,16 @@ export function SecondOpinion({
         </Text>
       </View>
       <Text style={[styles.bulletText, { color: colors.muted }]}>{second.note}</Text>
-      <Text style={[styles.secondAgree, { color: tone }]}>
-        {second.agrees ? t('second.agrees') : t('second.disagrees')}
-      </Text>
+      <Text style={[styles.secondAgree, { color: tone }]}>{t(`second.${level}`)}</Text>
+      {/* What specifically differs — the part a reader can actually check. */}
+      {second.agreement?.differences.map((d) => (
+        <View key={d.code} style={styles.bulletRow}>
+          <Text style={[styles.bullet, { color: colors.faint }]}>●</Text>
+          <Text style={[styles.bulletText, { color: colors.muted }]}>
+            {localize(d.code, d.params)}
+          </Text>
+        </View>
+      ))}
     </View>
   );
 }

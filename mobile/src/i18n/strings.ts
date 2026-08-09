@@ -318,6 +318,33 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
     en: '✕ Disagrees — the setup is ambiguous, treat it with more caution.',
     vi: '✕ Không đồng thuận — thiết lập chưa rõ ràng, hãy thận trọng hơn.',
   },
+  // Three-way agreement (backend §11). "Partial" is the common case and used to
+  // be shown as outright disagreement, which overstated it.
+  'second.strong': {
+    en: '✓ Agrees with the read above.',
+    vi: '✓ Đồng thuận với nhận định ở trên.',
+  },
+  'second.partial': {
+    en: '≈ Broadly agrees — same direction, different emphasis.',
+    vi: '≈ Cơ bản đồng thuận — cùng hướng, khác mức độ nhấn mạnh.',
+  },
+  'second.conflict': {
+    en: '✕ Genuinely conflicts — the setup is ambiguous, treat it with more caution.',
+    vi: '✕ Thực sự trái chiều — thiết lập chưa rõ ràng, hãy thận trọng hơn.',
+  },
+  // What specifically differs. Codes must match app/prediction/agreement.py.
+  'second.entry-differs': {
+    en: 'Entry call differs: {primary} vs {second}',
+    vi: 'Đánh giá điểm vào khác nhau: {primary} và {second}',
+  },
+  'second.direction-opposed': {
+    en: 'Opposite direction at {horizon}: {primary} vs {second}',
+    vi: 'Trái chiều ở {horizon}: {primary} và {second}',
+  },
+  'second.confidence-gap': {
+    en: 'Far apart on how sure they are',
+    vi: 'Chênh lệch lớn về mức độ chắc chắn',
+  },
   'eval.byProvider': { en: 'ACCURACY BY MODEL', vi: 'ĐỘ CHÍNH XÁC THEO MÔ HÌNH' },
   'eval.providerNote': {
     en: 'Both models read the same evidence, so this compares the models themselves.',

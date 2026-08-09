@@ -192,6 +192,16 @@ export const mockPrediction = {
       { horizon: '3mo', lean: 'bounce' as const, confidence: 'medium' },
     ],
     agrees: false,
+    // The common real-world case: the old boolean called this a flat
+    // disagreement, but the two reads point the same way and differ only on the
+    // entry grade.
+    agreement: {
+      actionAgreement: 'partial' as const,
+      directionAgreement: true,
+      confidenceSteps: 1,
+      requiresDebate: false,
+      differences: [{ code: 'entry-differs', params: { primary: 'fair', second: 'wait' } }],
+    },
   },
   rules: {
     original: 'good' as const,

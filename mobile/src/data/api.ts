@@ -241,7 +241,18 @@ export type Prediction = {
     entry: 'good' | 'fair' | 'wait';
     note: string;
     horizons: { horizon: string; lean: Lean; confidence: string }[];
+    /** Legacy: entry grades matched, nothing more. Superseded by `agreement`,
+     *  kept because the backend still sends it to older app builds. */
     agrees: boolean;
+    /** How much the two reads actually line up (backend §11 scoring). Optional
+     *  because a droplet running an older build won't send it. */
+    agreement?: {
+      actionAgreement: 'strong' | 'partial' | 'conflict';
+      directionAgreement: boolean;
+      confidenceSteps: number;
+      requiresDebate: boolean;
+      differences: { code: string; params: Record<string, string | number> }[];
+    };
   } | null;
   /** Deterministic risk rules applied over the AI's entry call. They only ever
    *  make it more cautious; `findings` explains any downgrade. */
