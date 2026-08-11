@@ -28,17 +28,21 @@ from app.config import Settings, get_settings
 from app.earnings import local_today
 from app.position import math as pmath
 from app.position import rules as rule_engine
+from app.position.advisor import ExitAdvisorError, build_exit_analyst
 from app.position.math import Position, PositionError
+from app.position.models import ExitRead
 from app.position.store import SavedPosition, validate_fields
 from app.prediction.evidence import GATHER_STAGES, gather, key_levels
 from app.prediction.market import fetch_market_context
+from app.prediction.mode import plan as analysis_plan
 from app.prefs import resolve_language
 
 logger = logging.getLogger("stockpulse.position.service")
 
-# Same first three stages as Predict, plus the market read. No "analyze" step —
-# nothing here calls a model. Keep in sync with the app's copy.
-EXIT_STAGES = (*GATHER_STAGES, "market")
+# Same first three stages as Predict, then the market read, then the AI
+# judgement. The last stage is skipped when no provider is configured, which
+# the app handles the same way it handles any stage it never sees.
+EXIT_STAGES = (*GATHER_STAGES, "market", "analyze")
 
 
 @dataclass(frozen=True)
@@ -155,6 +159,63 @@ def _quote_age_minutes(
     return ((now or datetime.now(UTC)) - price_time).total_seconds() / 60.0
 
 
+def build_level_menu(
+    *, price: float, support: dict, resistance: float | None, atr: float | None
+) -> list[tuple[float, str]]:
+    """The real levels the AI is allowed to reference, cheapest first.
+
+    This is what stops the model inventing prices: it picks menu *numbers*, so
+    "$500" is not expressible. Everything on it came from real price action,
+    except the two stretch levels — one ATR beyond the outermost real level —
+    which exist so a bull case isn't capped at the nearest ceiling and a bear
+    case isn't floored at the last support. Those are computed by us and
+    labelled as extensions, which is still not the model making up a number.
+    """
+    supports = sorted(
+        {
+            level
+            for level in (support.get("nearLevels") or []) + (support.get("longLevels") or [])
+            if level and level < price
+        }
+    )
+    menu: list[tuple[float, str]] = []
+    if supports and atr and atr > 0:
+        menu.append((round(supports[0] - atr, 2), "one ATR below the deepest support"))
+    menu += [(level, "support") for level in supports]
+    menu.append((round(price, 2), "current price"))
+    if resistance:
+        menu.append((resistance, "nearest resistance"))
+        if atr and atr > 0:
+            menu.append((round(resistance + atr, 2), "one ATR above resistance"))
+    elif atr and atr > 0:
+        menu.append((round(price + atr, 2), "one ATR above the current price"))
+    return menu
+
+
+def _pick(levels: list[tuple[float, str]], value: float | None) -> float | None:
+    """Resolve the model's level reference against the menu, or None.
+
+    Accepts either form the model actually uses: the level's **price** (what
+    gpt-4o-mini returns in practice, and what the prompt now asks for) or its
+    1-based position in the list. Prices are matched first, so a penny-stock
+    menu containing $3.00 can't be mistaken for "item 3".
+
+    Anything that matches neither is **dropped, never snapped to the nearest**.
+    That is the whole guarantee: an invented $500 has no menu entry, so it
+    cannot reach the user. Snapping would convert a hallucination into a
+    plausible-looking decision, which is strictly worse than saying nothing.
+    """
+    if value is None:
+        return None
+    for price, _label in levels:
+        if abs(price - value) < 0.01:
+            return price
+    if float(value).is_integer() and 1 <= value <= len(levels):
+        return levels[int(value) - 1][0]
+    logger.info("Dropped level reference %s: not on the menu", value)
+    return None
+
+
 def _level_distances(price: float | None, indicators, nearest_support, resistance) -> dict:
     """How far the two legs are, measured in the stock's own daily range.
 
@@ -182,10 +243,123 @@ def _level_distances(price: float | None, indicators, nearest_support, resistanc
     }
 
 
+async def _analyze(
+    settings: Settings,
+    *,
+    analyst,
+    mode: str | None,
+    step: Callable[[str], None],
+    **analyze_kwargs,
+) -> tuple[ExitRead | None, str | None]:
+    """Run the AI judgement, or return `(None, None)` if it can't or shouldn't.
+
+    Deliberately single-model even when the user's saved mode is `both`. A
+    second opinion doubles the wait on a decision the numbers already answer,
+    and the agreement machinery has nothing useful to compare until this format
+    has been used in anger. Revisit once there's real usage — see plan §9.3.
+    """
+    if analyst is None:
+        if not settings.position_exit_ai_enabled:
+            return None, None
+        plan = analysis_plan(settings, mode=mode)
+        if plan is None:  # no key configured anywhere
+            return None, None
+        try:
+            analyst = build_exit_analyst(settings, provider=plan.primary)
+        except ExitAdvisorError as exc:
+            logger.info("Exit analyst unavailable: %s", exc)
+            return None, None
+
+    step("analyze")
+    try:
+        return await analyst.analyze(**analyze_kwargs), getattr(analyst, "name", None)
+    except ExitAdvisorError as exc:
+        # The numbers are already complete; losing the narrative is a
+        # degradation, not a failure.
+        logger.warning("Exit analysis failed, returning numbers only: %s", exc)
+        return None, None
+
+
+def _scenarios(read: ExitRead | None, levels, summary) -> list[dict]:
+    """§20 — the model's level picks turned into position dollars.
+
+    Scenarios whose levels don't resolve are dropped rather than repaired: a
+    partial set of real cases beats a full set containing an invented one.
+    Probabilities are renormalized over whatever survives, so the three shown
+    always sum to 100.
+    """
+    if not read or not read.scenarios:
+        return []
+    resolved = []
+    for scenario in read.scenarios:
+        low = _pick(levels, scenario.low_level)
+        high = _pick(levels, scenario.high_level)
+        if low is None or high is None:
+            logger.info(
+                "Dropped %s scenario: levels %s/%s are not on the menu",
+                scenario.name, scenario.low_level, scenario.high_level,
+            )
+            continue
+        resolved.append((scenario, low, high))
+    if not resolved:
+        return []
+
+    probabilities = pmath.normalize_probabilities([s.probability for s, _, _ in resolved])
+    out = []
+    for (scenario, low, high), probability in zip(resolved, probabilities, strict=True):
+        computed = pmath.scenario(
+            summary,
+            name=scenario.name,
+            probability=probability,
+            low=_d(low),
+            high=_d(high),
+        )
+        out.append({**computed.as_dict(), "trigger": scenario.trigger})
+    return out
+
+
+def _plans(read: ExitRead | None, levels, summary, request: ExitRequest) -> list[dict]:
+    """§23/§24 — each alternative costed out on the user's actual share count."""
+    if not read or not read.plans:
+        return []
+    out = []
+    for plan in read.plans:
+        sell_pct = plan.sell_pct_now if plan.action != "hold" else None
+        if plan.action == "sell-all":
+            sell_pct = 100
+        # A plan that says trim without saying how much is not a plan; the
+        # balanced default from §24 is the honest reading of "partial".
+        if plan.action == "partial-sell" and not sell_pct:
+            sell_pct = 33
+
+        sale = None
+        if sell_pct and request.allow_partial_sell or (sell_pct == 100):
+            sale = pmath.partial_sell(
+                summary,
+                sell_pct,
+                target=_d(_pick(levels, plan.first_target_level)),
+                allow_fractional=request.allow_fractional_shares,
+            ).as_dict()
+
+        out.append({
+            "name": plan.name,
+            "action": plan.action,
+            "sellPctNow": sell_pct,
+            "stop": _pick(levels, plan.stop_level),
+            "firstTarget": _pick(levels, plan.first_target_level),
+            "invalidation": _pick(levels, plan.invalidation_level),
+            "explanation": plan.explanation,
+            "sale": sale,
+        })
+    return out
+
+
 async def build_exit_advice(
     settings: Settings | None = None,
     *,
     request: ExitRequest,
+    analyst=None,
+    mode: str | None = None,
     progress: Callable[[str], None] | None = None,
 ) -> dict:
     """Produce the exit analysis JSON, or `{ok: False, reason}` on failure.
@@ -290,17 +464,57 @@ async def build_exit_advice(
         "quoteAgeMinutes": _quote_age_minutes(package.price_time),
         "sessionToday": _session_today(package.bars),
     }
+    # The AI judgement, when a provider is configured. Everything above this
+    # point is already a complete answer, so a failure here costs the narrative
+    # and nothing else.
+    levels = build_level_menu(
+        price=package.price,
+        support=package.support,
+        resistance=package.resistance,
+        atr=package.indicators.atr14,
+    )
+    read, analysis_provider = await _analyze(
+        settings,
+        analyst=analyst,
+        mode=mode,
+        ticker=package.ticker,
+        name=package.name,
+        facts={
+            **rule_evidence,
+            **summary.as_dict(),
+            **extension,
+            "freshness": package.freshness,
+            "holdRewardRisk": hold.as_dict() if hold else None,
+            "discountLevel": package.signals.discount_level,
+            "rangeNote": package.signals.range_note,
+        },
+        levels=levels,
+        news=package.news,
+        language=language,
+        step=step,
+    )
+
     rules = (
         rule_engine.evaluate(
-            None,  # no AI recommendation to cap yet — that arrives in Phase 5
+            read.action if read else None,
             rule_evidence,
             min_hold_reward_risk=settings.position_exit_min_hold_reward_risk,
             earnings_within_days=settings.position_exit_earnings_days,
             stale_quote_minutes=settings.position_exit_stale_quote_minutes,
         )
         if settings.position_exit_rules_enabled
-        else rule_engine.ExitRuleResult(original=None, final=None, findings=[])
+        else rule_engine.ExitRuleResult(
+            original=read.action if read else None,
+            final=read.action if read else None,
+            findings=[],
+        )
     )
+    if rules.overridden:
+        logger.info(
+            "Exit rules moved %s from %s to %s (%s)",
+            package.ticker, rules.original, rules.final,
+            ", ".join(f.code for f in rules.findings),
+        )
 
     return {
         "ok": True,
@@ -341,6 +555,27 @@ async def build_exit_advice(
         # whenever nothing fired.
         "rules": rules.as_dict(),
         "relativeVolume": rule_evidence["relativeVolume"],
+        # The AI's judgement, with `action` already capped by the rules above.
+        # Null when no provider is configured — the numbers stand on their own.
+        "advice": (
+            {
+                "action": rules.final or read.action,
+                "aiAction": read.action,
+                "confidence": read.confidence,
+                "thesis": read.thesis,
+                "reasonsToHold": read.reasons_to_hold,
+                "reasonsToSell": read.reasons_to_sell,
+                "warnings": read.warnings,
+                "provider": analysis_provider,
+            }
+            if read
+            else None
+        ),
+        # §20/§21 — the model chose which real levels bound each case; every
+        # dollar here was computed from them.
+        "scenarios": _scenarios(read, levels, summary),
+        # §24's conservative / balanced / aggressive alternatives.
+        "plans": _plans(read, levels, summary, request),
         "earnings": (
             package.earnings.as_dict(local_today(settings)) if package.earnings else None
         ),

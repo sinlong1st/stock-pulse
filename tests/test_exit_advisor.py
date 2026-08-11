@@ -20,6 +20,8 @@ import app.prediction.market as market
 from app.briefing.focus import FocusTarget
 from app.config import Settings
 from app.position import store
+from app.position.advisor import ExitAdvisorError
+from app.position.models import ExitRead
 from app.position.service import build_exit_advice, request_from_fields
 from app.prices import Bar
 
@@ -310,6 +312,181 @@ async def test_stages_are_reported_in_order(wired) -> None:
     assert seen == ["resolve", "prices", "news", "market"]
 
 
+# --- the AI layer ----------------------------------------------------------
+
+
+class _FakeAnalyst:
+    """An exit analyst that answers instantly, offline and identically."""
+
+    name = "fake"
+
+    def __init__(self, **overrides):
+        self.overrides = overrides
+        self.seen: dict | None = None
+
+    async def analyze(self, **kwargs):
+        self.seen = kwargs
+        fields = {
+            "action": "hold",
+            "confidence": "medium",
+            "thesis": "Structure intact.",
+            "reasonsToHold": ["trend intact"],
+            "reasonsToSell": ["extended"],
+            "warnings": [],
+            "scenarios": [
+                {"name": "bull", "probability": 30, "lowLevel": 5, "highLevel": 6,
+                 "trigger": "clears resistance"},
+                {"name": "base", "probability": 50, "lowLevel": 4, "highLevel": 5,
+                 "trigger": "range holds"},
+                {"name": "bear", "probability": 20, "lowLevel": 1, "highLevel": 3,
+                 "trigger": "loses support"},
+            ],
+            "plans": [
+                {"name": "conservative", "action": "partial-sell", "sellPctNow": 50,
+                 "stopLevel": 3, "explanation": "Bank most of it."},
+                {"name": "balanced", "action": "partial-sell", "sellPctNow": 25,
+                 "firstTargetLevel": 6, "explanation": "Trim a quarter."},
+                {"name": "aggressive", "action": "hold", "invalidationLevel": 2,
+                 "explanation": "Ride it."},
+            ],
+        }
+        fields.update(self.overrides)
+        return ExitRead.model_validate(fields)
+
+
+async def test_the_ai_judgement_is_added_when_an_analyst_runs(wired) -> None:
+    got = await build_exit_advice(wired, request=_request(), analyst=_FakeAnalyst())
+    advice = got["advice"]
+    assert advice["aiAction"] == "hold" and advice["confidence"] == "medium"
+    assert advice["thesis"] and advice["reasonsToHold"] and advice["reasonsToSell"]
+    assert advice["provider"] == "fake"
+    assert got["rules"]["original"] == "hold"
+
+
+async def test_the_rules_cap_what_the_ai_recommends(wired) -> None:
+    """No special setup needed: this fixture's incremental hold reward/risk is
+    0.44, so a model saying "hold" is overruled into trimming — which is the
+    entire reason the rule engine sits above the model rather than beside it."""
+    got = await build_exit_advice(wired, request=_request(), analyst=_FakeAnalyst())
+    assert got["rules"]["original"] == "hold"
+    assert got["rules"]["final"] == "partial-sell"
+    assert got["rules"]["overridden"] is True
+    # The capped action is what the app shows; the model's own stays visible.
+    assert got["advice"]["action"] == "partial-sell"
+    assert got["advice"]["aiAction"] == "hold"
+
+
+async def test_the_model_is_given_a_menu_of_real_levels(wired) -> None:
+    analyst = _FakeAnalyst()
+    await build_exit_advice(wired, request=_request(), analyst=analyst)
+    levels = analyst.seen["levels"]
+    assert levels == sorted(levels), "the menu is ordered cheapest first"
+    assert any(label == "current price" for _, label in levels)
+    assert all(isinstance(price, int | float) for price, _ in levels)
+    # Real levels only: everything is a support, the price, or a labelled
+    # one-ATR extension of one of those.
+    assert all(label for _, label in levels)
+
+
+async def test_scenarios_are_computed_from_the_levels_the_model_picked(wired) -> None:
+    got = await build_exit_advice(wired, request=_request(), analyst=_FakeAnalyst())
+    scenarios = got["scenarios"]
+    assert [s["name"] for s in scenarios] == ["bull", "base", "bear"]
+    assert sum(s["probability"] for s in scenarios) == 100
+    for scenario in scenarios:
+        assert scenario["priceRange"]["low"] <= scenario["priceRange"]["high"]
+        assert scenario["pnlRange"]["low"] <= scenario["pnlRange"]["high"]
+
+
+async def test_a_scenario_pointing_off_the_menu_is_dropped_not_repaired(wired) -> None:
+    """A model that picks level 99 of 6 has stopped following the menu. Snapping
+    that to the last real level would dress a failure up as an opinion."""
+    analyst = _FakeAnalyst(scenarios=[
+        {"name": "bull", "probability": 50, "lowLevel": 99, "highLevel": 100},
+        {"name": "base", "probability": 50, "lowLevel": 4, "highLevel": 5},
+    ])
+    got = await build_exit_advice(wired, request=_request(), analyst=analyst)
+    assert [s["name"] for s in got["scenarios"]] == ["base"]
+    assert got["scenarios"][0]["probability"] == 100  # renormalized over survivors
+
+
+async def test_levels_referenced_by_price_resolve(wired) -> None:
+    """What a live gpt-4o-mini actually returns: the level's price, not its
+    position in the menu. Both forms have to work."""
+    analyst = _FakeAnalyst()
+    await build_exit_advice(wired, request=_request(), analyst=analyst)
+    menu = analyst.seen["levels"]
+    low, high = menu[0][0], menu[-1][0]
+
+    by_price = _FakeAnalyst(scenarios=[
+        {"name": "base", "probability": 100, "lowLevel": low, "highLevel": high},
+    ])
+    got = await build_exit_advice(wired, request=_request(), analyst=by_price)
+    assert got["scenarios"][0]["priceRange"] == {"low": low, "high": high}
+
+
+async def test_an_invented_price_is_discarded(wired) -> None:
+    """The guarantee the whole level-menu design exists for. $9,999 never traded,
+    so it must not reach the user — and must not be snapped to a real level
+    either, which would turn a hallucination into a plausible decision."""
+    analyst = _FakeAnalyst(scenarios=[
+        {"name": "bull", "probability": 60, "lowLevel": 9999.0, "highLevel": 12000.0},
+        {"name": "base", "probability": 40, "lowLevel": 4, "highLevel": 5},
+    ])
+    got = await build_exit_advice(wired, request=_request(), analyst=analyst)
+    assert [s["name"] for s in got["scenarios"]] == ["base"]
+    assert all(s["priceRange"]["high"] < 1000 for s in got["scenarios"])
+
+
+async def test_plans_and_scenarios_keyed_by_name_are_accepted(wired) -> None:
+    """A live run returned `{"conservative": {...}}` instead of a list — the
+    names asked for as keys. The content was good; only the container was
+    unexpected, and discarding a sound analysis over that would be a waste."""
+    analyst = _FakeAnalyst(
+        plans={
+            "conservative": {"action": "partial-sell", "sellPctNow": 50},
+            "balanced": {"action": "partial-sell", "sellPctNow": 25},
+            "aggressive": {"action": "hold"},
+        },
+        scenarios={
+            "bull": {"probability": 30, "lowLevel": 5, "highLevel": 6},
+            "base": {"probability": 50, "lowLevel": 4, "highLevel": 5},
+            "bear": {"probability": 20, "lowLevel": 1, "highLevel": 3},
+        },
+    )
+    got = await build_exit_advice(wired, request=_request(), analyst=analyst)
+    assert [p["name"] for p in got["plans"]] == ["conservative", "balanced", "aggressive"]
+    assert [s["name"] for s in got["scenarios"]] == ["bull", "base", "bear"]
+
+
+async def test_plans_are_costed_on_the_real_share_count(wired) -> None:
+    got = await build_exit_advice(wired, request=_request(), analyst=_FakeAnalyst())
+    plans = {p["name"]: p for p in got["plans"]}
+    assert plans["conservative"]["sale"]["sharesSold"] == 10.0  # 50% of 20
+    assert plans["balanced"]["sale"]["sharesSold"] == 5.0  # 25%
+    assert plans["aggressive"]["sale"] is None  # holding sells nothing
+    assert plans["aggressive"]["invalidation"] is not None
+
+
+async def test_a_failing_analyst_costs_the_narrative_and_nothing_else(wired) -> None:
+    class _Broken:
+        name = "broken"
+
+        async def analyze(self, **kwargs):
+            raise ExitAdvisorError("provider exploded")
+
+    got = await build_exit_advice(wired, request=_request(), analyst=_Broken())
+    assert got["ok"] is True
+    assert got["advice"] is None and got["scenarios"] == []
+    assert got["position"]["unrealizedPnl"] == 600.0  # the numbers still stand
+
+
+async def test_no_provider_configured_means_no_ai_and_no_error(wired) -> None:
+    """`wired` has no API key, so this is the real no-provider path."""
+    got = await _advice(wired)
+    assert got["ok"] is True and got["advice"] is None
+
+
 # --- endpoint --------------------------------------------------------------
 
 
@@ -319,6 +496,11 @@ def client(monkeypatch, tmp_path, wired):
     monkeypatch.setenv("MOBILE_API_TOKEN", "s3cret")
     monkeypatch.setenv("POSITION_EXIT_ENABLED", "true")
     monkeypatch.setenv("POSITIONS_FILE", str(tmp_path / "positions.json"))
+    # The endpoint builds its own Settings, which reads the developer's real
+    # .env — so without this the endpoint tests make live, billed OpenAI calls
+    # (measured: ~16s each). The AI path is covered below with an injected
+    # analyst instead, which is deterministic and free.
+    monkeypatch.setenv("POSITION_EXIT_AI_ENABLED", "false")
     config.get_settings.cache_clear()
     store._load.cache_clear()
     from fastapi.testclient import TestClient

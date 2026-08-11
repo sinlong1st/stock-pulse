@@ -102,6 +102,10 @@ class Settings(BaseSettings):
     # Deterministic exit rules (spec §28). Like Predict's, they only ever move
     # the advice one way — here, toward lower exposure.
     position_exit_rules_enabled: bool = True
+    # The AI judgement layer over the computed position facts. Turning this off
+    # leaves a complete numbers-only analysis — the arithmetic is the feature,
+    # the narrative is the commentary.
+    position_exit_ai_enabled: bool = True
     # Below this incremental hold reward/risk, trimming is the percentage play.
     # Lower than Predict's 1.5 on purpose: that gate decides whether to open a
     # position at all, while this one only asks whether to keep one you already
