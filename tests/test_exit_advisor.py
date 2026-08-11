@@ -233,6 +233,25 @@ async def test_levels_above_the_average_cost_are_not_flagged(wired) -> None:
     assert all(level["remainingPnl"] > 0 for level in got["giveback"])
 
 
+async def test_the_rule_engine_runs_on_the_analysis(wired) -> None:
+    got = await _advice(wired)
+    assert "rules" in got
+    assert got["rules"]["refreshRequired"] is False
+    # No AI recommendation exists yet, so there is nothing to override.
+    assert got["rules"]["original"] is None and got["rules"]["overridden"] is False
+
+
+async def test_the_rules_can_be_switched_off(wired) -> None:
+    settings = Settings(_env_file=None, position_exit_rules_enabled=False)
+    got = await build_exit_advice(settings, request=_request())
+    assert got["rules"]["findings"] == []
+
+
+async def test_relative_volume_is_reported(wired) -> None:
+    """The confirmation leg of RULE-EXIT-010."""
+    assert (await _advice(wired))["relativeVolume"] is not None
+
+
 async def test_indicators_come_through(wired) -> None:
     indicators = (await _advice(wired))["technicals"]["indicators"]
     assert indicators["rsi14"] is not None and indicators["atr14"] is not None

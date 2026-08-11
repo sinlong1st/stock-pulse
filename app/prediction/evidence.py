@@ -23,6 +23,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 
 from app.briefing.focus import FocusTarget, build_focus_collectors, resolve_focus
 from app.briefing.retrieval import retrieve_fresh_news
@@ -63,7 +64,8 @@ class EvidencePackage:
 
     bars: list[Bar]
     price: float | None
-    freshness: str | None  # FRESH | STALE | None when no quote client
+    freshness: str | None  # display label, e.g. 'LIVE' or 'AS OF MON 16:59 PDT'
+    price_time: datetime | None  # raw last-trade time, for staleness decisions
 
     signals: Signals
     support: dict  # near/long single levels + nearLevels/longLevels lists
@@ -91,18 +93,27 @@ async def _resolve(query: str, settings: Settings) -> FocusTarget:
     return target  # ticker stays None → caller reports "couldn't find"
 
 
-async def _current_price(ticker: str, settings: Settings) -> tuple[float | None, str | None]:
+async def _current_price(
+    ticker: str, settings: Settings
+) -> tuple[float | None, str | None, datetime | None]:
+    """The quote, its display label, and the raw last-trade time.
+
+    The raw timestamp is carried separately because `price_freshness` returns
+    *prose* ("as of Mon 16:59 PDT") and localizes into Vietnamese — fine for a
+    label, impossible to make a decision on. The exit rule engine needs the
+    actual age (RULE-EXIT-001), so it gets the datetime.
+    """
     client = maybe_briefing_price_client(settings)
     if client is None:
-        return None, None
+        return None, None, None
     try:
         snap = await client.snapshot(ticker)
     except Exception:
-        return None, None
+        return None, None, None
     if snap is None:
-        return None, None
+        return None, None, None
     fresh = price_freshness(snap.price_time, tz_name=resolve_briefing_timezone(settings)).upper()
-    return snap.price, fresh
+    return snap.price, fresh, snap.price_time
 
 
 def _support_levels(bars: list[Bar], price: float | None) -> dict:
@@ -194,7 +205,7 @@ async def gather(
     step("prices")
     months = settings.prediction_range_months
     bars = await fetch_bars(ticker, range_=_RANGE_LABEL.get(months, "6mo"))
-    price, freshness = await _current_price(ticker, settings)
+    price, freshness, price_time = await _current_price(ticker, settings)
     if price is None and bars:
         price = bars[-1].close
 
@@ -210,6 +221,7 @@ async def gather(
         bars=bars,
         price=price,
         freshness=freshness,
+        price_time=price_time,
         signals=compute_signals(bars, price, range_months=months),
         support=_support_levels(bars, price),
         resistance=nearest_resistance(bars, price),

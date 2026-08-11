@@ -99,6 +99,16 @@ class Settings(BaseSettings):
     # See specs/STOCKPULSE_EXIT_ADVISOR_PLAN.md. Off by default like Predict was;
     # the saved-positions endpoints 404 while it is off.
     position_exit_enabled: bool = False
+    # Deterministic exit rules (spec §28). Like Predict's, they only ever move
+    # the advice one way — here, toward lower exposure.
+    position_exit_rules_enabled: bool = True
+    # Below this incremental hold reward/risk, trimming is the percentage play.
+    # Lower than Predict's 1.5 on purpose: that gate decides whether to open a
+    # position at all, while this one only asks whether to keep one you already
+    # hold, and exiting has its own costs (spread, tax, being wrong).
+    position_exit_min_hold_reward_risk: float = 1.0
+    position_exit_earnings_days: int = 3  # a report this close needs a stop
+    position_exit_stale_quote_minutes: float = 20.0  # during a live session
 
     # Language for AI-written summary + why-it-matters (e.g. "English",
     # "Vietnamese"). Alerts inherit this since they use those fields.

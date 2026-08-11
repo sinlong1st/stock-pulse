@@ -27,6 +27,7 @@ from decimal import Decimal
 from app.config import Settings, get_settings
 from app.earnings import local_today
 from app.position import math as pmath
+from app.position import rules as rule_engine
 from app.position.math import Position, PositionError
 from app.position.store import SavedPosition, validate_fields
 from app.prediction.evidence import GATHER_STAGES, gather, key_levels
@@ -114,6 +115,44 @@ def _extension(price: float | None, indicators) -> dict:
         "aboveSma20Pct": round(above / sma20 * 100, 2),
         "aboveSma20Atrs": round(above / atr, 2) if atr and atr > 0 else None,
     }
+
+
+def relative_volume(bars, *, window: int = 20) -> float | None:
+    """Latest session's volume against its recent average (§10).
+
+    The confirmation leg of RULE-EXIT-010: a breakout on ordinary volume is
+    drift, not participation. None when there aren't enough sessions to have an
+    average worth comparing to.
+    """
+    volumes = [b.volume for b in bars if b.volume]
+    if len(volumes) < window + 1:
+        return None
+    average = sum(volumes[-window - 1 : -1]) / window
+    return round(volumes[-1] / average, 2) if average > 0 else None
+
+
+def _session_today(bars, *, now: datetime | None = None) -> bool:
+    """Whether the market has traded today, judged from the bars themselves.
+
+    Deliberately not a market calendar. Yahoo starts publishing the current
+    day's bar once trading opens, so the data already knows about weekends and
+    every exchange holiday — and a hand-rolled calendar would be wrong on
+    Juneteenth exactly once and then silently forever. Same instinct as the
+    evaluation loop, which defers on the last-trade timestamp rather than
+    computing whether the market "should" have been open.
+    """
+    if not bars:
+        return False
+    return bars[-1].t.date() == (now or datetime.now(UTC)).date()
+
+
+def _quote_age_minutes(
+    price_time: datetime | None, *, now: datetime | None = None
+) -> float | None:
+    """How old the quote is, in minutes. None when there is no quote client."""
+    if price_time is None:
+        return None
+    return ((now or datetime.now(UTC)) - price_time).total_seconds() / 60.0
 
 
 def _level_distances(price: float | None, indicators, nearest_support, resistance) -> dict:
@@ -224,6 +263,44 @@ async def build_exit_advice(
     earnings_days = (
         package.earnings.days_until(local_today(settings)) if package.earnings else None
     )
+    distances = _level_distances(
+        package.price, package.indicators, nearest_support, package.resistance
+    )
+    extension = _extension(package.price, package.indicators)
+
+    # The flat fact sheet the rule engine reads. Assembled here so the engine
+    # itself stays pure arithmetic over a dict — trivially testable, and with no
+    # opinion about where the numbers came from.
+    rule_evidence = {
+        "price": package.price,
+        "trend": package.signals.trend,
+        "enoughHistory": package.signals.enough_history,
+        "hasNearSupport": bool(package.support.get("nearLevels")),
+        "resistance": package.resistance,
+        "holdRewardRisk": float(hold.ratio) if hold else None,
+        "supportAtrs": distances["supportAtrs"],
+        "resistanceAtrs": distances["resistanceAtrs"],
+        "aboveSma20Atrs": extension["aboveSma20Atrs"],
+        "indicators": package.indicators.as_dict(),
+        "market": market.as_dict(),
+        "relativeVolume": relative_volume(package.bars),
+        "earningsInDays": earnings_days,
+        "inProfit": summary.in_profit,
+        "stop": float(request.stop) if request.stop is not None else None,
+        "quoteAgeMinutes": _quote_age_minutes(package.price_time),
+        "sessionToday": _session_today(package.bars),
+    }
+    rules = (
+        rule_engine.evaluate(
+            None,  # no AI recommendation to cap yet — that arrives in Phase 5
+            rule_evidence,
+            min_hold_reward_risk=settings.position_exit_min_hold_reward_risk,
+            earnings_within_days=settings.position_exit_earnings_days,
+            stale_quote_minutes=settings.position_exit_stale_quote_minutes,
+        )
+        if settings.position_exit_rules_enabled
+        else rule_engine.ExitRuleResult(original=None, final=None, findings=[])
+    )
 
     return {
         "ok": True,
@@ -255,12 +332,15 @@ async def build_exit_advice(
             "target": float(request.target) if request.target is not None else None,
             # How far each leg is in ATRs — the context that says how much the
             # reward/risk ratio above is worth trusting.
-            "distance": _level_distances(
-                package.price, package.indicators, nearest_support, package.resistance
-            ),
+            "distance": distances,
         },
         "technicals": _technicals(package, market),
-        "extension": _extension(package.price, package.indicators),
+        "extension": extension,
+        # What the deterministic rules made of it. `final` is the least exposure
+        # the evidence justifies; with no AI recommendation to cap, it is null
+        # whenever nothing fired.
+        "rules": rules.as_dict(),
+        "relativeVolume": rule_evidence["relativeVolume"],
         "earnings": (
             package.earnings.as_dict(local_today(settings)) if package.earnings else None
         ),
