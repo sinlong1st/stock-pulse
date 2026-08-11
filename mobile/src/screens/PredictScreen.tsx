@@ -32,15 +32,15 @@ import { WatchlistPicker } from '../components/WatchlistPicker';
 import {
   AnalysisMode,
   ExitAdvice,
-  fetchExitAdvice,
+  EXIT_STAGES,
   fetchMode,
-  isAborted,
   Lean,
   ModeInfo,
   Prediction,
   PredictionHorizon,
   PREDICT_STAGES,
   saveMode,
+  streamExitAdvice,
   streamPrediction,
   StreamHandle,
 } from '../data/api';
@@ -139,7 +139,7 @@ export function PredictScreen() {
   const [shares, setShares] = useState('');
   const [avgCost, setAvgCost] = useState('');
   const [exit, setExit] = useState<ExitAdvice | null>(null);
-  const exitAbort = useRef<AbortController | null>(null);
+  const exitStream = useRef<StreamHandle | null>(null);
 
   const runExit = useCallback(
     /** `silent` refreshes in the background, for the language switch — the user
@@ -152,17 +152,17 @@ export function PredictScreen() {
         setError(t('exit.needFields'));
         return;
       }
-      exitAbort.current?.abort();
-      const ctrl = new AbortController();
-      exitAbort.current = ctrl;
+      exitStream.current?.cancel();
       setError(null);
       if (!silent) {
         setPhase('running');
         setStageIndex(null);
       }
-      fetchExitAdvice({ ticker, shares: n, averageCost: cost }, ctrl.signal)
-        .then((result) => {
-          exitAbort.current = null;
+      exitStream.current = streamExitAdvice(
+        { ticker, shares: n, averageCost: cost },
+        (stage) => !silent && setStageIndex(EXIT_STAGES.indexOf(stage)),
+        (result) => {
+          exitStream.current = null;
           if (result.ok) {
             setExit(result);
             lastQuery.current = ticker;
@@ -172,13 +172,13 @@ export function PredictScreen() {
             setError(result.reason ?? t('predict.genErr'));
             if (!silent) setPhase('idle');
           }
-        })
-        .catch((e) => {
-          exitAbort.current = null;
-          if (isAborted(e)) return;
-          setError(e instanceof Error ? e.message : String(e));
+        },
+        (e) => {
+          exitStream.current = null;
+          setError(e.message || t('predict.genErr'));
           if (!silent) setPhase('idle');
-        });
+        },
+      );
     },
     [query, shares, avgCost, t],
   );
@@ -238,8 +238,8 @@ export function PredictScreen() {
   const cancel = () => {
     stream.current?.cancel();
     stream.current = null;
-    exitAbort.current?.abort();
-    exitAbort.current = null;
+    exitStream.current?.cancel();
+    exitStream.current = null;
     setPhase('idle');
   };
 

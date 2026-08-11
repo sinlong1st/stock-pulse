@@ -712,6 +712,26 @@ async def api_exit_advisor(
     return await build_exit_advice(settings, request=_exit_request(payload, settings))
 
 
+@app.post("/api/positions/exit-advisor/stream")
+async def api_exit_advisor_stream(
+    payload: ExitAdvisorBody, authorization: str | None = Header(default=None)
+):
+    """Same as /api/positions/exit-advisor, but streams stage events while it works.
+
+    POST rather than GET because the request is a position, not a query string —
+    the app's SSE reader takes a method and body for exactly this.
+    """
+    settings = _require_exit_advisor(authorization)
+    request = _exit_request(payload, settings)
+
+    async def run(progress):
+        return await build_exit_advice(settings, request=request, progress=progress)
+
+    return StreamingResponse(
+        sse_with_progress(run), media_type="text/event-stream", headers=SSE_HEADERS
+    )
+
+
 class LanguageBody(BaseModel):
     code: str
 

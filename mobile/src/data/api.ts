@@ -4,7 +4,7 @@
  */
 import { API_BASE_URL, API_TOKEN } from '../config';
 import { mockAlerts, mockEvaluation, mockPrediction, mockReport, mockWatchlist } from './mock';
-import { streamSse } from './sse';
+import { SseRequest, streamSse } from './sse';
 import { Alert, EarningsRow, Report, Sentiment, WatchRow } from './types';
 
 /** True when no backend is configured (the app is showing sample data). */
@@ -349,6 +349,8 @@ export type StreamHandle = { cancel: () => void };
  */
 export const REPORT_STAGES = ['news', 'prices', 'analyze', 'compose'];
 export const PREDICT_STAGES = ['resolve', 'prices', 'news', 'analyze'];
+/** Must match EXIT_STAGES in app/position/service.py. */
+export const EXIT_STAGES = ['resolve', 'prices', 'news', 'market', 'analyze'];
 
 function streamOrFallback<T, L = unknown>(
   path: string,
@@ -357,6 +359,7 @@ function streamOrFallback<T, L = unknown>(
   onDone: (result: T) => void,
   onError: (error: Error) => void,
   onLate?: (payload: L) => void,
+  init?: SseRequest,
 ): StreamHandle {
   let cancelled = false;
   // Cancelling must also stop a fallback request that's already in flight.
@@ -376,7 +379,7 @@ function streamOrFallback<T, L = unknown>(
           onError(e instanceof Error ? e : new Error(String(e)));
         });
     },
-  });
+  }, init);
   return {
     cancel: () => {
       cancelled = true;
@@ -701,6 +704,30 @@ export async function fetchExitAdvice(
     }
     throw e;
   }
+}
+
+/**
+ * Exit analysis with live stage progress.
+ *
+ * POSTs rather than GETs: the request is a position, not a query string. Falls
+ * back to the plain endpoint on any streaming error, exactly like Report and
+ * Predict — a buffering proxy costs the live stages, not the feature.
+ */
+export function streamExitAdvice(
+  body: ExitRequestBody,
+  onStage: (stage: string) => void,
+  onDone: (advice: ExitAdvice) => void,
+  onError: (error: Error) => void,
+): StreamHandle {
+  return streamOrFallback<ExitAdvice>(
+    '/api/positions/exit-advisor/stream',
+    (signal) => fetchExitAdvice(body, signal),
+    onStage,
+    onDone,
+    onError,
+    undefined,
+    { method: 'POST', body },
+  );
 }
 
 export type SavedPosition = {

@@ -31,9 +31,14 @@ function splitBlocks(text: string): { blocks: string[]; rest: string } {
   return { blocks: parts, rest };
 }
 
+/** How to make the request. Defaults to a plain GET, which is what Report and
+ *  Predict use; the exit advisor POSTs a position instead of a query string. */
+export type SseRequest = { method?: 'GET' | 'POST'; body?: unknown };
+
 export function streamSse<T, L = unknown>(
   path: string,
   handlers: SseHandlers<T, L>,
+  init?: SseRequest,
 ): SseHandle {
   const xhr = new XMLHttpRequest();
   let consumed = 0; // characters of responseText already parsed
@@ -110,10 +115,15 @@ export function streamSse<T, L = unknown>(
   xhr.ontimeout = () => fail('The request timed out.');
 
   try {
-    xhr.open('GET', `${API_BASE_URL.replace(/\/+$/, '')}${path}`);
+    xhr.open(init?.method ?? 'GET', `${API_BASE_URL.replace(/\/+$/, '')}${path}`);
     xhr.setRequestHeader('Authorization', `Bearer ${API_TOKEN}`);
     xhr.setRequestHeader('Accept', 'text/event-stream');
-    xhr.send();
+    if (init?.body !== undefined) {
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.send(JSON.stringify(init.body));
+    } else {
+      xhr.send();
+    }
   } catch (e) {
     fail(e instanceof Error ? e.message : 'Could not start the request.');
   }
