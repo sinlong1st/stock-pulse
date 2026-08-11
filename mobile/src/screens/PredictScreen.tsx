@@ -291,33 +291,25 @@ export function PredictScreen() {
       </View>
 
       {/* Model choice. Hidden unless there is a real choice to make — with one
-          key configured this is a row of one, which is just noise. */}
+          key configured this is a control with one option, which is just noise.
+
+          A segmented control, not chips: the tickers above are chips, and two
+          controls that look alike read as one list. This is a mode switch, so it
+          borrows the same joined bar the chart range uses. */}
       {modeInfo && modeInfo.available.length > 1 ? (
         <View style={styles.modeRow}>
-          {modeInfo.available.map((option) => {
-            const on = option === mode;
-            return (
-              <Pressable
-                key={option}
-                onPress={() => pickMode(option)}
-                disabled={loading}
-                style={[
-                  styles.modeChip,
-                  {
-                    borderColor: on ? colors.accent : colors.divider,
-                    backgroundColor: on ? colors.accent + '18' : 'transparent',
-                    opacity: loading ? 0.5 : 1,
-                  },
-                ]}
-              >
-                <Text
-                  style={[styles.modeChipText, { color: on ? colors.accent : colors.muted }]}
-                >
-                  {t(`predict.mode.${option}`)}
-                </Text>
-              </Pressable>
-            );
-          })}
+          <Text style={[styles.modeLabel, { color: colors.faint }]}>{t('predict.modeLabel')}</Text>
+          <View
+            style={{ opacity: loading ? 0.4 : 1 }}
+            pointerEvents={loading ? 'none' : 'auto'}
+          >
+            <Segmented
+              options={modeInfo.available}
+              value={mode ?? ''}
+              onChange={(v) => pickMode(v as AnalysisMode)}
+              renderLabel={(v) => t(`predict.mode.${v}`)}
+            />
+          </View>
         </View>
       ) : null}
 
@@ -565,10 +557,13 @@ const styles = StyleSheet.create({
   topbar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingTop: 6, paddingBottom: 12, borderBottomWidth: 2 },
   topbarTitle: { fontSize: 14, fontWeight: '800' },
   inputRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
-  picker: { paddingLeft: 16, paddingBottom: 10 },
-  modeRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 10 },
-  modeChip: { borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5 },
-  modeChipText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
+  // Right padding matters: the ticker chips wrap, and with none the last chip in
+  // a row sat flush against the screen edge while the first lined up at 16.
+  picker: { paddingHorizontal: 16, paddingBottom: 10 },
+  modeRow: { gap: 5, paddingHorizontal: 16, paddingBottom: 12 },
+  // Same treatment as the watchlist picker's label, so the two controls read as
+  // a pair of labelled groups rather than two loose rows of buttons.
+  modeLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
   modeNote: { fontSize: 10, marginTop: 8, lineHeight: 15 },
   secondPending: {
     flexDirection: 'row',

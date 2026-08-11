@@ -324,6 +324,7 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   },
   // Which model(s) run. `both` is the default: it is the only mode that produces
   // paired samples for the accuracy comparison.
+  'predict.modeLabel': { en: 'ANALYST', vi: 'MÔ HÌNH' },
   'predict.mode.openai': { en: 'OPENAI', vi: 'OPENAI' },
   'predict.mode.deepseek': { en: 'DEEPSEEK', vi: 'DEEPSEEK' },
   'predict.mode.both': { en: 'BOTH', vi: 'CẢ HAI' },

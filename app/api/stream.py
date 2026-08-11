@@ -118,6 +118,9 @@ async def sse_with_progress(
 SSE_HEADERS = {
     "Cache-Control": "no-cache",
     "Connection": "keep-alive",
-    # Nginx buffers proxied responses by default, which would defeat the point.
+    # Nginx-specific: it buffers proxied responses by default, which would hold
+    # every event back until the slowest one landed. Inert on the current setup
+    # (Tailscale, which honours text/event-stream on its own) — kept so that
+    # putting nginx in front later just works. See STREAMING_AND_PROXIES.md.
     "X-Accel-Buffering": "no",
 }

@@ -351,6 +351,11 @@ updates, backups) is in **[DEPLOY.md](DEPLOY.md)**. Never bought a server
 before? **[BUYING_A_SERVER.md](BUYING_A_SERVER.md)** walks you through choosing a
 provider, SSH keys, and first login.
 
+Two explainers on how the plumbing works, written to be read start to finish:
+**[CI.md](CI.md)** (the robot that runs the tests on every push) and
+**[STREAMING_AND_PROXIES.md](STREAMING_AND_PROXIES.md)** (why Predict updates
+twice, and what a reverse proxy does to a live stream).
+
 ## Roadmap
 
 Development proceeds one phase at a time (see the technical plan):

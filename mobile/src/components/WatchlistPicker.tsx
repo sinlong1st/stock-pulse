@@ -78,7 +78,17 @@ const styles = StyleSheet.create({
   wrap: { gap: 5 },
   label: { fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  chip: { borderWidth: 1, paddingHorizontal: 11, paddingVertical: 6 },
+  // `minWidth` + centred text is what stops the rows looking ragged: without it
+  // a two-letter ticker (MU) sits in a chip half the width of a five-letter one
+  // (GOOGL), and each wrapped row breaks in a different place. Longer symbols
+  // still grow past the floor, so nothing is ever clipped.
+  chip: {
+    borderWidth: 1,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    minWidth: 62,
+    alignItems: 'center',
+  },
   moreChip: { backgroundColor: 'transparent' },
   chipText: { fontSize: 12, fontWeight: '800', letterSpacing: 0.3 },
 });
