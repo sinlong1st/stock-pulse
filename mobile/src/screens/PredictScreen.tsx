@@ -27,6 +27,7 @@ import { HackerLoader, LoaderPhase } from '../components/HackerLoader';
 import { MiniBars } from '../components/MiniBars';
 import { PriceChart } from '../components/PriceChart';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { SavedPositions } from '../components/SavedPositions';
 import { Segmented } from '../components/Segmented';
 import { WatchlistPicker } from '../components/WatchlistPicker';
 import {
@@ -34,12 +35,16 @@ import {
   ExitAdvice,
   EXIT_STAGES,
   fetchMode,
+  fetchPositions,
   Lean,
   ModeInfo,
   Prediction,
   PredictionHorizon,
   PREDICT_STAGES,
+  SavedPosition,
   saveMode,
+  savePosition,
+  removePosition,
   streamExitAdvice,
   streamPrediction,
   StreamHandle,
@@ -143,6 +148,21 @@ export function PredictScreen() {
   // Set once the user has actually tried to run, so empty fields don't turn red
   // the instant the tab opens — that reads as being told off for nothing.
   const [attempted, setAttempted] = useState(false);
+  const [positions, setPositions] = useState<SavedPosition[]>([]);
+  const [activePosition, setActivePosition] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Best-effort: a backend without the feature (or without the flag) just
+  // leaves the list empty, and typing a position by hand still works.
+  const loadPositions = useCallback(() => {
+    fetchPositions()
+      .then((info) => setPositions(info.positions))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (tab === 'own') loadPositions();
+  }, [tab, loadPositions]);
 
   // A field is wrong if it holds something that isn't a positive number, or if
   // it's empty and the user has already pressed the button.
@@ -160,14 +180,19 @@ export function PredictScreen() {
      *  buy path: tapping a watchlist chip calls `setQuery` and runs in the same
      *  tick, and React hasn't applied the state yet — reading `query` here
      *  would analyse the *previously* selected ticker. */
-    ({ silent = false, tickerOverride }: { silent?: boolean; tickerOverride?: string } = {}) => {
+    ({
+      silent = false,
+      tickerOverride,
+      positionId,
+    }: { silent?: boolean; tickerOverride?: string; positionId?: string } = {}) => {
       const ticker = (tickerOverride ?? query).trim();
       const n = Number(shares);
       const cost = Number(avgCost);
       // Nothing leaves the device until all three are real. An incomplete
       // position can't be analysed anyway, and a round trip that was always
-      // going to fail still costs a model call.
-      if (!ticker || !(n > 0) || !(cost > 0)) {
+      // going to fail still costs a model call. A saved position is already
+      // validated, so it skips this.
+      if (!positionId && (!ticker || !(n > 0) || !(cost > 0))) {
         setAttempted(true);
         return;
       }
@@ -179,7 +204,9 @@ export function PredictScreen() {
         setStageIndex(null);
       }
       exitStream.current = streamExitAdvice(
-        { ticker, shares: n, averageCost: cost },
+        // By id when it's a saved holding: the server then also applies the
+        // stop and target stored with it, which the typed fields don't carry.
+        positionId ? { positionId } : { ticker, shares: n, averageCost: cost },
         (stage) => !silent && setStageIndex(EXIT_STAGES.indexOf(stage)),
         (result) => {
           exitStream.current = null;
@@ -264,7 +291,56 @@ export function PredictScreen() {
   };
 
   /** Whichever question the current tab asks. */
-  const go = useCallback(() => (tab === 'own' ? runExit() : run()), [tab, runExit, run]);
+  const go = useCallback(() => {
+    if (tab === 'buy') return run();
+    // A typed position is a different position from the saved one that was on
+    // screen, so stop showing that row as selected.
+    setActivePosition(null);
+    runExit();
+  }, [tab, runExit, run]);
+
+  const pickPosition = useCallback(
+    (position: SavedPosition) => {
+      // Mirror the row into the fields so the screen shows what's being asked
+      // about, and an edit-then-Analyse starts from the saved numbers.
+      setQuery(position.ticker);
+      setShares(String(position.shares));
+      setAvgCost(String(position.averageCost));
+      setActivePosition(position.id);
+      runExit({ positionId: position.id });
+    },
+    [runExit],
+  );
+
+  const saveCurrent = useCallback(() => {
+    setSaving(true);
+    savePosition({ ticker: query.trim(), shares: sharesNum, averageCost: costNum })
+      .then((info) => {
+        setPositions(info.positions);
+        // Select whichever row is this ticker at this cost, so it reads as saved.
+        const match = info.positions.find(
+          (p) => p.ticker === query.trim().toUpperCase() && p.averageCost === costNum,
+        );
+        setActivePosition(match?.id ?? null);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : t('exit.saveErr')))
+      .finally(() => setSaving(false));
+  }, [query, sharesNum, costNum, t]);
+
+  const removeSaved = useCallback(
+    (position: SavedPosition) => {
+      removePosition(position.id)
+        .then((info) => setPositions(info.positions))
+        .catch(() => {});
+      if (activePosition === position.id) setActivePosition(null);
+    },
+    [activePosition],
+  );
+
+  /** Already in the list, so offering to save it again would be noise. */
+  const alreadySaved = positions.some(
+    (p) => p.ticker === query.trim().toUpperCase() && p.averageCost === costNum,
+  );
 
   // Chrome re-renders instantly via t(), but the exit thesis and reasons are
   // written server-side in the user's language — re-ask so they catch up too.
@@ -452,6 +528,28 @@ export function PredictScreen() {
             ) : null}
           </View>
         </View>
+      ) : null}
+
+      {/* Offered only once the position is real and isn't already stored —
+          otherwise it's a button that either fails or does nothing. */}
+      {tab === 'own' && ownReady && !alreadySaved ? (
+        <Pressable
+          onPress={saveCurrent}
+          disabled={saving}
+          style={[styles.saveRow, { borderColor: colors.dividerStrong, opacity: saving ? 0.5 : 1 }]}
+        >
+          <Feather name="bookmark" size={13} color={colors.accentInk} />
+          <Text style={[styles.saveText, { color: colors.accentInk }]}>{t('exit.save')}</Text>
+        </Pressable>
+      ) : null}
+
+      {tab === 'own' ? (
+        <SavedPositions
+          positions={positions}
+          activeId={activePosition}
+          onPick={pickPosition}
+          onRemove={removeSaved}
+        />
       ) : null}
 
       <View style={styles.picker}>
@@ -770,6 +868,18 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   fieldErr: { fontSize: 10, fontWeight: '700', lineHeight: 14 },
+  saveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    paddingVertical: 9,
+    marginHorizontal: 16,
+    marginBottom: 10,
+  },
+  saveText: { fontSize: 12, fontWeight: '800' },
   // Right padding matters: the ticker chips wrap, and with none the last chip in
   // a row sat flush against the screen edge while the first lined up at 16.
   picker: { paddingHorizontal: 16, paddingBottom: 10 },

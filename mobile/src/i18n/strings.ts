@@ -511,7 +511,12 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   'exit.costHint': { en: 'e.g. 420.00', vi: 'vd. 420.00' },
   'exit.needShares': { en: 'How many shares?', vi: 'Bao nhiêu cổ?' },
   'exit.needCost': { en: 'What did you pay?', vi: 'Giá vốn bao nhiêu?' },
-  'exit.saved': { en: 'SAVED', vi: 'ĐÃ LƯU' },
+  'exit.savedTitle': { en: 'YOUR POSITIONS', vi: 'VỊ THẾ CỦA BẠN' },
+  'exit.savedHint': {
+    en: 'TAP TO ANALYSE · LONG-PRESS TO REMOVE',
+    vi: 'CHẠM ĐỂ PHÂN TÍCH · GIỮ ĐỂ XOÁ',
+  },
+  'exit.removeTitle': { en: 'Remove {ticker}?', vi: 'Xoá {ticker}?' },
   'exit.save': { en: 'Save this position', vi: 'Lưu vị thế này' },
   'exit.saveErr': { en: 'Couldn’t save that.', vi: 'Không lưu được.' },
   'exit.remove': { en: 'Remove', vi: 'Xoá' },
