@@ -39,6 +39,19 @@ push_tokens.json
 # User-written prediction strategies (runtime state, not config)
 strategies.json
 
+# Saved holdings for the Exit Advisor (runtime state, and personal financial
+# data — this repo is public). Anchored, like watchlist/keywords; the Docker
+# copy lives under data/, which is ignored wholesale just below.
+/positions.json
+
+# The Docker volume (docker-compose mounts ./data:/app/data). Everything the
+# running service writes lands here: the database, runtime prefs, push tokens,
+# strategies, positions. None of it is config and some of it is personal, so the
+# whole directory is ignored explicitly — until now it was covered only as a
+# side effect of the unanchored patterns above matching at any depth, which is
+# not a protection worth resting personal data on.
+data/
+
 # Testing / tooling caches
 .pytest_cache/
 .ruff_cache/
