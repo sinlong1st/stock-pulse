@@ -138,6 +138,18 @@ export function PredictScreen() {
   const stream = useRef<StreamHandle | null>(null);
   const [stageIndex, setStageIndex] = useState<number | null>(null);
 
+  // Now that the form scrolls with the page, a finished analysis would leave
+  // you looking at the inputs with the verdict below the fold. Set when a
+  // result lands; consumed by the results block's onLayout, because the block
+  // has to exist and be measured before there is anywhere to scroll to.
+  const scroller = useRef<ScrollView>(null);
+  const wantScroll = useRef(false);
+  const revealResults = (y: number) => {
+    if (!wantScroll.current) return;
+    wantScroll.current = false;
+    scroller.current?.scrollTo({ y: Math.max(0, y - 8), animated: true });
+  };
+
   // Which question is being asked. Two very different questions about the same
   // ticker, so the ticker box is shared and everything below it swaps.
   const [tab, setTab] = useState<'buy' | 'own'>('buy');
@@ -213,7 +225,10 @@ export function PredictScreen() {
           if (result.ok) {
             setExit(result);
             lastQuery.current = ticker;
-            if (!silent) setPhase('done');
+            if (!silent) {
+              wantScroll.current = true;
+              setPhase('done');
+            }
           } else {
             setExit(null);
             setError(result.reason ?? t('predict.genErr'));
@@ -258,7 +273,10 @@ export function PredictScreen() {
             setPred(p);
             lastQuery.current = term;
             // Only a visible run gets the 100% beat; a silent refresh never showed.
-            if (!silent) setPhase('done');
+            if (!silent) {
+              wantScroll.current = true;
+              setPhase('done');
+            }
           } else {
             setPred(null);
             setError(p.reason ?? t('predict.genErr'));
@@ -428,6 +446,20 @@ export function PredictScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader kicker={t('predict.kicker')} title={t('predict.title')} />
 
+      {/* One scroll for the whole screen — controls included.
+          They used to be pinned above a separate results ScrollView, which was
+          fine for Predict's single input row but not once the sell tab added
+          share count, average cost, saved positions and the picker: the form
+          took ~40% of the phone permanently and the answer read through a slot
+          underneath it. Scrolling the form away is what you want the moment a
+          result exists, and scrolling back up is how you change it. */}
+      <ScrollView
+        ref={scroller}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + 28 }}
+        showsVerticalScrollIndicator={false}
+        // Otherwise the first tap on Analyse only dismisses the keyboard.
+        keyboardShouldPersistTaps="handled"
+      >
       {/* Two questions about the same stock: should I buy it, and — the other
           half — I already own it, now what? Sharing the ticker box is the point;
           switching tabs keeps whatever you typed. */}
@@ -599,12 +631,12 @@ export function PredictScreen() {
         </View>
       ) : tab === 'own' ? (
         exit ? (
-          <ScrollView
-            contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 28 }]}
-            showsVerticalScrollIndicator={false}
+          <View
+            style={styles.body}
+            onLayout={(e) => revealResults(e.nativeEvent.layout.y)}
           >
             <ExitAdviceView data={exit} />
-          </ScrollView>
+          </View>
         ) : (
           <View style={styles.center}>
             <Feather name="briefcase" size={34} color={colors.muted} />
@@ -619,10 +651,7 @@ export function PredictScreen() {
           <Text style={[styles.centerBody, { color: colors.muted }]}>{t('predict.emptyBody')}</Text>
         </View>
       ) : (
-        <ScrollView
-          contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 28 }]}
-          showsVerticalScrollIndicator={false}
-        >
+        <View style={styles.body} onLayout={(e) => revealResults(e.nativeEvent.layout.y)}>
           {/* header */}
           <View style={styles.head}>
             <Text style={[styles.ticker, { color: colors.text }]}>{pred.ticker}</Text>
@@ -792,8 +821,9 @@ export function PredictScreen() {
             </Pressable>
           ) : null}
           <Text style={[styles.disclaimer, { color: colors.faint }]}>{pred.disclaimer}</Text>
-        </ScrollView>
+        </View>
       )}
+      </ScrollView>
 
       <HackerLoader
         phase={phase}
