@@ -154,9 +154,14 @@ export function PredictScreen() {
 
   const runExit = useCallback(
     /** `silent` refreshes in the background, for the language switch — the user
-     *  didn't ask to wait for that one. */
-    ({ silent = false }: { silent?: boolean } = {}) => {
-      const ticker = query.trim();
+     *  didn't ask to wait for that one.
+     *
+     *  `tickerOverride` exists for the same reason `modeOverride` does on the
+     *  buy path: tapping a watchlist chip calls `setQuery` and runs in the same
+     *  tick, and React hasn't applied the state yet — reading `query` here
+     *  would analyse the *previously* selected ticker. */
+    ({ silent = false, tickerOverride }: { silent?: boolean; tickerOverride?: string } = {}) => {
+      const ticker = (tickerOverride ?? query).trim();
       const n = Number(shares);
       const cost = Number(avgCost);
       // Nothing leaves the device until all three are real. An incomplete
@@ -407,7 +412,7 @@ export function PredictScreen() {
             <TextInput
               value={shares}
               onChangeText={setShares}
-              placeholder="20"
+              placeholder={t('exit.sharesHint')}
               placeholderTextColor={colors.faint}
               keyboardType="decimal-pad"
               onSubmitEditing={go}
@@ -429,7 +434,7 @@ export function PredictScreen() {
             <TextInput
               value={avgCost}
               onChangeText={setAvgCost}
-              placeholder="420.00"
+              placeholder={t('exit.costHint')}
               placeholderTextColor={colors.faint}
               keyboardType="decimal-pad"
               onSubmitEditing={go}
@@ -453,10 +458,15 @@ export function PredictScreen() {
         <WatchlistPicker
           selected={query}
           onPick={(tk) => {
+            setQuery(tk);
             // Tapping a ticker you already track should just go — filling the
             // box and making you press Predict again is a pointless second step.
-            setQuery(tk);
-            run(tk);
+            //
+            // In the SELL tab it can't: a position needs shares and average
+            // cost too. Tapping used to call `run` regardless, which ran a
+            // *prediction* from the sell tab and skipped validation entirely.
+            if (tab === 'buy') run(tk);
+            else if (sharesNum > 0 && costNum > 0) runExit({ tickerOverride: tk });
           }}
         />
       </View>

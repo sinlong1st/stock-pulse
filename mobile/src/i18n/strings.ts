@@ -505,6 +505,10 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
     en: 'Enter a ticker you own, how many shares and what you paid. StockPulse works out what holding is worth from today’s price.',
     vi: 'Nhập mã bạn đang giữ, số cổ và giá vốn. StockPulse sẽ tính xem việc tiếp tục giữ đáng giá bao nhiêu tính từ giá hôm nay.',
   },
+  // Prefixed, because a bare "20" in a numeric field reads as a value that
+  // is already there rather than as an example of what to type.
+  'exit.sharesHint': { en: 'e.g. 20', vi: 'vd. 20' },
+  'exit.costHint': { en: 'e.g. 420.00', vi: 'vd. 420.00' },
   'exit.needShares': { en: 'How many shares?', vi: 'Bao nhiêu cổ?' },
   'exit.needCost': { en: 'What did you pay?', vi: 'Giá vốn bao nhiêu?' },
   'exit.saved': { en: 'SAVED', vi: 'ĐÃ LƯU' },
@@ -638,7 +642,7 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   },
 
   // loader (exit)
-  'loader.exit.kicker': { en: 'POSITION', vi: 'VỊ THẾ' },
+  'loader.exit.kicker': { en: 'ANALYSING EXIT', vi: 'PHÂN TÍCH BÁN' },
   'loader.exit.scramble': { en: 'EXIT', vi: 'THOÁT' },
   'loader.exit.headline': { en: 'YOUR POSITION', vi: 'VỊ THẾ CỦA BẠN' },
   'loader.exit.step1': { en: 'Finding the stock', vi: 'Tìm cổ phiếu' },
