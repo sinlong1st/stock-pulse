@@ -95,6 +95,11 @@ class Settings(BaseSettings):
     # per-provider accuracy comparison mean anything. Single-model runs on
     # different stocks on different days compare the stocks, not the models.
     prediction_analysis_mode: str = "both"
+    # Position Exit Advisor — hold/trim/exit advice for shares already owned.
+    # See specs/STOCKPULSE_EXIT_ADVISOR_PLAN.md. Off by default like Predict was;
+    # the saved-positions endpoints 404 while it is off.
+    position_exit_enabled: bool = False
+
     # Language for AI-written summary + why-it-matters (e.g. "English",
     # "Vietnamese"). Alerts inherit this since they use those fields.
     output_language: str = "English"
@@ -210,6 +215,10 @@ class Settings(BaseSettings):
     # User-written prediction strategies (app/prediction/store.py). Like
     # prefs_file, redirect this into ./data in Docker so it survives rebuilds.
     strategies_file: str = "strategies.json"
+
+    # Saved holdings for the Position Exit Advisor (app/position/store.py).
+    # Same treatment as strategies_file: redirect into ./data in Docker.
+    positions_file: str = "positions.json"
 
     # Read-only JSON API for the mobile app (GET /api/feed). Off by default and
     # gated by a bearer token; purely additive (does not affect alerts/Telegram).

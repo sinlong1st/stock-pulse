@@ -18,6 +18,7 @@ services:
       - PREFS_FILE=/app/data/runtime_prefs.json
       - PUSH_TOKENS_FILE=/app/data/push_tokens.json
       - STRATEGIES_FILE=/app/data/strategies.json
+      - POSITIONS_FILE=/app/data/positions.json
     volumes:
       - ./data:/app/data
       # Writable: the /watch and /unwatch commands edit this file in place.

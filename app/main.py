@@ -62,6 +62,16 @@ from app.logging_config import configure_logging
 from app.pipeline.classifier import ClassificationError, build_classifier
 from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
+from app.position.store import (
+    INVESTMENT_STYLES,
+    MAX_POSITIONS,
+    RISK_TOLERANCES,
+    PositionStoreError,
+    archive_position,
+    create_position,
+    list_positions,
+    update_position,
+)
 from app.prediction.mode import MODES as analysis_modes
 from app.prediction.mode import resolve_mode as resolve_analysis_mode
 from app.prediction.mode import set_mode as set_analysis_mode
@@ -543,6 +553,102 @@ def api_activate_strategy(
     except StrategyError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _strategies_payload(settings)
+
+
+# --- saved positions (Exit Advisor) ---------------------------------------
+
+
+class PositionBody(BaseModel):
+    """One holding, as the app sends it (spec §4). Only the first three are
+    required; the rest refine the advice and all have documented defaults."""
+
+    ticker: str
+    shares: float
+    averageCost: float  # noqa: N815 — the JSON API is camelCase throughout
+    purchaseDate: str | None = None  # noqa: N815
+    stop: float | None = None
+    target: float | None = None
+    investmentStyle: str | None = None  # noqa: N815
+    riskTolerance: str | None = None  # noqa: N815
+    allowPartialSell: bool | None = None  # noqa: N815
+
+    def fields(self) -> dict:
+        return {
+            "ticker": self.ticker,
+            "shares": self.shares,
+            "average_cost": self.averageCost,
+            "purchase_date": self.purchaseDate,
+            "stop": self.stop,
+            "target": self.target,
+            "investment_style": self.investmentStyle,
+            "risk_tolerance": self.riskTolerance,
+            "allow_partial_sell": self.allowPartialSell,
+        }
+
+
+def _require_exit_advisor(authorization: str | None):
+    """Mobile-API auth plus the feature flag, as one gate."""
+    settings = _require_mobile_api(authorization)
+    if not settings.position_exit_enabled:
+        raise HTTPException(status_code=404, detail="Not found")
+    return settings
+
+
+def _positions_payload(settings) -> dict:
+    return {
+        "positions": [p.as_dict() for p in list_positions(settings)],
+        "limits": {
+            "maxPositions": MAX_POSITIONS,
+            "investmentStyles": list(INVESTMENT_STYLES),
+            "riskTolerances": list(RISK_TOLERANCES),
+        },
+    }
+
+
+@app.get("/api/positions")
+def api_positions(authorization: str | None = Header(default=None)) -> dict:
+    """The user's saved holdings, plus what the editor is allowed to send."""
+    settings = _require_exit_advisor(authorization)
+    return _positions_payload(settings)
+
+
+@app.post("/api/positions")
+def api_create_position(
+    payload: PositionBody, authorization: str | None = Header(default=None)
+) -> dict:
+    settings = _require_exit_advisor(authorization)
+    try:
+        create_position(settings=settings, **payload.fields())
+    except PositionStoreError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _positions_payload(settings)
+
+
+@app.put("/api/positions/{position_id}")
+def api_update_position(
+    position_id: str,
+    payload: PositionBody,
+    authorization: str | None = Header(default=None),
+) -> dict:
+    settings = _require_exit_advisor(authorization)
+    try:
+        update_position(position_id, settings=settings, **payload.fields())
+    except PositionStoreError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _positions_payload(settings)
+
+
+@app.delete("/api/positions/{position_id}")
+def api_archive_position(
+    position_id: str, authorization: str | None = Header(default=None)
+) -> dict:
+    """Remove a holding. Archived, not deleted — a past analysis referenced it."""
+    settings = _require_exit_advisor(authorization)
+    try:
+        archive_position(position_id, settings=settings)
+    except PositionStoreError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _positions_payload(settings)
 
 
 class LanguageBody(BaseModel):
