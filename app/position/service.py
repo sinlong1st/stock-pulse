@@ -25,6 +25,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from app.config import Settings, get_settings
+from app.db.models import PositionExitAnalysisRow
 from app.earnings import local_today
 from app.position import math as pmath
 from app.position import rules as rule_engine
@@ -243,6 +244,56 @@ def _level_distances(price: float | None, indicators, nearest_support, resistanc
     }
 
 
+def _record(session, settings: Settings, payload: dict, request: ExitRequest) -> None:
+    """Persist the analysis snapshot for later scoring.
+
+    Best-effort, exactly like the Predict recorder: a bookkeeping failure must
+    never cost the user the analysis they just waited for. Nothing reads these
+    rows yet — see `PositionExitAnalysisRow` for why capture runs ahead of the
+    scorer.
+
+    The whole payload goes into `evidence_json` because §25.7 and §38 both need
+    the advice *as given*: recomputing levels later would score a reconstruction,
+    and any change to how support is derived would silently rewrite history.
+    """
+    if session is None or not settings.position_exit_recording_enabled:
+        return
+    try:
+        levels = payload.get("levels") or {}
+        advice = payload.get("advice") or {}
+        position = payload.get("position") or {}
+        hold = payload.get("holdRewardRisk") or {}
+        session.add(
+            PositionExitAnalysisRow(
+                position_id=request.position_id,
+                ticker=payload["ticker"],
+                shares=float(request.position.shares),
+                average_cost=float(request.position.average_cost),
+                price=position.get("currentPrice"),
+                # What the user was actually shown, which is what a later review
+                # has to judge — not the model's unedited opinion.
+                action=(advice.get("action") or (payload.get("rules") or {}).get("final")
+                        or "no-clear-edge"),
+                ai_action=advice.get("aiAction"),
+                rules_final=(payload.get("rules") or {}).get("final"),
+                confidence=advice.get("confidence"),
+                provider=advice.get("provider"),
+                support=levels.get("nearestSupport"),
+                resistance=levels.get("resistance"),
+                invalidation=levels.get("invalidation"),
+                atr14=(levels.get("distance") or {}).get("atr14"),
+                hold_reward_risk=hold.get("ratio"),
+                unrealized_pnl=position.get("unrealizedPnl"),
+                evidence_json=payload,
+                created_at=datetime.now(UTC),
+            )
+        )
+        session.commit()
+    except Exception:
+        logger.warning("Could not record the exit analysis", exc_info=True)
+        session.rollback()
+
+
 async def _analyze(
     settings: Settings,
     *,
@@ -360,6 +411,7 @@ async def build_exit_advice(
     request: ExitRequest,
     analyst=None,
     mode: str | None = None,
+    session=None,
     progress: Callable[[str], None] | None = None,
 ) -> dict:
     """Produce the exit analysis JSON, or `{ok: False, reason}` on failure.
@@ -516,7 +568,7 @@ async def build_exit_advice(
             ", ".join(f.code for f in rules.findings),
         )
 
-    return {
+    payload = {
         "ok": True,
         "positionId": request.position_id,
         "ticker": package.ticker,
@@ -592,3 +644,8 @@ async def build_exit_advice(
             else "Calculated figures — not investment advice."
         ),
     }
+
+    # Capture the snapshot for a scorer that doesn't exist yet. The price,
+    # levels and verdict as of this moment cannot be reconstructed later.
+    _record(session, settings, payload, request)
+    return payload

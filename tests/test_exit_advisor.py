@@ -9,9 +9,12 @@ The contract these tests defend:
    plausible-looking number.
 """
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 import app.config as config
 import app.main as main
@@ -19,6 +22,8 @@ import app.prediction.evidence as ev
 import app.prediction.market as market
 from app.briefing.focus import FocusTarget
 from app.config import Settings
+from app.db.database import Base
+from app.db.models import PositionExitAnalysisRow
 from app.position import store
 from app.position.advisor import ExitAdvisorError
 from app.position.models import ExitRead
@@ -485,6 +490,85 @@ async def test_no_provider_configured_means_no_ai_and_no_error(wired) -> None:
     """`wired` has no API key, so this is the real no-provider path."""
     got = await _advice(wired)
     assert got["ok"] is True and got["advice"] is None
+
+
+# --- recording the snapshot ------------------------------------------------
+
+
+@pytest.fixture
+def session():
+    engine = create_engine("sqlite:///:memory:", future=True)
+    Base.metadata.create_all(engine)
+    with sessionmaker(bind=engine, expire_on_commit=False)() as s:
+        yield s
+
+
+async def test_each_analysis_is_recorded(wired, session) -> None:
+    """Capture runs ahead of scoring: the price, levels and verdict as of this
+    moment cannot be reconstructed later, and horizons take weeks."""
+    await build_exit_advice(wired, request=_request(), session=session, analyst=_FakeAnalyst())
+
+    rows = session.query(PositionExitAnalysisRow).all()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.ticker == "WDC"
+    assert row.price == 130.0
+    assert row.support is not None and row.resistance is not None
+    assert row.atr14 is not None
+    assert row.unrealized_pnl == 600.0
+
+
+async def test_the_recorded_action_is_the_one_shown_not_the_model_s(wired, session) -> None:
+    """A later review has to judge the advice the user actually got. Both are
+    kept, so "did the rules help?" stays answerable."""
+    await build_exit_advice(wired, request=_request(), session=session, analyst=_FakeAnalyst())
+    row = session.query(PositionExitAnalysisRow).one()
+    assert row.ai_action == "hold"  # what the model said
+    assert row.action == "partial-sell"  # what the rules made of it
+    assert row.rules_final == "partial-sell"
+
+
+async def test_the_whole_payload_is_stored(wired, session) -> None:
+    """§25.7/§38: score the advice as given. Recomputing levels later would
+    score a reconstruction, and changing how support is derived would silently
+    rewrite history."""
+    await build_exit_advice(wired, request=_request(), session=session, analyst=_FakeAnalyst())
+    snapshot = session.query(PositionExitAnalysisRow).one().evidence_json
+    assert snapshot["ticker"] == "WDC"
+    assert snapshot["position"]["unrealizedPnl"] == 600.0
+    assert snapshot["giveback"] and snapshot["levels"]
+
+
+async def test_a_saved_position_records_its_id(wired, session) -> None:
+    request = replace(_request(), position_id="p_abc123")
+    await build_exit_advice(wired, request=request, session=session)
+    assert session.query(PositionExitAnalysisRow).one().position_id == "p_abc123"
+
+
+async def test_recording_can_be_switched_off(wired, session) -> None:
+    settings = Settings(_env_file=None, position_exit_recording_enabled=False)
+    await build_exit_advice(settings, request=_request(), session=session)
+    assert session.query(PositionExitAnalysisRow).count() == 0
+
+
+async def test_a_recording_failure_never_costs_the_analysis(wired, monkeypatch) -> None:
+    """Bookkeeping must not lose the answer the user just waited for."""
+
+    class _BrokenSession:
+        def add(self, _row):
+            raise RuntimeError("db is on fire")
+
+        def rollback(self):
+            pass
+
+    got = await build_exit_advice(wired, request=_request(), session=_BrokenSession())
+    assert got["ok"] is True
+    assert got["position"]["unrealizedPnl"] == 600.0
+
+
+async def test_no_session_means_no_recording_and_no_error(wired) -> None:
+    got = await build_exit_advice(wired, request=_request())
+    assert got["ok"] is True
 
 
 # --- endpoint --------------------------------------------------------------

@@ -709,7 +709,12 @@ async def api_exit_advisor(
     Costs data fetches only — no AI call, no tokens (plan Phase 4).
     """
     settings = _require_exit_advisor(authorization)
-    return await build_exit_advice(settings, request=_exit_request(payload, settings))
+    # The session lets the analysis be recorded for later scoring;
+    # build_exit_advice treats that as best-effort.
+    with SessionLocal() as session:
+        return await build_exit_advice(
+            settings, request=_exit_request(payload, settings), session=session
+        )
 
 
 @app.post("/api/positions/exit-advisor/stream")
@@ -725,7 +730,10 @@ async def api_exit_advisor_stream(
     request = _exit_request(payload, settings)
 
     async def run(progress):
-        return await build_exit_advice(settings, request=request, progress=progress)
+        with SessionLocal() as session:
+            return await build_exit_advice(
+                settings, request=request, session=session, progress=progress
+            )
 
     return StreamingResponse(
         sse_with_progress(run), media_type="text/event-stream", headers=SSE_HEADERS

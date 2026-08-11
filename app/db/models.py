@@ -79,6 +79,56 @@ class AlertRow(Base):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class PositionExitAnalysisRow(Base):
+    """The `position_exit_analyses` table: one row per exit analysis.
+
+    **Capture, not scoring.** Nothing reads these yet. They exist because the
+    snapshot is the part that cannot be reconstructed later — the price, the
+    levels, the volatility and the verdict *as they were at the moment of the
+    call* — while scoring is a pure function over that snapshot plus a future
+    price, so it can be written, rewritten or replaced at any time. Waiting for
+    the scoring design would have thrown away every analysis made meanwhile, and
+    horizons take weeks to mature.
+
+    `evidence_json` holds the whole payload the user actually saw. Spec §25.7 and
+    §38 both insist on storing it: without it, a later evaluation is scoring a
+    reconstruction rather than the advice that was given, and any change to how
+    support levels are computed would silently rewrite history.
+
+    Deliberately **not** in `predictions`: that table scores a *direction* over a
+    horizon, and an exit action is not a direction. Forcing `partial-sell` into
+    BULLISH/BEARISH would bake a lossy mapping into stored data instead of
+    leaving it as a reversible decision in the scorer.
+    """
+
+    __tablename__ = "position_exit_analyses"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # Null for a one-off position typed into the app rather than saved.
+    position_id: Mapped[str | None] = mapped_column(String(32), index=True, nullable=True)
+    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    shares: Mapped[float] = mapped_column(Float)
+    average_cost: Mapped[float] = mapped_column(Float)
+    price: Mapped[float] = mapped_column(Float)
+    # What was shown, and what each layer said on its own — so a later review can
+    # ask whether the rules helped or hurt, not just whether the call was right.
+    action: Mapped[str] = mapped_column(String(32), index=True)
+    ai_action: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    rules_final: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    confidence: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    provider: Mapped[str | None] = mapped_column(String(32), index=True, nullable=True)
+    # The levels the advice rested on. Kept as columns rather than only inside
+    # the JSON because every plausible scorer needs exactly these.
+    support: Mapped[float | None] = mapped_column(Float, nullable=True)
+    resistance: Mapped[float | None] = mapped_column(Float, nullable=True)
+    invalidation: Mapped[float | None] = mapped_column(Float, nullable=True)
+    atr14: Mapped[float | None] = mapped_column(Float, nullable=True)
+    hold_reward_risk: Mapped[float | None] = mapped_column(Float, nullable=True)
+    unrealized_pnl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    evidence_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
 class PredictionRow(Base):
     """The `predictions` table: one directional call, scored later against price.
 
