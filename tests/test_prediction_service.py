@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import app.config as config
 import app.main as main
+import app.prediction.evidence as ev
 import app.prediction.service as svc
 from app.briefing.focus import FocusTarget
 from app.config import Settings
@@ -30,8 +31,11 @@ class _FakeAnalyst:
 
 
 def _wire(monkeypatch, *, ticker="WDC", name="Western Digital"):
-    monkeypatch.setattr(svc, "resolve_focus", lambda q: FocusTarget(q, ticker, name, name))
-    monkeypatch.setattr(svc, "maybe_briefing_price_client", lambda s: None)
+    """Stub the outside world. The fetches live in `app.prediction.evidence`,
+    the shared research step — patching `service` would miss them and let the
+    tests reach the real Yahoo and news feeds."""
+    monkeypatch.setattr(ev, "resolve_focus", lambda q: FocusTarget(q, ticker, name, name))
+    monkeypatch.setattr(ev, "maybe_briefing_price_client", lambda s: None)
 
     async def fake_bars(t, **kw):
         return _bars([100, 120, 140, 130, 110])
@@ -42,9 +46,9 @@ def _wire(monkeypatch, *, ticker="WDC", name="Western Digital"):
     async def no_earnings(tickers, **kw):
         return {}
 
-    monkeypatch.setattr(svc, "fetch_bars", fake_bars)
-    monkeypatch.setattr(svc, "retrieve_fresh_news", fake_news)
-    monkeypatch.setattr(svc, "fetch_many", no_earnings)  # never touch Yahoo in tests
+    monkeypatch.setattr(ev, "fetch_bars", fake_bars)
+    monkeypatch.setattr(ev, "retrieve_fresh_news", fake_news)
+    monkeypatch.setattr(ev, "fetch_many", no_earnings)  # never touch Yahoo in tests
 
 
 async def test_build_prediction_assembles(monkeypatch) -> None:
@@ -88,7 +92,7 @@ async def test_long_term_support_sits_below_near_term(monkeypatch) -> None:
     async def fake_bars(t, **kw):
         return _bars(closes)
 
-    monkeypatch.setattr(svc, "fetch_bars", fake_bars)
+    monkeypatch.setattr(ev, "fetch_bars", fake_bars)
     out = await svc.build_prediction(Settings(_env_file=None), query="wdc", analyst=_FakeAnalyst())
 
     near, long = out["support"]["nearLevels"], out["support"]["longLevels"]
@@ -240,12 +244,12 @@ async def test_active_custom_strategy_drives_and_tags_the_prediction(monkeypatch
 
 
 async def test_build_prediction_unknown_ticker(monkeypatch) -> None:
-    monkeypatch.setattr(svc, "resolve_focus", lambda q: FocusTarget(q, None, None, q))
+    monkeypatch.setattr(ev, "resolve_focus", lambda q: FocusTarget(q, None, None, q))
 
     async def none_symbol(q, *, settings):
         return None
 
-    monkeypatch.setattr(svc, "resolve_symbol_smart", none_symbol)
+    monkeypatch.setattr(ev, "resolve_symbol_smart", none_symbol)
     out = await svc.build_prediction(Settings(_env_file=None), query="zzzz", analyst=_FakeAnalyst())
     assert out["ok"] is False and "Couldn't find" in out["reason"]
 
