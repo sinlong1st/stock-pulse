@@ -139,6 +139,23 @@ def _support_levels(bars: list[Bar], price: float | None) -> dict:
     }
 
 
+def key_levels(support: dict) -> tuple[float | None, float | None]:
+    """The nearest floor under the price, and the level that breaks the thesis.
+
+    One definition, used by Predict's evidence block and by the Exit Advisor.
+    Two copies would eventually disagree about the same stock on the same day,
+    which is the failure this whole module exists to prevent.
+
+    The thesis rests on the near-term floor *structure*, so it isn't broken by
+    losing the closest level — it's broken by closing under the deepest of them.
+    """
+    near = support.get("nearLevels") or []
+    long = support.get("longLevels") or []
+    nearest = near[0] if near else (long[0] if long else None)
+    invalidation = min(near) if near else (long[0] if long else None)
+    return nearest, invalidation
+
+
 async def _news_lines(target: FocusTarget, settings: Settings) -> list[str]:
     try:
         collectors = build_focus_collectors(target, settings)

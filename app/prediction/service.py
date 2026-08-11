@@ -19,7 +19,7 @@ from app.evaluation import record_prediction_read
 from app.prediction import rules as rule_engine
 from app.prediction.agreement import evaluate as evaluate_agreement
 from app.prediction.analyst import PredictionError, build_analyst
-from app.prediction.evidence import GATHER_STAGES, gather
+from app.prediction.evidence import GATHER_STAGES, gather, key_levels
 from app.prediction.mode import plan as analysis_plan
 from app.prediction.models import PredictionRead
 from app.prediction.store import get_active_strategy
@@ -56,12 +56,8 @@ def _evidence(
     Sent as numbers rather than sentences so the app can phrase them in the
     user's language. Anything we can't compute is null and the app hides it.
     """
-    near = support.get("nearLevels") or []
-    long = support.get("longLevels") or []
-    nearest = near[0] if near else (long[0] if long else None)
-    # The entry thesis rests on the near-term floor structure; a close under the
-    # deepest of those levels is what breaks it.
-    invalidation = min(near) if near else (long[0] if long else None)
+    # One shared definition — the Exit Advisor reads the same levels the same way.
+    nearest, invalidation = key_levels(support)
 
     support_pct = _pct(price, nearest) if price and nearest else None
     # The reward leg is the nearest level price actually stalled at, NOT the
