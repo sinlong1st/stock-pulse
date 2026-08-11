@@ -493,8 +493,10 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   },
 
   // position exit advisor — "I already own this: hold, trim or sell?"
+  // The pair reads as the two questions you can ask about one stock. "SELL?" is
+  // the question, not the answer — the verdict below it is just as often HOLD.
   'exit.tab.buy': { en: 'BUY?', vi: 'MUA?' },
-  'exit.tab.own': { en: 'I OWN IT', vi: 'ĐANG GIỮ' },
+  'exit.tab.own': { en: 'SELL?', vi: 'BÁN?' },
   'exit.shares': { en: 'Shares', vi: 'Số cổ' },
   'exit.avgCost': { en: 'Avg cost', vi: 'Giá vốn' },
   'exit.go': { en: 'Analyse', vi: 'Phân tích' },
@@ -503,10 +505,8 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
     en: 'Enter a ticker you own, how many shares and what you paid. StockPulse works out what holding is worth from today’s price.',
     vi: 'Nhập mã bạn đang giữ, số cổ và giá vốn. StockPulse sẽ tính xem việc tiếp tục giữ đáng giá bao nhiêu tính từ giá hôm nay.',
   },
-  'exit.needFields': {
-    en: 'Enter a ticker, share count and average cost.',
-    vi: 'Hãy nhập mã, số cổ và giá vốn.',
-  },
+  'exit.needShares': { en: 'How many shares?', vi: 'Bao nhiêu cổ?' },
+  'exit.needCost': { en: 'What did you pay?', vi: 'Giá vốn bao nhiêu?' },
   'exit.saved': { en: 'SAVED', vi: 'ĐÃ LƯU' },
   'exit.save': { en: 'Save this position', vi: 'Lưu vị thế này' },
   'exit.saveErr': { en: 'Couldn’t save that.', vi: 'Không lưu được.' },

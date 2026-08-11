@@ -140,6 +140,17 @@ export function PredictScreen() {
   const [avgCost, setAvgCost] = useState('');
   const [exit, setExit] = useState<ExitAdvice | null>(null);
   const exitStream = useRef<StreamHandle | null>(null);
+  // Set once the user has actually tried to run, so empty fields don't turn red
+  // the instant the tab opens — that reads as being told off for nothing.
+  const [attempted, setAttempted] = useState(false);
+
+  // A field is wrong if it holds something that isn't a positive number, or if
+  // it's empty and the user has already pressed the button.
+  const sharesNum = Number(shares);
+  const costNum = Number(avgCost);
+  const sharesBad = shares.trim() ? !(sharesNum > 0) : attempted;
+  const costBad = avgCost.trim() ? !(costNum > 0) : attempted;
+  const ownReady = !!query.trim() && sharesNum > 0 && costNum > 0;
 
   const runExit = useCallback(
     /** `silent` refreshes in the background, for the language switch — the user
@@ -148,10 +159,14 @@ export function PredictScreen() {
       const ticker = query.trim();
       const n = Number(shares);
       const cost = Number(avgCost);
+      // Nothing leaves the device until all three are real. An incomplete
+      // position can't be analysed anyway, and a round trip that was always
+      // going to fail still costs a model call.
       if (!ticker || !(n > 0) || !(cost > 0)) {
-        setError(t('exit.needFields'));
+        setAttempted(true);
         return;
       }
+      setAttempted(false);
       exitStream.current?.cancel();
       setError(null);
       if (!silent) {
@@ -342,6 +357,7 @@ export function PredictScreen() {
           onChange={(v) => {
             setTab(v as 'buy' | 'own');
             setError(null);
+            setAttempted(false); // a fresh tab shouldn't open already scolding
           }}
           renderLabel={(v) => t(`exit.tab.${v}`)}
         />
@@ -361,7 +377,16 @@ export function PredictScreen() {
         <Pressable
           onPress={go}
           disabled={loading || !query.trim()}
-          style={[styles.go, { backgroundColor: colors.accent, opacity: loading || !query.trim() ? 0.4 : 1 }]}
+          style={[
+            styles.go,
+            {
+              backgroundColor: colors.accent,
+              // Dimmed while the position is incomplete, but still pressable —
+              // pressing is how you find out which field is missing.
+              opacity:
+                loading || !query.trim() || (tab === 'own' && !ownReady) ? 0.4 : 1,
+            },
+          ]}
         >
           {loading ? (
             <ActivityIndicator size="small" color={colors.onAccent} />
@@ -386,8 +411,18 @@ export function PredictScreen() {
               placeholderTextColor={colors.faint}
               keyboardType="decimal-pad"
               onSubmitEditing={go}
-              style={[styles.input, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.dividerStrong }]}
+              style={[
+                styles.ownInput,
+                {
+                  color: colors.text,
+                  backgroundColor: colors.surface,
+                  borderColor: sharesBad ? colors.bear : colors.dividerStrong,
+                },
+              ]}
             />
+            {sharesBad ? (
+              <Text style={[styles.fieldErr, { color: colors.bear }]}>{t('exit.needShares')}</Text>
+            ) : null}
           </View>
           <View style={styles.ownField}>
             <Text style={[styles.ownLabel, { color: colors.faint }]}>{t('exit.avgCost')}</Text>
@@ -398,8 +433,18 @@ export function PredictScreen() {
               placeholderTextColor={colors.faint}
               keyboardType="decimal-pad"
               onSubmitEditing={go}
-              style={[styles.input, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.dividerStrong }]}
+              style={[
+                styles.ownInput,
+                {
+                  color: colors.text,
+                  backgroundColor: colors.surface,
+                  borderColor: costBad ? colors.bear : colors.dividerStrong,
+                },
+              ]}
             />
+            {costBad ? (
+              <Text style={[styles.fieldErr, { color: colors.bear }]}>{t('exit.needCost')}</Text>
+            ) : null}
           </View>
         </View>
       ) : null}
@@ -699,9 +744,22 @@ const styles = StyleSheet.create({
   topbarTitle: { fontSize: 14, fontWeight: '800' },
   inputRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
   tabRow: { paddingHorizontal: 16, paddingTop: 12 },
-  ownRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 8 },
+  ownRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingBottom: 10 },
   ownField: { flex: 1, gap: 4 },
   ownLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
+  // Deliberately NOT `styles.input`: that carries `flex: 1` for the ticker row,
+  // and inside this column it collapses the height — which clipped the text to
+  // invisibility and made the boxes look tiny. Height is stated here instead.
+  ownInput: {
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    minHeight: 48,
+    fontSize: 16,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  fieldErr: { fontSize: 10, fontWeight: '700', lineHeight: 14 },
   // Right padding matters: the ticker chips wrap, and with none the last chip in
   // a row sat flush against the screen edge while the first lined up at 16.
   picker: { paddingHorizontal: 16, paddingBottom: 10 },
