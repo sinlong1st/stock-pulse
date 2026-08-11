@@ -513,6 +513,245 @@ export async function activateStrategy(id: string): Promise<StrategiesInfo> {
   });
 }
 
+// --- position exit advisor -------------------------------------------------
+//
+// The other side of Predict: "I already own this — hold, trim or sell?". Every
+// dollar figure here is computed by the backend from real price levels; the AI
+// only writes the judgement and the words. See the `advice` block.
+
+export type ExitAction =
+  | 'hold'
+  | 'hold-with-stop'
+  | 'partial-sell'
+  | 'take-profit'
+  | 'reduce'
+  | 'exit'
+  | 'sell-into-strength'
+  | 'wait-for-confirmation'
+  | 'no-clear-edge';
+
+export type PositionSummary = {
+  shares: number;
+  averageCost: number;
+  currentPrice: number;
+  costBasis: number;
+  currentValue: number;
+  unrealizedPnl: number;
+  unrealizedPnlPct: number;
+  inProfit: boolean;
+  status: string;
+};
+
+export type GivebackLevel = {
+  support: number;
+  remainingPnl: number;
+  giveback: number;
+  givebackPctOfProfit: number | null;
+  pctMove: number;
+  /** Below the average cost — falling here is a loss, not "giving back profit",
+   *  so it must never be phrased as profit-taking (backend RULE-EXIT-011). */
+  belowCostBasis: boolean;
+};
+
+export type HoldRewardRisk = {
+  target: number;
+  support: number;
+  upsidePerShare: number;
+  downsidePerShare: number;
+  additionalProfit: number;
+  profitGiveback: number;
+  ratio: number;
+  label: 'strong' | 'attractive' | 'balanced' | 'weak' | 'poor';
+};
+
+export type PartialSellOption = {
+  pctRequested: number;
+  pctActual: number;
+  sharesSold: number;
+  sharesRemaining: number;
+  proceeds: number;
+  realizedPnl: number;
+  remainingValue: number;
+  remainingUnrealizedPnl: number;
+  additionalUpsideOnRemaining: number | null;
+  possible: boolean;
+};
+
+export type ExitScenario = {
+  name: 'bull' | 'base' | 'bear';
+  probability: number;
+  priceRange: { low: number; high: number };
+  positionValueRange: { low: number; high: number };
+  pnlRange: { low: number; high: number };
+  additionalPnlFromCurrentRange: { low: number; high: number };
+  trigger?: string;
+};
+
+export type ExitPlan = {
+  name: 'conservative' | 'balanced' | 'aggressive';
+  action: 'hold' | 'partial-sell' | 'sell-all';
+  sellPctNow: number | null;
+  stop: number | null;
+  firstTarget: number | null;
+  invalidation: number | null;
+  explanation: string;
+  sale: PartialSellOption | null;
+};
+
+export type ExitAdvice = {
+  ok: boolean;
+  reason?: string;
+  positionId?: string | null;
+  ticker?: string;
+  name?: string;
+  price?: string;
+  priceFresh?: string | null;
+  position?: PositionSummary;
+  giveback?: GivebackLevel[];
+  holdRewardRisk?: HoldRewardRisk | null;
+  /** The same math against the user's own target, when they set one. Kept
+   *  separate from the chart-based reading on purpose. */
+  atYourTarget?: HoldRewardRisk | null;
+  partialSell?: PartialSellOption[];
+  allowPartialSell?: boolean;
+  costBasisRecovery?: {
+    sharesNeeded: number;
+    sharesRemaining: number;
+    possible: boolean;
+    proceeds: number;
+  };
+  levels?: {
+    nearestSupport: number | null;
+    invalidation: number | null;
+    resistance: number | null;
+    stop: number | null;
+    target: number | null;
+    /** How far each leg is in ATRs — the context that says how much to trust
+     *  the reward/risk ratio. A support under ~0.5 ATR is inside daily noise. */
+    distance: { supportAtrs: number | null; resistanceAtrs: number | null; atr14: number | null };
+  };
+  technicals?: {
+    trend: 'up' | 'down' | 'sideways';
+    discountLevel: 'cheap' | 'fair' | 'rich';
+    rangeNote: string;
+    indicators: Record<string, number | null | { histogram?: number }>;
+    market: {
+      marketTrend: string | null;
+      vix: number | null;
+      vixRegime: string | null;
+      relative20d: number | null;
+      riskAppetite: string | null;
+    };
+  };
+  extension?: { aboveSma20Pct: number | null; aboveSma20Atrs: number | null };
+  relativeVolume?: number | null;
+  earningsInDays?: number | null;
+  rules?: {
+    original: ExitAction | null;
+    final: ExitAction | null;
+    overridden: boolean;
+    refreshRequired: boolean;
+    findings: { code: string; params: Record<string, unknown>; atLeast: string | null }[];
+  };
+  /** Null when no AI provider is configured — the numbers stand on their own. */
+  advice?: {
+    action: ExitAction;
+    aiAction: ExitAction;
+    confidence: 'low' | 'medium' | 'high';
+    thesis: string;
+    reasonsToHold: string[];
+    reasonsToSell: string[];
+    warnings: string[];
+    provider: string | null;
+  } | null;
+  scenarios?: ExitScenario[];
+  plans?: ExitPlan[];
+  series?: { closes: number[]; volumes: number[]; dates?: string[] };
+  disclaimer?: string;
+};
+
+export type ExitRequestBody = {
+  positionId?: string;
+  ticker?: string;
+  shares?: number;
+  averageCost?: number;
+  stop?: number | null;
+  target?: number | null;
+};
+
+export async function fetchExitAdvice(
+  body: ExitRequestBody,
+  signal?: AbortSignal,
+): Promise<ExitAdvice> {
+  requireBackend();
+  try {
+    return await request<ExitAdvice>('/api/positions/exit-advisor', {
+      method: 'POST',
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (e) {
+    // A 404 here has exactly one cause worth naming: the endpoint is gated by
+    // POSITION_EXIT_ENABLED, and the app ships over the air ahead of the
+    // server. "Server returned 404" would send you looking in the wrong place.
+    if (e instanceof Error && e.message.includes('404')) {
+      throw new Error(
+        'The server doesn’t have the exit advisor yet — deploy the backend and set POSITION_EXIT_ENABLED=true.',
+      );
+    }
+    throw e;
+  }
+}
+
+export type SavedPosition = {
+  id: string;
+  ticker: string;
+  shares: number;
+  averageCost: number;
+  purchaseDate: string | null;
+  stop: number | null;
+  target: number | null;
+  investmentStyle: string;
+  riskTolerance: string;
+  allowPartialSell: boolean;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PositionsInfo = {
+  positions: SavedPosition[];
+  limits: { maxPositions: number; investmentStyles: string[]; riskTolerances: string[] };
+};
+
+export async function fetchPositions(): Promise<PositionsInfo> {
+  requireBackend();
+  return getJson<PositionsInfo>('/api/positions');
+}
+
+export async function savePosition(body: {
+  ticker: string;
+  shares: number;
+  averageCost: number;
+  stop?: number | null;
+  target?: number | null;
+}): Promise<PositionsInfo> {
+  requireBackend();
+  return request<PositionsInfo>('/api/positions', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+/** Retires a holding. The server archives rather than deletes, so any past
+ *  analysis stays attributable. */
+export async function removePosition(id: string): Promise<PositionsInfo> {
+  requireBackend();
+  return request<PositionsInfo>(`/api/positions/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function registerPushToken(token: string, platform?: string): Promise<void> {
   requireBackend();
   await request('/api/push/register', {

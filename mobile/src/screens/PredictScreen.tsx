@@ -22,6 +22,7 @@ import {
   SecondOpinion,
   WhyThisCall,
 } from '../components/EntryEvidence';
+import { ExitAdviceView } from '../components/ExitAdvice';
 import { HackerLoader, LoaderPhase } from '../components/HackerLoader';
 import { MiniBars } from '../components/MiniBars';
 import { PriceChart } from '../components/PriceChart';
@@ -30,7 +31,10 @@ import { Segmented } from '../components/Segmented';
 import { WatchlistPicker } from '../components/WatchlistPicker';
 import {
   AnalysisMode,
+  ExitAdvice,
+  fetchExitAdvice,
   fetchMode,
+  isAborted,
   Lean,
   ModeInfo,
   Prediction,
@@ -129,6 +133,56 @@ export function PredictScreen() {
   const stream = useRef<StreamHandle | null>(null);
   const [stageIndex, setStageIndex] = useState<number | null>(null);
 
+  // Which question is being asked. Two very different questions about the same
+  // ticker, so the ticker box is shared and everything below it swaps.
+  const [tab, setTab] = useState<'buy' | 'own'>('buy');
+  const [shares, setShares] = useState('');
+  const [avgCost, setAvgCost] = useState('');
+  const [exit, setExit] = useState<ExitAdvice | null>(null);
+  const exitAbort = useRef<AbortController | null>(null);
+
+  const runExit = useCallback(
+    /** `silent` refreshes in the background, for the language switch — the user
+     *  didn't ask to wait for that one. */
+    ({ silent = false }: { silent?: boolean } = {}) => {
+      const ticker = query.trim();
+      const n = Number(shares);
+      const cost = Number(avgCost);
+      if (!ticker || !(n > 0) || !(cost > 0)) {
+        setError(t('exit.needFields'));
+        return;
+      }
+      exitAbort.current?.abort();
+      const ctrl = new AbortController();
+      exitAbort.current = ctrl;
+      setError(null);
+      if (!silent) {
+        setPhase('running');
+        setStageIndex(null);
+      }
+      fetchExitAdvice({ ticker, shares: n, averageCost: cost }, ctrl.signal)
+        .then((result) => {
+          exitAbort.current = null;
+          if (result.ok) {
+            setExit(result);
+            lastQuery.current = ticker;
+            if (!silent) setPhase('done');
+          } else {
+            setExit(null);
+            setError(result.reason ?? t('predict.genErr'));
+            if (!silent) setPhase('idle');
+          }
+        })
+        .catch((e) => {
+          exitAbort.current = null;
+          if (isAborted(e)) return;
+          setError(e instanceof Error ? e.message : String(e));
+          if (!silent) setPhase('idle');
+        });
+    },
+    [query, shares, avgCost, t],
+  );
+
   const run = useCallback(
     /** `silent` refreshes in the background — no takeover loader. Used by the
      *  language switch, which the user didn't ask to wait for.
@@ -184,8 +238,22 @@ export function PredictScreen() {
   const cancel = () => {
     stream.current?.cancel();
     stream.current = null;
+    exitAbort.current?.abort();
+    exitAbort.current = null;
     setPhase('idle');
   };
+
+  /** Whichever question the current tab asks. */
+  const go = useCallback(() => (tab === 'own' ? runExit() : run()), [tab, runExit, run]);
+
+  // Chrome re-renders instantly via t(), but the exit thesis and reasons are
+  // written server-side in the user's language — re-ask so they catch up too.
+  const fetchedExitLang = useRef(language);
+  useEffect(() => {
+    if (fetchedExitLang.current === language) return;
+    fetchedExitLang.current = language;
+    if (tab === 'own' && exit) runExit({ silent: true });
+  }, [language, tab, exit, runExit]);
 
   // Best-effort: if this fails the picker just stays hidden and predictions run
   // on the server's default, which is exactly the old behaviour.
@@ -217,11 +285,21 @@ export function PredictScreen() {
   // ticker the server actually resolved rather than echoing the user's typo.
   const watchlist = useWatchlist();
   const loaderHeadline = useMemo(() => {
-    const resolved = phase === 'done' ? pred?.ticker : null;
-    return resolved ?? guessTicker(watchlist, query) ?? t('loader.predict.headline');
-  }, [phase, pred, watchlist, query, t]);
+    const resolved = phase === 'done' ? (tab === 'own' ? exit?.ticker : pred?.ticker) : null;
+    return (
+      resolved ??
+      guessTicker(watchlist, query) ??
+      t(tab === 'own' ? 'loader.exit.headline' : 'loader.predict.headline')
+    );
+  }, [phase, pred, exit, tab, watchlist, query, t]);
 
-  const loaderSteps = useMemo(() => [1, 2, 3, 4].map((n) => t(`loader.predict.step${n}`)), [t]);
+  const loaderSteps = useMemo(
+    () =>
+      tab === 'own'
+        ? [1, 2, 3, 4, 5].map((n) => t(`loader.exit.step${n}`))
+        : [1, 2, 3, 4].map((n) => t(`loader.predict.step${n}`)),
+    [t, tab],
+  );
   const loaderLogs = useMemo(
     () => [1, 2, 3, 4, 5, 6, 7, 8].map((n) => t(`loader.predict.log${n}`)),
     [t],
@@ -254,6 +332,21 @@ export function PredictScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader kicker={t('predict.kicker')} title={t('predict.title')} />
 
+      {/* Two questions about the same stock: should I buy it, and — the other
+          half — I already own it, now what? Sharing the ticker box is the point;
+          switching tabs keeps whatever you typed. */}
+      <View style={styles.tabRow}>
+        <Segmented
+          options={['buy', 'own']}
+          value={tab}
+          onChange={(v) => {
+            setTab(v as 'buy' | 'own');
+            setError(null);
+          }}
+          renderLabel={(v) => t(`exit.tab.${v}`)}
+        />
+      </View>
+
       <View style={styles.inputRow}>
         <TextInput
           value={query}
@@ -262,21 +355,54 @@ export function PredictScreen() {
           placeholderTextColor={colors.faint}
           autoCapitalize="characters"
           autoCorrect={false}
-          onSubmitEditing={() => run()}
+          onSubmitEditing={go}
           style={[styles.input, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.dividerStrong }]}
         />
         <Pressable
-          onPress={() => run()}
+          onPress={go}
           disabled={loading || !query.trim()}
           style={[styles.go, { backgroundColor: colors.accent, opacity: loading || !query.trim() ? 0.4 : 1 }]}
         >
           {loading ? (
             <ActivityIndicator size="small" color={colors.onAccent} />
           ) : (
-            <Text style={[styles.goText, { color: colors.onAccent }]}>{t('predict.go')}</Text>
+            <Text style={[styles.goText, { color: colors.onAccent }]}>
+              {t(tab === 'own' ? 'exit.go' : 'predict.go')}
+            </Text>
           )}
         </Pressable>
       </View>
+
+      {/* What you hold. Only these two are required — everything else the
+          advisor needs comes from real market data. */}
+      {tab === 'own' ? (
+        <View style={styles.ownRow}>
+          <View style={styles.ownField}>
+            <Text style={[styles.ownLabel, { color: colors.faint }]}>{t('exit.shares')}</Text>
+            <TextInput
+              value={shares}
+              onChangeText={setShares}
+              placeholder="20"
+              placeholderTextColor={colors.faint}
+              keyboardType="decimal-pad"
+              onSubmitEditing={go}
+              style={[styles.input, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.dividerStrong }]}
+            />
+          </View>
+          <View style={styles.ownField}>
+            <Text style={[styles.ownLabel, { color: colors.faint }]}>{t('exit.avgCost')}</Text>
+            <TextInput
+              value={avgCost}
+              onChangeText={setAvgCost}
+              placeholder="420.00"
+              placeholderTextColor={colors.faint}
+              keyboardType="decimal-pad"
+              onSubmitEditing={go}
+              style={[styles.input, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.dividerStrong }]}
+            />
+          </View>
+        </View>
+      ) : null}
 
       <View style={styles.picker}>
         <WatchlistPicker
@@ -296,7 +422,7 @@ export function PredictScreen() {
           A segmented control, not chips: the tickers above are chips, and two
           controls that look alike read as one list. This is a mode switch, so it
           borrows the same joined bar the chart range uses. */}
-      {modeInfo && modeInfo.available.length > 1 ? (
+      {modeInfo && modeInfo.available.length > 1 && tab === 'buy' ? (
         <View style={styles.modeRow}>
           <Text style={[styles.modeLabel, { color: colors.faint }]}>{t('predict.modeLabel')}</Text>
           <View
@@ -318,6 +444,21 @@ export function PredictScreen() {
           <Feather name="alert-triangle" size={30} color={colors.accent} />
           <Text style={[styles.centerBody, { color: colors.muted }]}>{error}</Text>
         </View>
+      ) : tab === 'own' ? (
+        exit ? (
+          <ScrollView
+            contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 28 }]}
+            showsVerticalScrollIndicator={false}
+          >
+            <ExitAdviceView data={exit} />
+          </ScrollView>
+        ) : (
+          <View style={styles.center}>
+            <Feather name="briefcase" size={34} color={colors.muted} />
+            <Text style={[styles.centerTitle, { color: colors.text }]}>{t('exit.emptyTitle')}</Text>
+            <Text style={[styles.centerBody, { color: colors.muted }]}>{t('exit.emptyBody')}</Text>
+          </View>
+        )
       ) : !pred ? (
         <View style={styles.center}>
           <Feather name="compass" size={34} color={colors.muted} />
@@ -504,8 +645,8 @@ export function PredictScreen() {
       <HackerLoader
         phase={phase}
         onDone={() => setPhase('idle')}
-        kicker={t('loader.predict.kicker')}
-        scrambleWord={t('loader.predict.scramble')}
+        kicker={t(tab === 'own' ? 'loader.exit.kicker' : 'loader.predict.kicker')}
+        scrambleWord={t(tab === 'own' ? 'loader.exit.scramble' : 'loader.predict.scramble')}
         headline={loaderHeadline}
         steps={loaderSteps}
         stageIndex={stageIndex}
@@ -557,6 +698,10 @@ const styles = StyleSheet.create({
   topbar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingTop: 6, paddingBottom: 12, borderBottomWidth: 2 },
   topbarTitle: { fontSize: 14, fontWeight: '800' },
   inputRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
+  tabRow: { paddingHorizontal: 16, paddingTop: 12 },
+  ownRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 8 },
+  ownField: { flex: 1, gap: 4 },
+  ownLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
   // Right padding matters: the ticker chips wrap, and with none the last chip in
   // a row sat flush against the screen edge while the first lined up at 16.
   picker: { paddingHorizontal: 16, paddingBottom: 10 },

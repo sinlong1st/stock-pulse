@@ -491,4 +491,159 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
     en: 'AI-generated summary. Not investment advice — verify against the source before acting.',
     vi: 'Tóm tắt do AI tạo. Không phải lời khuyên đầu tư — hãy kiểm chứng nguồn trước khi hành động.',
   },
+
+  // position exit advisor — "I already own this: hold, trim or sell?"
+  'exit.tab.buy': { en: 'BUY?', vi: 'MUA?' },
+  'exit.tab.own': { en: 'I OWN IT', vi: 'ĐANG GIỮ' },
+  'exit.shares': { en: 'Shares', vi: 'Số cổ' },
+  'exit.avgCost': { en: 'Avg cost', vi: 'Giá vốn' },
+  'exit.go': { en: 'Analyse', vi: 'Phân tích' },
+  'exit.emptyTitle': { en: 'Hold, trim or sell?', vi: 'Giữ, bán bớt hay bán hết?' },
+  'exit.emptyBody': {
+    en: 'Enter a ticker you own, how many shares and what you paid. StockPulse works out what holding is worth from today’s price.',
+    vi: 'Nhập mã bạn đang giữ, số cổ và giá vốn. StockPulse sẽ tính xem việc tiếp tục giữ đáng giá bao nhiêu tính từ giá hôm nay.',
+  },
+  'exit.needFields': {
+    en: 'Enter a ticker, share count and average cost.',
+    vi: 'Hãy nhập mã, số cổ và giá vốn.',
+  },
+  'exit.saved': { en: 'SAVED', vi: 'ĐÃ LƯU' },
+  'exit.save': { en: 'Save this position', vi: 'Lưu vị thế này' },
+  'exit.saveErr': { en: 'Couldn’t save that.', vi: 'Không lưu được.' },
+  'exit.remove': { en: 'Remove', vi: 'Xoá' },
+
+  'exit.verdict': { en: 'WHAT TO DO', vi: 'NÊN LÀM GÌ' },
+  'exit.overridden': {
+    en: 'The AI said “{ai}”. The risk rules below moved it.',
+    vi: 'AI nói “{ai}”. Các quy tắc rủi ro bên dưới đã điều chỉnh lại.',
+  },
+  'exit.position': { en: 'YOUR POSITION', vi: 'VỊ THẾ CỦA BẠN' },
+  'exit.costBasis': { en: 'Cost basis', vi: 'Vốn bỏ ra' },
+  'exit.value': { en: 'Value now', vi: 'Giá trị hiện tại' },
+  'exit.pnl': { en: 'Unrealised P&L', vi: 'Lãi/lỗ chưa chốt' },
+
+  'exit.holdVsSell': { en: 'HOLD VS SELL', vi: 'GIỮ HAY BÁN' },
+  'exit.lockNow': { en: 'Lock in now', vi: 'Chốt ngay bây giờ' },
+  'exit.upsideTo': { en: 'If it runs to {level}', vi: 'Nếu lên tới {level}' },
+  'exit.givebackTo': { en: 'If it falls to {level}', vi: 'Nếu rơi về {level}' },
+  'exit.rr': { en: 'Reward vs risk from here', vi: 'Lợi/rủi ro tính từ đây' },
+  'exit.rr.strong': { en: 'STRONG', vi: 'MẠNH' },
+  'exit.rr.attractive': { en: 'ATTRACTIVE', vi: 'HẤP DẪN' },
+  'exit.rr.balanced': { en: 'BALANCED', vi: 'CÂN BẰNG' },
+  'exit.rr.weak': { en: 'WEAK', vi: 'YẾU' },
+  'exit.rr.poor': { en: 'POOR', vi: 'KÉM' },
+  'exit.noRr': {
+    en: 'No clear level above or below, so there is no meaningful ratio to quote.',
+    vi: 'Không có mốc rõ ràng ở trên hoặc dưới, nên không có tỷ lệ nào đáng nêu.',
+  },
+  'exit.noisySupport': {
+    en: 'Careful: that floor is only {atrs} ATR away — inside one ordinary day’s move, so the ratio above flatters the trade.',
+    vi: 'Lưu ý: mốc đó chỉ cách {atrs} ATR — nằm trong biên độ một ngày bình thường, nên tỷ lệ ở trên đang đẹp hơn thực tế.',
+  },
+  'exit.yourTarget': {
+    en: 'Against your own target {level}: {profit} more, {ratio} to 1.',
+    vi: 'So với mục tiêu của bạn {level}: thêm {profit}, tỷ lệ {ratio}.',
+  },
+
+  'exit.giveback': { en: 'IF IT FALLS', vi: 'NẾU GIÁ RƠI' },
+  'exit.keeps': { en: 'you still keep {amount}', vi: 'bạn vẫn giữ được {amount}' },
+  'exit.wouldLose': { en: 'you would be at {amount}', vi: 'bạn sẽ ở mức {amount}' },
+
+  'exit.partial': { en: 'IF YOU TRIM', vi: 'NẾU BÁN BỚT' },
+  'exit.shares.n': { en: '{n} shares', vi: '{n} cổ' },
+  'exit.partialHint': {
+    en: 'Proceeds and realised P&L are approximate — real tax lots may differ.',
+    vi: 'Tiền thu về và lãi đã chốt chỉ là ước tính — lô thuế thực tế có thể khác.',
+  },
+
+  'exit.scenarios': { en: 'SCENARIOS', vi: 'CÁC KỊCH BẢN' },
+  'exit.scenario.bull': { en: 'BULL', vi: 'TỐT' },
+  'exit.scenario.base': { en: 'BASE', vi: 'CƠ SỞ' },
+  'exit.scenario.bear': { en: 'BEAR', vi: 'XẤU' },
+  'exit.fromHere': { en: 'From here:', vi: 'Tính từ đây:' },
+
+  'exit.plans': { en: 'THREE WAYS TO PLAY IT', vi: 'BA CÁCH XỬ LÝ' },
+  'exit.plan.conservative': { en: 'CONSERVATIVE', vi: 'THẬN TRỌNG' },
+  'exit.plan.balanced': { en: 'BALANCED', vi: 'CÂN BẰNG' },
+  'exit.plan.aggressive': { en: 'AGGRESSIVE', vi: 'MẠO HIỂM' },
+  'exit.sellPct': { en: 'Sell {pct}%', vi: 'Bán {pct}%' },
+  'exit.holdAll': { en: 'Hold it all', vi: 'Giữ toàn bộ' },
+  'exit.stop': { en: 'Stop', vi: 'Cắt lỗ' },
+  'exit.target': { en: 'Target', vi: 'Mục tiêu' },
+  'exit.invalidation': { en: 'Thesis breaks', vi: 'Mất lý do giữ' },
+
+  'exit.why': { en: 'WHY', vi: 'VÌ SAO' },
+  'exit.context': { en: 'CONTEXT', vi: 'BỐI CẢNH' },
+  'exit.vsSma20': { en: '{atrs} ATR vs 20D', vi: '{atrs} ATR so với 20N' },
+  'exit.relVol': { en: 'VOL {x}×', vi: 'KL {x}×' },
+  'exit.earningsIn': { en: 'EARNINGS IN {days}D', vi: 'BCTC SAU {days}N' },
+  'exit.market': { en: 'Market {trend} · VIX {vix} ({regime})', vi: 'Thị trường {trend} · VIX {vix} ({regime})' },
+  'exit.vsMarket': { en: '{pts} pts vs market (20D)', vi: '{pts} điểm so với thị trường (20N)' },
+  'exit.refresh': {
+    en: 'The quote is stale while the market is open — refresh before acting on this.',
+    vi: 'Giá đang cũ trong lúc thị trường mở cửa — hãy làm mới trước khi hành động.',
+  },
+
+  // exposure ladder (spec §3.3)
+  'exit.action.hold': { en: 'HOLD', vi: 'GIỮ' },
+  'exit.action.hold-with-stop': { en: 'HOLD WITH A STOP', vi: 'GIỮ, CÓ CẮT LỖ' },
+  'exit.action.partial-sell': { en: 'SELL SOME', vi: 'BÁN BỚT' },
+  'exit.action.take-profit': { en: 'TAKE PROFIT', vi: 'CHỐT LỜI' },
+  'exit.action.reduce': { en: 'REDUCE', vi: 'GIẢM MẠNH' },
+  'exit.action.exit': { en: 'EXIT', vi: 'BÁN HẾT' },
+  'exit.action.sell-into-strength': { en: 'SELL INTO STRENGTH', vi: 'BÁN KHI ĐANG MẠNH' },
+  'exit.action.wait-for-confirmation': { en: 'WAIT', vi: 'CHỜ XÁC NHẬN' },
+  'exit.action.no-clear-edge': { en: 'NO CLEAR EDGE', vi: 'CHƯA RÕ LỢI THẾ' },
+
+  // deterministic rule findings (codes + numbers from the backend)
+  'exit.rule.stale-quote': {
+    en: 'The last price is {minutes} minutes old.',
+    vi: 'Giá cuối cùng đã cũ {minutes} phút.',
+  },
+  'exit.rule.invalid-stop': {
+    en: 'Your stop at {stop} is not below the price — it would trigger immediately.',
+    vi: 'Mức cắt lỗ {stop} không nằm dưới giá — sẽ khớp ngay lập tức.',
+  },
+  'exit.rule.earnings-imminent': {
+    en: 'Earnings in {days} days: holding it all is choosing to take event risk.',
+    vi: 'Còn {days} ngày tới báo cáo: giữ nguyên là chấp nhận rủi ro sự kiện.',
+  },
+  'exit.rule.weak-hold-reward-risk': {
+    en: 'Only {ratio} to 1 left from here (below {minimum}) — trimming is the percentage play.',
+    vi: 'Chỉ còn tỷ lệ {ratio} tính từ đây (dưới {minimum}) — bán bớt là lựa chọn hợp lý hơn.',
+  },
+  'exit.rule.support-broken': {
+    en: 'Price is below every recent floor — there is nothing near to lean on.',
+    vi: 'Giá đã xuống dưới mọi đáy gần đây — không còn mốc đỡ nào ở gần.',
+  },
+  'exit.rule.trend-deterioration': {
+    en: 'The trend that justified holding is coming apart.',
+    vi: 'Xu hướng từng là lý do để giữ đang xấu đi.',
+  },
+  'exit.rule.extended': {
+    en: 'Stretched well above its average — some profit-taking is the percentage play.',
+    vi: 'Đang căng khá xa so với đường trung bình — chốt bớt là lựa chọn hợp lý.',
+  },
+  'exit.rule.valid-breakout': {
+    en: 'Extended, but this is a real breakout on confirming volume — not a reason to sell on its own.',
+    vi: 'Có căng, nhưng đây là cú bứt phá thật với khối lượng xác nhận — chưa phải lý do để bán.',
+  },
+  'exit.rule.below-cost': {
+    en: 'You are below your average cost, so none of this is profit-taking.',
+    vi: 'Bạn đang dưới giá vốn, nên đây không phải là chốt lời.',
+  },
+  'exit.rule.support-inside-noise': {
+    en: 'The nearest floor is only {atrs} ATR away — inside a normal day’s move.',
+    vi: 'Mốc đỡ gần nhất chỉ cách {atrs} ATR — nằm trong biên độ một ngày bình thường.',
+  },
+
+  // loader (exit)
+  'loader.exit.kicker': { en: 'POSITION', vi: 'VỊ THẾ' },
+  'loader.exit.scramble': { en: 'EXIT', vi: 'THOÁT' },
+  'loader.exit.headline': { en: 'YOUR POSITION', vi: 'VỊ THẾ CỦA BẠN' },
+  'loader.exit.step1': { en: 'Finding the stock', vi: 'Tìm cổ phiếu' },
+  'loader.exit.step2': { en: 'Pricing the position', vi: 'Định giá vị thế' },
+  'loader.exit.step3': { en: 'Reading the news', vi: 'Đọc tin tức' },
+  'loader.exit.step4': { en: 'Checking the market', vi: 'Kiểm tra thị trường' },
+  'loader.exit.step5': { en: 'Weighing hold vs sell', vi: 'Cân giữ hay bán' },
 };
