@@ -642,8 +642,11 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   },
 
   // loader (exit)
-  'loader.exit.kicker': { en: 'ANALYSING EXIT', vi: 'PHÂN TÍCH BÁN' },
-  'loader.exit.scramble': { en: 'EXIT', vi: 'THOÁT' },
+  'loader.exit.kicker': { en: 'ANALYSING EXIT ENTRY', vi: 'PHÂN TÍCH ENTRY BÁN' },
+  // The big scrambling word. Kept SHORT on purpose: it renders at 34px with
+  // numberOfLines={1}, so anything longer than ~10 characters is clipped.
+  // The full phrase lives in the kicker above it.
+  'loader.exit.scramble': { en: 'ANALYSING', vi: 'PHÂN TÍCH' },
   'loader.exit.headline': { en: 'YOUR POSITION', vi: 'VỊ THẾ CỦA BẠN' },
   'loader.exit.step1': { en: 'Finding the stock', vi: 'Tìm cổ phiếu' },
   'loader.exit.step2': { en: 'Pricing the position', vi: 'Định giá vị thế' },
