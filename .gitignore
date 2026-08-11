@@ -47,10 +47,15 @@ strategies.json
 # The Docker volume (docker-compose mounts ./data:/app/data). Everything the
 # running service writes lands here: the database, runtime prefs, push tokens,
 # strategies, positions. None of it is config and some of it is personal, so the
-# whole directory is ignored explicitly — until now it was covered only as a
-# side effect of the unanchored patterns above matching at any depth, which is
-# not a protection worth resting personal data on.
-data/
+# whole directory is ignored explicitly — it used to be covered only as a side
+# effect of the unanchored patterns above matching at any depth, which is not a
+# protection worth resting personal data on.
+#
+# ANCHORED, and it has to stay that way: a bare `data/` matches a directory of
+# that name at ANY depth, which silently swallowed `mobile/src/data/` — the
+# app's entire API layer. Same trap as the unanchored `watchlist.json` that
+# swallowed the CI fixture.
+/data/
 
 # Testing / tooling caches
 .pytest_cache/
