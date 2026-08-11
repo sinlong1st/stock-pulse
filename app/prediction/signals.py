@@ -86,8 +86,15 @@ async def fetch_bars(
     return bars
 
 
-def _trend(closes: list[float], *, short: int = 10, long: int = 30, band: float = 0.01) -> Trend:
-    """Short-vs-long moving-average lean, with a small flat band."""
+def classify_trend(
+    closes: list[float], *, short: int = 10, long: int = 30, band: float = 0.01
+) -> Trend:
+    """Short-vs-long moving-average lean, with a small flat band.
+
+    Public because `market.py` reads the index's trend the same way — the broad
+    market has to be judged on the same definition as the stock, or "stock up,
+    market sideways" could just be two different definitions of up.
+    """
     if len(closes) < 5:
         return "sideways"
     if len(closes) < long + 1:  # scale windows to what we have
@@ -213,4 +220,4 @@ def compute_signals(bars: list[Bar], price: float | None, *, range_months: int =
     )
     discount_note = f"Near the {where} of its {range_months}-month range."
 
-    return Signals(lo, hi, level, range_note, discount_note, _trend(closes), True)
+    return Signals(lo, hi, level, range_note, discount_note, classify_trend(closes), True)
