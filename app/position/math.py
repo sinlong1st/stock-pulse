@@ -245,6 +245,18 @@ class GivebackLevel:
     giveback_pct_of_profit: Decimal | None
     pct_move: Decimal  # how far price has to fall to get there, in percent
 
+    @property
+    def below_cost_basis(self) -> bool:
+        """This level sits under the average cost.
+
+        Falling to it isn't "giving back profit" — it's taking a loss, and the
+        percentage-of-profit figure goes past 100% to say so. Flagged rather
+        than clamped, because the dollar numbers are still exactly right and
+        hiding them would be worse. RULE-EXIT-011 is the rule this serves: the
+        app must not phrase these levels as profit-taking.
+        """
+        return self.remaining_pnl < 0
+
     def as_dict(self) -> dict:
         return {
             "support": _f(self.support),
@@ -252,6 +264,7 @@ class GivebackLevel:
             "giveback": _f(self.giveback),
             "givebackPctOfProfit": _f(self.giveback_pct_of_profit),
             "pctMove": _f(self.pct_move),
+            "belowCostBasis": self.below_cost_basis,
         }
 
 

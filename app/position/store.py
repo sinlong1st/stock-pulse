@@ -215,7 +215,7 @@ def _new_id(existing: dict[str, dict]) -> str:
             return candidate
 
 
-def _record_from(
+def validate_fields(
     *,
     ticker: str,
     shares: object,
@@ -228,6 +228,10 @@ def _record_from(
     allow_partial_sell: object = None,
 ) -> dict:
     """Validate one position's worth of user input into a storable record.
+
+    Public because the Exit Advisor validates unsaved, one-off positions through
+    it too — an inline request must never be accepted where a saved one would be
+    refused.
 
     Shares and average cost go through the math module's own validation, so a
     position that can be saved is always a position that can be analyzed.
@@ -310,7 +314,7 @@ def create_position(
     now = datetime.now(tz=UTC).isoformat()
     position_id = _new_id(records)
     records[position_id] = {
-        **_record_from(**fields),  # type: ignore[arg-type]
+        **validate_fields(**fields),  # type: ignore[arg-type]
         "id": position_id,
         "archived": False,
         "created_at": now,
@@ -341,7 +345,7 @@ def update_position(
 
     records[position_id] = {
         **record,
-        **_record_from(**fields),  # type: ignore[arg-type]
+        **validate_fields(**fields),  # type: ignore[arg-type]
         "id": position_id,
         "updated_at": datetime.now(tz=UTC).isoformat(),
     }
@@ -385,4 +389,5 @@ __all__ = [
     "get_position",
     "list_positions",
     "update_position",
+    "validate_fields",
 ]

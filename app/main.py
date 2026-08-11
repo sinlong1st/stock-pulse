@@ -3,6 +3,7 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from datetime import UTC, datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -62,6 +63,12 @@ from app.logging_config import configure_logging
 from app.pipeline.classifier import ClassificationError, build_classifier
 from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
+from app.position.service import (
+    ExitRequest,
+    build_exit_advice,
+    request_from_fields,
+    request_from_saved,
+)
 from app.position.store import (
     INVESTMENT_STYLES,
     MAX_POSITIONS,
@@ -69,6 +76,7 @@ from app.position.store import (
     PositionStoreError,
     archive_position,
     create_position,
+    get_position,
     list_positions,
     update_position,
 )
@@ -649,6 +657,59 @@ def api_archive_position(
     except PositionStoreError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _positions_payload(settings)
+
+
+class ExitAdvisorBody(BaseModel):
+    """Either a saved position by id, or a one-off position inline (spec §33)."""
+
+    positionId: str | None = None  # noqa: N815 — camelCase JSON API
+    ticker: str | None = None
+    shares: float | None = None
+    averageCost: float | None = None  # noqa: N815
+    stop: float | None = None
+    target: float | None = None
+    allowPartialSell: bool | None = None  # noqa: N815
+    allowFractionalShares: bool = False  # noqa: N815
+
+
+def _exit_request(payload: ExitAdvisorBody, settings) -> ExitRequest:
+    """Turn either request shape into one validated `ExitRequest`."""
+    if payload.positionId:
+        saved = get_position(payload.positionId, settings)
+        if saved is None or saved.archived:
+            raise HTTPException(status_code=404, detail="That position no longer exists.")
+        request = request_from_saved(saved)
+    elif payload.ticker is not None:
+        try:
+            request = request_from_fields(
+                ticker=payload.ticker,
+                shares=payload.shares,
+                average_cost=payload.averageCost,
+                stop=payload.stop,
+                target=payload.target,
+                allow_partial_sell=payload.allowPartialSell,
+            )
+        except PositionStoreError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    else:
+        raise HTTPException(
+            status_code=400, detail="Send either positionId, or ticker with shares and averageCost."
+        )
+    if payload.allowFractionalShares:
+        request = replace(request, allow_fractional_shares=True)
+    return request
+
+
+@app.post("/api/positions/exit-advisor")
+async def api_exit_advisor(
+    payload: ExitAdvisorBody, authorization: str | None = Header(default=None)
+) -> dict:
+    """Hold / trim / exit analysis for a position the user already owns.
+
+    Costs data fetches only — no AI call, no tokens (plan Phase 4).
+    """
+    settings = _require_exit_advisor(authorization)
+    return await build_exit_advice(settings, request=_exit_request(payload, settings))
 
 
 class LanguageBody(BaseModel):
