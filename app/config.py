@@ -110,6 +110,10 @@ class Settings(BaseSettings):
     # snapshot is the part that can't be reconstructed later, and horizons take
     # weeks, so capture deliberately runs ahead of the scorer.
     position_exit_recording_enabled: bool = True
+    # How long analyses are kept, in days. Pruned on write, so the table has
+    # a fixed ceiling (~a few MB at 30 days) rather than growing forever.
+    # 0 keeps everything — which is what a future scorer would need.
+    position_exit_history_days: int = 30
     # Below this incremental hold reward/risk, trimming is the percentage play.
     # Lower than Predict's 1.5 on purpose: that gate decides whether to open a
     # position at all, while this one only asks whether to keep one you already

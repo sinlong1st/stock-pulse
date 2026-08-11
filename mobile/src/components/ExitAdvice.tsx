@@ -15,6 +15,8 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import {
   ExitAdvice as Advice,
+  ExitHistoryEntry,
+  fetchExitHistory,
   ExitPlan,
   ExitScenario,
   GivebackLevel,
@@ -447,6 +449,60 @@ function Context({ data }: { data: Advice }) {
   );
 }
 
+// --- how the advice has changed (§37) --------------------------------------
+
+function History({ data }: { data: Advice }) {
+  const { colors } = useTheme();
+  const { t, language } = useI18n();
+  const [entries, setEntries] = React.useState<ExitHistoryEntry[]>([]);
+
+  const ticker = data.ticker;
+  // Re-fetched per analysis: the one just made is already a row, so the list
+  // has to be re-read to stay in step (and to drop the current one below).
+  const analysisId = data.analysisId;
+  React.useEffect(() => {
+    if (!ticker) return;
+    let alive = true;
+    fetchExitHistory(ticker)
+      .then((rows) => alive && setEntries(rows))
+      .catch(() => {}); // an older backend has no history endpoint
+    return () => {
+      alive = false;
+    };
+  }, [ticker, analysisId]);
+
+  // Everything except the analysis on screen — repeating it above the verdict
+  // would just be the verdict again.
+  const past = entries.filter((e) => e.id !== analysisId);
+  if (!past.length) return null;
+
+  const when = (iso: string) =>
+    new Date(iso).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
+
+  return (
+    <Card title={t('exit.history')}>
+      {past.slice(0, 6).map((entry) => (
+        <View key={entry.id} style={styles.histRow}>
+          <Text style={[styles.histWhen, { color: colors.faint }]}>{when(entry.at)}</Text>
+          <Text
+            style={[styles.histAction, { color: actionColor(colors, entry.action) }]}
+            numberOfLines={1}
+          >
+            {t(`exit.action.${entry.action}`)}
+          </Text>
+          <Text style={[styles.histPrice, { color: colors.muted }]}>
+            {entry.price != null ? plain(entry.price) : '—'}
+          </Text>
+        </View>
+      ))}
+      <Text style={[styles.histNote, { color: colors.faint }]}>{t('exit.historyNote')}</Text>
+    </Card>
+  );
+}
+
 // --- the whole thing -------------------------------------------------------
 
 export function ExitAdviceView({ data }: { data: Advice }) {
@@ -483,6 +539,7 @@ export function ExitAdviceView({ data }: { data: Advice }) {
       {data.allowPartialSell ? <PartialSell options={data.partialSell ?? []} /> : null}
       <Scenarios scenarios={data.scenarios ?? []} />
       <Plans plans={data.plans ?? []} />
+      <History data={data} />
       <Context data={data} />
 
       <Text style={[styles.disclaimer, { color: colors.faint }]}>{data.disclaimer}</Text>
@@ -559,5 +616,10 @@ const styles = StyleSheet.create({
   chip: { borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
   chipText: { fontSize: 10, fontWeight: '800' },
   market: { fontSize: 11, lineHeight: 16, marginTop: 6 },
+  histRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  histWhen: { fontSize: 11, fontWeight: '700', width: 52 },
+  histAction: { flex: 1, fontSize: 12, fontWeight: '800' },
+  histPrice: { fontSize: 11.5, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  histNote: { fontSize: 9, lineHeight: 14, marginTop: 4 },
   disclaimer: { fontSize: 10, fontWeight: '600', marginTop: 4 },
 });

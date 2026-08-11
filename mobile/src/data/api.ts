@@ -649,6 +649,9 @@ export type ExitAdvice = {
   extension?: { aboveSma20Pct: number | null; aboveSma20Atrs: number | null };
   relativeVolume?: number | null;
   earningsInDays?: number | null;
+  /** Row id of this analysis in the stored history, so the timeline can
+   *  leave out the one you're currently reading. */
+  analysisId?: number | null;
   rules?: {
     original: ExitAction | null;
     final: ExitAction | null;
@@ -728,6 +731,33 @@ export function streamExitAdvice(
     undefined,
     { method: 'POST', body },
   );
+}
+
+/** One verdict in a holding's timeline (spec §37). Not a score — a record of
+ *  what was said and when. `times` counts collapsed repeats of the same call. */
+export type ExitHistoryEntry = {
+  id: number;
+  ticker: string;
+  action: ExitAction;
+  price: number | null;
+  unrealizedPnl: number | null;
+  holdRewardRisk: number | null;
+  provider: string | null;
+  overridden: boolean;
+  at: string;
+  times: number;
+};
+
+export async function fetchExitHistory(
+  ticker: string,
+  signal?: AbortSignal,
+): Promise<ExitHistoryEntry[]> {
+  requireBackend();
+  const data = await getJson<{ history?: ExitHistoryEntry[] }>(
+    `/api/positions/history?ticker=${encodeURIComponent(ticker)}`,
+    signal,
+  );
+  return data.history ?? [];
 }
 
 export type SavedPosition = {

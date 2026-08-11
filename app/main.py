@@ -63,6 +63,8 @@ from app.logging_config import configure_logging
 from app.pipeline.classifier import ClassificationError, build_classifier
 from app.pipeline.deduplicator import store_new_articles
 from app.pipeline.rule_filter import get_rule_filter
+from app.position.history import DEFAULT_LIMIT as HISTORY_DEFAULT_LIMIT
+from app.position.history import list_history as list_exit_history
 from app.position.service import (
     ExitRequest,
     build_exit_advice,
@@ -715,6 +717,26 @@ async def api_exit_advisor(
         return await build_exit_advice(
             settings, request=_exit_request(payload, settings), session=session
         )
+
+
+@app.get("/api/positions/history")
+def api_exit_history(
+    ticker: str | None = None,
+    positionId: str | None = None,  # noqa: N803 — camelCase query, like the JSON API
+    limit: int = HISTORY_DEFAULT_LIMIT,
+    authorization: str | None = Header(default=None),
+) -> dict:
+    """How the exit advice on a holding has changed over time (spec §37).
+
+    Not accuracy — that needs a scorer and matured horizons. This is the record
+    of what was said and when, which is the honest thing to show first.
+    """
+    _require_exit_advisor(authorization)
+    with SessionLocal() as session:
+        entries = list_exit_history(
+            session, ticker=ticker, position_id=positionId, limit=limit
+        )
+    return {"history": [entry.as_dict() for entry in entries]}
 
 
 @app.post("/api/positions/exit-advisor/stream")

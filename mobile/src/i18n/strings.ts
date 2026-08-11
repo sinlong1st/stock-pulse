@@ -581,6 +581,11 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   'exit.target': { en: 'Target', vi: 'Mục tiêu' },
   'exit.invalidation': { en: 'Thesis breaks', vi: 'Mất lý do giữ' },
 
+  'exit.history': { en: 'HOW THIS CHANGED', vi: 'ĐÃ THAY ĐỔI RA SAO' },
+  'exit.historyNote': {
+    en: 'PAST VERDICTS ON THIS HOLDING · NOT A SCORE',
+    vi: 'CÁC NHẬN ĐỊNH TRƯỚC VỀ VỊ THẾ NÀY · KHÔNG PHẢI ĐIỂM SỐ',
+  },
   'exit.why': { en: 'WHY', vi: 'VÌ SAO' },
   'exit.context': { en: 'CONTEXT', vi: 'BỐI CẢNH' },
   'exit.vsSma20': { en: '{atrs} ATR vs 20D', vi: '{atrs} ATR so với 20N' },
