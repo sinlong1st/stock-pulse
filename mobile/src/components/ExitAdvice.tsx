@@ -11,7 +11,7 @@
  * couldn't compute is null and its card simply doesn't render.
  */
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   ExitAdvice as Advice,
@@ -147,7 +147,7 @@ function Verdict({ data }: { data: Advice }) {
 
 // --- hold vs sell (§30's regret-minimisation card) -------------------------
 
-function HoldVsSell({ data }: { data: Advice }) {
+function HoldVsSell({ data, onTerm }: { data: Advice; onTerm: (t: string) => void }) {
   const { colors } = useTheme();
   const { t } = useI18n();
   const p = data.position!;
@@ -175,13 +175,18 @@ function HoldVsSell({ data }: { data: Advice }) {
             value={money(-hold.profitGiveback)}
             color={colors.bear}
           />
-          <View style={[styles.ratioRow, { borderTopColor: colors.divider }]}>
-            <Text style={[styles.rowLabel, { color: colors.muted }]}>{t('exit.rr')}</Text>
+          <Pressable
+            onPress={() => onTerm('rr')}
+            style={[styles.ratioRow, { borderTopColor: colors.divider }]}
+          >
+            <Text style={[styles.rowLabel, { color: colors.muted }]}>
+              {t('exit.rr')} <Text style={{ color: colors.faint }}>?</Text>
+            </Text>
             <Text style={[styles.ratio, { color: colors.text }]}>{hold.ratio.toFixed(2)}</Text>
             <Text style={[styles.ratioLabel, { color: colors.faint }]}>
               {t(`exit.rr.${hold.label}`)}
             </Text>
-          </View>
+          </Pressable>
           {/* A floor inside one ordinary day's move makes the ratio above look
               better than it is. Say so where the ratio is, not in a footnote. */}
           {noisy ? (
@@ -388,9 +393,77 @@ function Reasons({ data }: { data: Advice }) {
   );
 }
 
+// --- what the jargon means -------------------------------------------------
+
+/**
+ * A tap target that explains a term.
+ *
+ * The definition alone isn't the useful half — "RSI measures momentum" doesn't
+ * tell you why the app just said trim. So every entry has a second paragraph:
+ * what this number actually does to the advice. That's the part you can't get
+ * from a search engine, because it's specific to how these rules work.
+ */
+function TermChip({
+  term,
+  label,
+  onOpen,
+}: {
+  term: string;
+  label: string;
+  onOpen: (term: string) => void;
+}) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      onPress={() => onOpen(term)}
+      style={[styles.chip, { borderColor: colors.divider }]}
+    >
+      <Text style={[styles.chipText, { color: colors.muted }]}>{label}</Text>
+      <Text style={[styles.chipHint, { color: colors.faint }]}>?</Text>
+    </Pressable>
+  );
+}
+
+function TermSheet({ term, onClose }: { term: string | null; onClose: () => void }) {
+  const { colors } = useTheme();
+  const { t } = useI18n();
+  return (
+    <Modal visible={!!term} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.backdrop} onPress={onClose}>
+        <Pressable style={[styles.sheet, { backgroundColor: colors.elevated }]} onPress={() => {}}>
+          {term ? (
+            <>
+              <Text style={[styles.sheetKicker, { color: colors.accent }]}>
+                {t('exit.term.kicker')}
+              </Text>
+              <Text style={[styles.sheetTitle, { color: colors.text }]}>
+                {t(`term.${term}.title`)}
+              </Text>
+              <Text style={[styles.sheetBody, { color: colors.muted }]}>
+                {t(`term.${term}.body`)}
+              </Text>
+              <Text style={[styles.sheetEffect, { color: colors.text }]}>
+                {t(`term.${term}.effect`)}
+              </Text>
+            </>
+          ) : null}
+          <Pressable
+            onPress={onClose}
+            style={[styles.sheetBtn, { backgroundColor: colors.accent }]}
+          >
+            <Text style={[styles.sheetBtnText, { color: colors.onAccent }]}>
+              {t('common.gotIt')}
+            </Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 // --- context ---------------------------------------------------------------
 
-function Context({ data }: { data: Advice }) {
+function Context({ data, onTerm }: { data: Advice; onTerm: (term: string) => void }) {
   const { colors } = useTheme();
   const { t } = useI18n();
   const tech = data.technicals;
@@ -401,50 +474,52 @@ function Context({ data }: { data: Advice }) {
   return (
     <Card title={t('exit.context')}>
       <View style={styles.chips}>
-        <View style={[styles.chip, { borderColor: colors.divider }]}>
-          <Text style={[styles.chipText, { color: colors.muted }]}>
-            {t('predict.trend')} {tech.trend?.toUpperCase()}
-          </Text>
-        </View>
+        <TermChip
+          term="trend"
+          label={`${t('predict.trend')} ${tech.trend?.toUpperCase()}`}
+          onOpen={onTerm}
+        />
         {rsi != null ? (
-          <View style={[styles.chip, { borderColor: colors.divider }]}>
-            <Text style={[styles.chipText, { color: colors.muted }]}>RSI {rsi.toFixed(0)}</Text>
-          </View>
+          <TermChip term="rsi" label={`RSI ${rsi.toFixed(0)}`} onOpen={onTerm} />
         ) : null}
         {data.extension?.aboveSma20Atrs != null ? (
-          <View style={[styles.chip, { borderColor: colors.divider }]}>
-            <Text style={[styles.chipText, { color: colors.muted }]}>
-              {t('exit.vsSma20', { atrs: data.extension.aboveSma20Atrs.toFixed(1) })}
-            </Text>
-          </View>
+          <TermChip
+            term="atr"
+            label={t('exit.vsSma20', { atrs: data.extension.aboveSma20Atrs.toFixed(1) })}
+            onOpen={onTerm}
+          />
         ) : null}
         {data.relativeVolume != null ? (
-          <View style={[styles.chip, { borderColor: colors.divider }]}>
-            <Text style={[styles.chipText, { color: colors.muted }]}>
-              {t('exit.relVol', { x: data.relativeVolume.toFixed(2) })}
-            </Text>
-          </View>
+          <TermChip
+            term="relvol"
+            label={t('exit.relVol', { x: data.relativeVolume.toFixed(2) })}
+            onOpen={onTerm}
+          />
         ) : null}
         {data.earningsInDays != null && data.earningsInDays >= 0 ? (
-          <View style={[styles.chip, { borderColor: colors.divider }]}>
-            <Text style={[styles.chipText, { color: colors.muted }]}>
-              {t('exit.earningsIn', { days: data.earningsInDays })}
-            </Text>
-          </View>
+          <TermChip
+            term="earnings"
+            label={t('exit.earningsIn', { days: data.earningsInDays })}
+            onOpen={onTerm}
+          />
         ) : null}
       </View>
       {market?.marketTrend ? (
-        <Text style={[styles.market, { color: colors.muted }]}>
-          {t('exit.market', {
-            trend: market.marketTrend,
-            vix: market.vix != null ? market.vix.toFixed(1) : '—',
-            regime: market.vixRegime ?? '—',
-          })}
-          {market.relative20d != null
-            ? ` · ${t('exit.vsMarket', { pts: market.relative20d.toFixed(1) })}`
-            : ''}
-        </Text>
+        <Pressable onPress={() => onTerm('market')}>
+          <Text style={[styles.market, { color: colors.muted }]}>
+            {t('exit.market', {
+              trend: market.marketTrend,
+              vix: market.vix != null ? market.vix.toFixed(1) : '—',
+              regime: market.vixRegime ?? '—',
+            })}
+            {market.relative20d != null
+              ? ` · ${t('exit.vsMarket', { pts: market.relative20d.toFixed(1) })}`
+              : ''}
+            <Text style={{ color: colors.faint }}> ?</Text>
+          </Text>
+        </Pressable>
       ) : null}
+      <Text style={[styles.termHint, { color: colors.faint }]}>{t('exit.termHint')}</Text>
     </Card>
   );
 }
@@ -508,6 +583,8 @@ function History({ data }: { data: Advice }) {
 export function ExitAdviceView({ data }: { data: Advice }) {
   const { colors } = useTheme();
   const { t } = useI18n();
+  // Which term the reader asked about. Owned here so every card can open it.
+  const [term, setTerm] = React.useState<string | null>(null);
   if (!data.position) return null;
 
   return (
@@ -533,16 +610,17 @@ export function ExitAdviceView({ data }: { data: Advice }) {
 
       <Verdict data={data} />
       <PositionCard data={data} />
-      <HoldVsSell data={data} />
+      <HoldVsSell data={data} onTerm={setTerm} />
       <Reasons data={data} />
       <Giveback levels={data.giveback ?? []} />
       {data.allowPartialSell ? <PartialSell options={data.partialSell ?? []} /> : null}
       <Scenarios scenarios={data.scenarios ?? []} />
       <Plans plans={data.plans ?? []} />
       <History data={data} />
-      <Context data={data} />
+      <Context data={data} onTerm={setTerm} />
 
       <Text style={[styles.disclaimer, { color: colors.faint }]}>{data.disclaimer}</Text>
+      <TermSheet term={term} onClose={() => setTerm(null)} />
     </View>
   );
 }
@@ -613,8 +691,18 @@ const styles = StyleSheet.create({
   reason: { fontSize: 12, lineHeight: 18 },
   finding: { fontSize: 11.5, lineHeight: 17 },
   chips: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  chip: { borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
   chipText: { fontSize: 10, fontWeight: '800' },
+  chipHint: { fontSize: 10, fontWeight: '900' },
+  termHint: { fontSize: 9, fontWeight: '700', marginTop: 6 },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: 24 },
+  sheet: { padding: 20, gap: 8 },
+  sheetKicker: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  sheetTitle: { fontSize: 20, fontWeight: '900' },
+  sheetBody: { fontSize: 13.5, lineHeight: 20 },
+  sheetEffect: { fontSize: 13, lineHeight: 19, fontWeight: '700' },
+  sheetBtn: { marginTop: 8, paddingVertical: 12, alignItems: 'center' },
+  sheetBtnText: { fontSize: 14, fontWeight: '800' },
   market: { fontSize: 11, lineHeight: 16, marginTop: 6 },
   histRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   histWhen: { fontSize: 11, fontWeight: '700', width: 52 },

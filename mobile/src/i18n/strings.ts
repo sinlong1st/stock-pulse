@@ -586,6 +586,82 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
     en: 'PAST VERDICTS ON THIS HOLDING · NOT A SCORE',
     vi: 'CÁC NHẬN ĐỊNH TRƯỚC VỀ VỊ THẾ NÀY · KHÔNG PHẢI ĐIỂM SỐ',
   },
+  // Jargon, explained on tap. Every entry has TWO parts: what the number is,
+  // and what it actually does to the advice — the second is the part you can't
+  // get from a search engine, because it's specific to these rules.
+  'exit.term.kicker': { en: 'WHAT THIS MEANS', vi: 'ĐIỀU NÀY NGHĨA LÀ GÌ' },
+  'exit.termHint': { en: 'TAP ANY CHIP TO SEE WHAT IT MEANS', vi: 'CHẠM VÀO Ô BẤT KỲ ĐỂ XEM GIẢI THÍCH' },
+
+  'term.trend.title': { en: 'Trend', vi: 'Xu hướng' },
+  'term.trend.body': {
+    en: 'Where the recent average price sits against the longer one. Up means the last two weeks have been stronger than the last six; down is the reverse; sideways means neither, within a small flat band.',
+    vi: 'Giá trung bình gần đây so với trung bình dài hơn. "Up" nghĩa là hai tuần qua mạnh hơn sáu tuần qua; "down" thì ngược lại; "sideways" là không nghiêng hẳn về bên nào.',
+  },
+  'term.trend.effect': {
+    en: 'A downtrend is one of five signals counted together — when three or more agree, the rules push toward trimming.',
+    vi: 'Xu hướng giảm là một trong năm tín hiệu được đếm cùng nhau — từ ba tín hiệu trở lên, quy tắc sẽ nghiêng về bán bớt.',
+  },
+
+  'term.rsi.title': { en: 'RSI', vi: 'RSI' },
+  'term.rsi.body': {
+    en: 'Relative Strength Index, 0 to 100. It measures how one-sided recent moves have been. Above 70, buyers have dominated; below 30, sellers have.',
+    vi: 'Chỉ số Sức mạnh Tương đối, từ 0 đến 100, đo mức độ một chiều của các phiên gần đây. Trên 70 là bên mua áp đảo; dưới 30 là bên bán áp đảo.',
+  },
+  'term.rsi.effect': {
+    en: 'A high RSI is never a sell signal on its own — a strong stock can hold above 70 for weeks. It only counts here when the price is also right under a ceiling.',
+    vi: 'RSI cao KHÔNG phải tín hiệu bán — một cổ phiếu mạnh có thể ở trên 70 hàng tuần liền. Nó chỉ được tính khi giá đồng thời áp sát vùng kháng cự.',
+  },
+
+  'term.atr.title': { en: 'ATR', vi: 'ATR' },
+  'term.atr.body': {
+    en: 'Average True Range — how much this stock typically moves in one day, in dollars. Measuring distances in ATRs is why the same 2% move is calm for one stock and dramatic for another.',
+    vi: 'Biên độ dao động trung bình — mỗi ngày cổ phiếu này thường đi bao nhiêu đô la. Đo khoảng cách bằng ATR là lý do một cú 2% có thể là bình thường với mã này nhưng dữ dội với mã khác.',
+  },
+  'term.atr.effect': {
+    en: 'Two ATR or more above the 20-day average counts as extended, which biases toward taking some profit. It is also how support is judged: closer than half an ATR is inside daily noise, further than three is too far to lean on.',
+    vi: 'Từ 2 ATR trở lên so với trung bình 20 ngày được coi là căng, và nghiêng về chốt bớt lời. Nó cũng dùng để đánh giá mốc đỡ: gần hơn 0,5 ATR là nằm trong nhiễu hằng ngày, xa hơn 3 ATR thì quá xa để dựa vào.',
+  },
+
+  'term.relvol.title': { en: 'Relative volume', vi: 'Khối lượng tương đối' },
+  'term.relvol.body': {
+    en: 'Today’s trading volume against its 20-day average. 1.0x is an ordinary day; 2.0x is twice the usual participation.',
+    vi: 'Khối lượng giao dịch hôm nay so với trung bình 20 ngày. 1,0x là một ngày bình thường; 2,0x là gấp đôi mức thường thấy.',
+  },
+  'term.relvol.effect': {
+    en: 'It decides whether a breakout is believed. Price through a ceiling on ordinary volume is drift; 1.3x or more is what counts as confirmation, and only then does the app stop treating an extended price as a reason to trim.',
+    vi: 'Nó quyết định một cú bứt phá có đáng tin không. Vượt kháng cự với khối lượng bình thường chỉ là trôi giá; từ 1,3x trở lên mới được coi là xác nhận, và chỉ khi đó ứng dụng mới ngừng coi giá căng là lý do bán bớt.',
+  },
+
+  'term.earnings.title': { en: 'Earnings date', vi: 'Ngày báo cáo' },
+  'term.earnings.body': {
+    en: 'Days until the company reports its quarterly results — the one scheduled moment when a stock can gap well beyond its usual daily range, in either direction.',
+    vi: 'Số ngày còn lại đến khi công ty công bố kết quả quý — thời điểm duy nhất được báo trước mà giá có thể nhảy vọt vượt xa biên độ thường ngày, theo cả hai hướng.',
+  },
+  'term.earnings.effect': {
+    en: 'Inside three days, holding everything becomes an active choice to take event risk, so the rules require a defined stop. It is not a sell signal: holding through a report is legitimate, as long as it is deliberate.',
+    vi: 'Trong vòng ba ngày, giữ nguyên toàn bộ trở thành lựa chọn chủ động chấp nhận rủi ro sự kiện, nên quy tắc yêu cầu phải có mức cắt lỗ rõ ràng. Đây không phải tín hiệu bán: giữ qua báo cáo là hợp lệ, miễn là có chủ đích.',
+  },
+
+  'term.market.title': { en: 'Market backdrop', vi: 'Bối cảnh thị trường' },
+  'term.market.body': {
+    en: 'The S&P 500 trend, the VIX (the market’s expected volatility for the month ahead: under 15 calm, 20+ elevated, 30+ stressed), and how far this stock has run against the index over 20 sessions, in percentage points.',
+    vi: 'Xu hướng S&P 500, chỉ số VIX (mức biến động thị trường dự kiến cho tháng tới: dưới 15 là bình lặng, trên 20 là cao, trên 30 là căng thẳng), và mức chênh lệch của cổ phiếu này so với chỉ số trong 20 phiên, tính bằng điểm phần trăm.',
+  },
+  'term.market.effect': {
+    en: 'It answers whether a move was the stock or the tide. Lagging the market is one of the five deterioration signals, and a hostile market stops a breakout from counting as confirmed.',
+    vi: 'Nó trả lời câu hỏi: cú chạy này là của cổ phiếu hay của cả thị trường? Tụt lại sau thị trường là một trong năm tín hiệu suy yếu, và thị trường bất lợi khiến một cú bứt phá không được tính là đã xác nhận.',
+  },
+
+  'term.rr.title': { en: 'Reward vs risk', vi: 'Lợi nhuận so với rủi ro' },
+  'term.rr.body': {
+    en: 'The room above divided by the room below, measured from today’s price: distance to the next ceiling against distance to the nearest floor. 2.0 means twice as much room up as down.',
+    vi: 'Khoảng trống phía trên chia cho khoảng trống phía dưới, tính từ giá hôm nay: khoảng cách tới mốc cản gần nhất so với khoảng cách tới mốc đỡ gần nhất. 2,0 nghĩa là dư địa tăng gấp đôi dư địa giảm.',
+  },
+  'term.rr.effect': {
+    en: 'Deliberately measured from today, not from what you paid — what you paid does not change how much room is left. Below 1.0 the rules bias toward trimming. Always read it next to how far the floor is: a ratio built on a floor half an ATR away flatters the trade.',
+    vi: 'Cố ý tính từ hôm nay, không tính từ giá vốn của bạn — giá vốn không làm thay đổi dư địa còn lại. Dưới 1,0 thì quy tắc nghiêng về bán bớt. Luôn đọc nó cùng với khoảng cách tới mốc đỡ: một tỷ lệ dựa trên mốc đỡ chỉ cách nửa ATR là đang đẹp hơn thực tế.',
+  },
+
   'exit.why': { en: 'WHY', vi: 'VÌ SAO' },
   'exit.context': { en: 'CONTEXT', vi: 'BỐI CẢNH' },
   'exit.vsSma20': { en: '{atrs} ATR vs 20D', vi: '{atrs} ATR so với 20N' },
