@@ -308,7 +308,24 @@ def test_a_floor_inside_the_daily_noise_is_flagged() -> None:
 
 
 def test_a_sane_stop_distance_is_not_flagged() -> None:
-    assert "support-inside-noise" not in _codes(evaluate(None, _evidence(supportAtrs=1.2)))
+    codes = _codes(evaluate(None, _evidence(supportAtrs=1.2)))
+    assert "support-inside-noise" not in codes and "support-far" not in codes
+
+
+def test_a_floor_left_far_behind_is_flagged() -> None:
+    """Live MSFT: ran $378 to $503 in 21 sessions, leaving its only pivot low
+    25% below. Real number, useless as an invalidation."""
+    got = evaluate("hold", _evidence(supportAtrs=12.5))
+    assert "support-far" in _codes(got)
+    # `extended` already carries the exposure consequence for this fact.
+    assert got.final == "hold"
+
+
+def test_the_two_distance_findings_are_exclusive() -> None:
+    """A floor cannot be both inside the noise and far away."""
+    for atrs in (0.1, 12.5):
+        codes = _codes(evaluate(None, _evidence(supportAtrs=atrs)))
+        assert not {"support-inside-noise", "support-far"} <= codes
 
 
 # --- payload ---------------------------------------------------------------

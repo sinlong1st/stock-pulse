@@ -60,7 +60,15 @@ _GUARDRAILS = (
     'with "name" of "conservative", "balanced" or "aggressive", "action" ("hold", '
     '"partial-sell" or "sell-all"), "sellPctNow" (whole percent, or null when holding), '
     '"stopLevel", "firstTargetLevel" and "invalidationLevel" (prices copied exactly from '
-    'the LEVEL MENU, or null), and "explanation" (one sentence).\n\n'
+    'the LEVEL MENU, or null), and "explanation" (one sentence).\n'
+    "      The three names describe how much RISK each plan accepts, not how decisive it "
+    "is:\n"
+    "        conservative = protect the gain already made. Sells the MOST.\n"
+    "        balanced     = in between.\n"
+    "        aggressive   = prioritise the remaining upside. Sells the LEAST, and is "
+    "usually plain 'hold'.\n"
+    "      So sellPctNow must DECREASE from conservative to balanced to aggressive. An "
+    "aggressive plan that sells everything is the opposite of what the word means here.\n\n"
     "RULES THAT OVERRIDE EVERYTHING ELSE:\n"
     "- NEVER write a price of your own. Every level you reference must be COPIED EXACTLY "
     "from the LEVEL MENU below. A price that is not on the menu will be discarded, and "

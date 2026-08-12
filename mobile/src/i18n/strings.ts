@@ -646,6 +646,10 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
     en: 'You are below your average cost, so none of this is profit-taking.',
     vi: 'Bạn đang dưới giá vốn, nên đây không phải là chốt lời.',
   },
+  'exit.rule.support-far': {
+    en: 'The nearest floor is {atrs} ATR below — the price has run well clear of it, so there is nothing near to lean on.',
+    vi: 'Mốc đỡ gần nhất cách tới {atrs} ATR — giá đã chạy quá xa khỏi nó, nên không còn mốc nào ở gần để dựa vào.',
+  },
   'exit.rule.support-inside-noise': {
     en: 'The nearest floor is only {atrs} ATR away — inside a normal day’s move.',
     vi: 'Mốc đỡ gần nhất chỉ cách {atrs} ATR — nằm trong biên độ một ngày bình thường.',

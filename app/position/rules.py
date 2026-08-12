@@ -68,6 +68,13 @@ _NEAR_RESISTANCE_ATRS = 0.5
 # built on it is arithmetic rather than a plan. Mirrors RULE-STOP-001.
 _NOISE_ATRS = 0.5
 
+# ...and this far away, the floor is real but no longer *near*. A live MSFT read
+# ran from $378 to $503 in 21 sessions, leaving its only recent pivot low 25%
+# below — arithmetically correct, useless as an invalidation. Three ATR is about
+# three ordinary days; past that, "the level that breaks the thesis" is a level
+# you would have acted on long before reaching.
+_FAR_ATRS = 3.0
+
 # Relative volume that confirms a breakout is real participation, not drift.
 _BREAKOUT_VOLUME = 1.3
 
@@ -272,6 +279,12 @@ def evaluate(
     support_atrs = evidence.get("supportAtrs")
     if support_atrs is not None and 0 < support_atrs < _NOISE_ATRS:
         add("support-inside-noise", None, atrs=support_atrs)
+    # The mirror case: the floor is real but the price has run so far above it
+    # that there is nothing nearby to lean on. Informational — `extended`
+    # already carries the exposure consequence, and double-counting one fact
+    # would move the ladder twice for a single observation.
+    elif support_atrs is not None and support_atrs > _FAR_ATRS:
+        add("support-far", None, atrs=round(support_atrs, 1))
 
     return ExitRuleResult(
         original=action,

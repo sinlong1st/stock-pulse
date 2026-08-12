@@ -464,6 +464,49 @@ async def test_plans_and_scenarios_keyed_by_name_are_accepted(wired) -> None:
     assert [s["name"] for s in got["scenarios"]] == ["bull", "base", "bear"]
 
 
+async def test_the_plan_names_always_mean_what_they_say(wired) -> None:
+    """A live MSFT run returned conservative="hold it all" and
+    aggressive="sell 100%" — exactly inverted, because "aggressive" reads as
+    "decisive" unless told otherwise. §24 says conservative protects the gain
+    and so sells the most; the labels are reassigned in code because a prompt
+    wording is a hope, not a guarantee."""
+    inverted = _FakeAnalyst(plans=[
+        {"name": "conservative", "action": "hold"},
+        {"name": "balanced", "action": "partial-sell", "sellPctNow": 50},
+        {"name": "aggressive", "action": "sell-all", "sellPctNow": 100},
+    ])
+    got = await build_exit_advice(wired, request=_request(), analyst=inverted)
+
+    by_name = {p["name"]: p for p in got["plans"]}
+    assert by_name["conservative"]["sellPctNow"] == 100
+    assert by_name["aggressive"]["sellPctNow"] is None  # holds it all
+    # The explanation travels with its own action, so the pairing stays true.
+    assert [p["sellPctNow"] or 0 for p in got["plans"]] == sorted(
+        [p["sellPctNow"] or 0 for p in got["plans"]], reverse=True
+    )
+
+
+async def test_a_correctly_ordered_set_is_left_alone(wired) -> None:
+    ordered = _FakeAnalyst(plans=[
+        {"name": "conservative", "action": "sell-all", "sellPctNow": 100},
+        {"name": "balanced", "action": "partial-sell", "sellPctNow": 40},
+        {"name": "aggressive", "action": "hold"},
+    ])
+    got = await build_exit_advice(wired, request=_request(), analyst=ordered)
+    assert [p["name"] for p in got["plans"]] == ["conservative", "balanced", "aggressive"]
+    assert [p["sellPctNow"] for p in got["plans"]] == [100, 40, None]
+
+
+async def test_a_plan_cannot_break_its_thesis_below_the_real_invalidation(wired) -> None:
+    """A live run picked a floor 33% under the price as "thesis breaks". That is
+    not an invalidation — it's a level you'd have abandoned long before."""
+    analyst = _FakeAnalyst(plans=[
+        {"name": "balanced", "action": "hold", "invalidationLevel": 1},  # deepest menu level
+    ])
+    got = await build_exit_advice(wired, request=_request(), analyst=analyst)
+    assert got["plans"][0]["invalidation"] == got["levels"]["invalidation"]
+
+
 async def test_plans_are_costed_on_the_real_share_count(wired) -> None:
     got = await build_exit_advice(wired, request=_request(), analyst=_FakeAnalyst())
     plans = {p["name"]: p for p in got["plans"]}

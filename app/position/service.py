@@ -374,7 +374,13 @@ def _scenarios(read: ExitRead | None, levels, summary) -> list[dict]:
     return out
 
 
-def _plans(read: ExitRead | None, levels, summary, request: ExitRequest) -> list[dict]:
+def _plans(
+    read: ExitRead | None,
+    levels,
+    summary,
+    request: ExitRequest,
+    invalidation: float | None = None,
+) -> list[dict]:
     """§23/§24 — each alternative costed out on the user's actual share count."""
     if not read or not read.plans:
         return []
@@ -397,17 +403,50 @@ def _plans(read: ExitRead | None, levels, summary, request: ExitRequest) -> list
                 allow_fractional=request.allow_fractional_shares,
             ).as_dict()
 
+        picked = _pick(levels, plan.invalidation_level)
         out.append({
             "name": plan.name,
             "action": plan.action,
             "sellPctNow": sell_pct,
             "stop": _pick(levels, plan.stop_level),
             "firstTarget": _pick(levels, plan.first_target_level),
-            "invalidation": _pick(levels, plan.invalidation_level),
+            # Never deeper than the level that actually breaks the near-term
+            # thesis. A live MSFT run picked a floor 33% below the price as
+            # "thesis breaks", which is not an invalidation — it is a level you
+            # would have abandoned the position long before reaching.
+            "invalidation": (
+                invalidation
+                if picked is not None and invalidation is not None and picked < invalidation
+                else picked
+            ),
             "explanation": plan.explanation,
             "sale": sale,
         })
-    return out
+    return _relabel_by_risk(out)
+
+
+# §24's names describe how much risk each plan accepts, not how decisive it is.
+_PLAN_NAMES = ("conservative", "balanced", "aggressive")
+
+
+def _relabel_by_risk(plans: list[dict]) -> list[dict]:
+    """Force the §24 names to mean what §24 says: conservative sells the most.
+
+    A live MSFT run came back with conservative="hold it all" and
+    aggressive="sell 100%" — exactly inverted, because "aggressive" reads as
+    "decisive" unless you are told otherwise. The prompt now says so explicitly,
+    but a wording change is a hope, not a guarantee, and advice whose labels
+    invert their meaning is worse than no labels.
+
+    Relabelling rather than reordering is safe because each explanation
+    describes its *action* ("exiting position due to lack of clear edge"), not
+    its former name — so "conservative: sell 100%, exiting the position" still
+    reads true. Ties keep the model's original order.
+    """
+    if not plans:
+        return plans
+    ordered = sorted(plans, key=lambda p: p["sellPctNow"] or 0, reverse=True)
+    return [{**plan, "name": name} for plan, name in zip(ordered, _PLAN_NAMES, strict=False)]
 
 
 async def build_exit_advice(
@@ -632,7 +671,7 @@ async def build_exit_advice(
         # dollar here was computed from them.
         "scenarios": _scenarios(read, levels, summary),
         # §24's conservative / balanced / aggressive alternatives.
-        "plans": _plans(read, levels, summary, request),
+        "plans": _plans(read, levels, summary, request, invalidation),
         "earnings": (
             package.earnings.as_dict(local_today(settings)) if package.earnings else None
         ),
