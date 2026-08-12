@@ -406,19 +406,21 @@ function Reasons({ data }: { data: Advice }) {
 function TermChip({
   term,
   label,
+  tone,
   onOpen,
 }: {
   term: string;
   label: string;
+  tone?: string;
   onOpen: (term: string) => void;
 }) {
   const { colors } = useTheme();
   return (
     <Pressable
       onPress={() => onOpen(term)}
-      style={[styles.chip, { borderColor: colors.divider }]}
+      style={[styles.chip, { borderColor: tone ?? colors.divider }]}
     >
-      <Text style={[styles.chipText, { color: colors.muted }]}>{label}</Text>
+      <Text style={[styles.chipText, { color: tone ?? colors.muted }]}>{label}</Text>
       <Text style={[styles.chipHint, { color: colors.faint }]}>?</Text>
     </Pressable>
   );
@@ -463,6 +465,10 @@ function TermSheet({ term, onClose }: { term: string | null; onClose: () => void
 
 // --- context ---------------------------------------------------------------
 
+/** Which side each signal argues for. Backend-computed, from the same
+ *  thresholds the rules use, so a chip can't claim more than a rule would. */
+type Stance = 'supports-hold' | 'neutral' | 'supports-trim';
+
 function Context({ data, onTerm }: { data: Advice; onTerm: (term: string) => void }) {
   const { colors } = useTheme();
   const { t } = useI18n();
@@ -470,54 +476,69 @@ function Context({ data, onTerm }: { data: Advice; onTerm: (term: string) => voi
   if (!tech) return null;
   const rsi = tech.indicators?.rsi14 as number | null;
   const market = tech.market;
+  const signals = data.signals ?? {};
+
+  // Each chip, with the term it explains and the side it argues for.
+  const chips: { key: string; term: string; label: string; stance: Stance }[] = [];
+  const add = (key: string, term: string, label: string) =>
+    chips.push({ key, term, label, stance: (signals[key] as Stance) ?? 'neutral' });
+
+  add('trend', 'trend', `${t('predict.trend')} ${tech.trend?.toUpperCase()}`);
+  if (rsi != null) add('rsi', 'rsi', `RSI ${rsi.toFixed(0)}`);
+  if (data.extension?.aboveSma20Atrs != null) {
+    add('extension', 'atr', t('exit.vsSma20', { atrs: data.extension.aboveSma20Atrs.toFixed(1) }));
+  }
+  if (data.relativeVolume != null) {
+    add('volume', 'relvol', t('exit.relVol', { x: data.relativeVolume.toFixed(2) }));
+  }
+  if (data.earningsInDays != null && data.earningsInDays >= 0) {
+    add('earnings', 'earnings', t('exit.earningsIn', { days: data.earningsInDays }));
+  }
+  if (market?.marketTrend) {
+    add(
+      'market',
+      'market',
+      `${market.marketTrend.toUpperCase()} · VIX ${market.vix != null ? market.vix.toFixed(1) : '—'}`,
+    );
+  }
+
+  // Grouped under headings, not just tinted. The design tokens are explicit
+  // that meaning must never rest on hue alone, and "which of these is arguing
+  // against me?" is exactly the question a colour-blind reader would lose.
+  const groups: { stance: Stance; tone: string }[] = [
+    { stance: 'supports-hold', tone: colors.bull },
+    { stance: 'neutral', tone: colors.neutral },
+    { stance: 'supports-trim', tone: colors.bear },
+  ];
 
   return (
     <Card title={t('exit.context')}>
-      <View style={styles.chips}>
-        <TermChip
-          term="trend"
-          label={`${t('predict.trend')} ${tech.trend?.toUpperCase()}`}
-          onOpen={onTerm}
-        />
-        {rsi != null ? (
-          <TermChip term="rsi" label={`RSI ${rsi.toFixed(0)}`} onOpen={onTerm} />
-        ) : null}
-        {data.extension?.aboveSma20Atrs != null ? (
-          <TermChip
-            term="atr"
-            label={t('exit.vsSma20', { atrs: data.extension.aboveSma20Atrs.toFixed(1) })}
-            onOpen={onTerm}
-          />
-        ) : null}
-        {data.relativeVolume != null ? (
-          <TermChip
-            term="relvol"
-            label={t('exit.relVol', { x: data.relativeVolume.toFixed(2) })}
-            onOpen={onTerm}
-          />
-        ) : null}
-        {data.earningsInDays != null && data.earningsInDays >= 0 ? (
-          <TermChip
-            term="earnings"
-            label={t('exit.earningsIn', { days: data.earningsInDays })}
-            onOpen={onTerm}
-          />
-        ) : null}
-      </View>
-      {market?.marketTrend ? (
-        <Pressable onPress={() => onTerm('market')}>
-          <Text style={[styles.market, { color: colors.muted }]}>
-            {t('exit.market', {
-              trend: market.marketTrend,
-              vix: market.vix != null ? market.vix.toFixed(1) : '—',
-              regime: market.vixRegime ?? '—',
-            })}
-            {market.relative20d != null
-              ? ` · ${t('exit.vsMarket', { pts: market.relative20d.toFixed(1) })}`
-              : ''}
-            <Text style={{ color: colors.faint }}> ?</Text>
-          </Text>
-        </Pressable>
+      {groups.map(({ stance, tone }) => {
+        const inGroup = chips.filter((c) => c.stance === stance);
+        if (!inGroup.length) return null;
+        return (
+          <View key={stance} style={styles.stanceGroup}>
+            <Text style={[styles.stanceLabel, { color: tone }]}>
+              {t(`exit.stance.${stance}`)}
+            </Text>
+            <View style={styles.chips}>
+              {inGroup.map((chip) => (
+                <TermChip
+                  key={chip.key}
+                  term={chip.term}
+                  label={chip.label}
+                  tone={tone}
+                  onOpen={onTerm}
+                />
+              ))}
+            </View>
+          </View>
+        );
+      })}
+      {market?.relative20d != null ? (
+        <Text style={[styles.market, { color: colors.muted }]}>
+          {t('exit.vsMarket', { pts: market.relative20d.toFixed(1) })}
+        </Text>
       ) : null}
       <Text style={[styles.termHint, { color: colors.faint }]}>{t('exit.termHint')}</Text>
     </Card>
@@ -612,12 +633,12 @@ export function ExitAdviceView({ data }: { data: Advice }) {
       <PositionCard data={data} />
       <HoldVsSell data={data} onTerm={setTerm} />
       <Reasons data={data} />
+      <Context data={data} onTerm={setTerm} />
       <Giveback levels={data.giveback ?? []} />
       {data.allowPartialSell ? <PartialSell options={data.partialSell ?? []} /> : null}
       <Scenarios scenarios={data.scenarios ?? []} />
       <Plans plans={data.plans ?? []} />
       <History data={data} />
-      <Context data={data} onTerm={setTerm} />
 
       <Text style={[styles.disclaimer, { color: colors.faint }]}>{data.disclaimer}</Text>
       <TermSheet term={term} onClose={() => setTerm(null)} />
@@ -695,6 +716,8 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 10, fontWeight: '800' },
   chipHint: { fontSize: 10, fontWeight: '900' },
   termHint: { fontSize: 9, fontWeight: '700', marginTop: 6 },
+  stanceGroup: { gap: 4, marginTop: 2 },
+  stanceLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.6 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: 24 },
   sheet: { padding: 20, gap: 8 },
   sheetKicker: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },

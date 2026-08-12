@@ -33,6 +33,7 @@ from app.position.advisor import ExitAdvisorError, build_exit_analyst
 from app.position.history import prune as prune_history
 from app.position.math import Position, PositionError
 from app.position.models import ExitRead
+from app.position.stance import read_stances
 from app.position.store import SavedPosition, validate_fields
 from app.prediction.evidence import GATHER_STAGES, gather, key_levels
 from app.prediction.market import fetch_market_context
@@ -651,6 +652,12 @@ async def build_exit_advice(
         # whenever nothing fired.
         "rules": rules.as_dict(),
         "relativeVolume": rule_evidence["relativeVolume"],
+        # Which way each context signal argues, on its own terms — not
+        # relative to the verdict, which would flip the same fact's label
+        # between runs. The app groups its chips by this.
+        "signals": read_stances(
+            rule_evidence, earnings_within_days=settings.position_exit_earnings_days
+        ),
         # The AI's judgement, with `action` already capped by the rules above.
         # Null when no provider is configured — the numbers stand on their own.
         "advice": (

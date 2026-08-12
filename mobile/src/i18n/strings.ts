@@ -590,6 +590,9 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   // and what it actually does to the advice — the second is the part you can't
   // get from a search engine, because it's specific to these rules.
   'exit.term.kicker': { en: 'WHAT THIS MEANS', vi: 'ĐIỀU NÀY NGHĨA LÀ GÌ' },
+  'exit.stance.supports-hold': { en: 'ARGUES FOR HOLDING', vi: 'ỦNG HỘ VIỆC GIỮ' },
+  'exit.stance.neutral': { en: 'NEITHER WAY', vi: 'KHÔNG NGHIÊNG BÊN NÀO' },
+  'exit.stance.supports-trim': { en: 'ARGUES FOR TRIMMING', vi: 'ỦNG HỘ VIỆC BÁN BỚT' },
   'exit.termHint': { en: 'TAP ANY CHIP TO SEE WHAT IT MEANS', vi: 'CHẠM VÀO Ô BẤT KỲ ĐỂ XEM GIẢI THÍCH' },
 
   'term.trend.title': { en: 'Trend', vi: 'Xu hướng' },

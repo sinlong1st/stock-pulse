@@ -649,6 +649,10 @@ export type ExitAdvice = {
   extension?: { aboveSma20Pct: number | null; aboveSma20Atrs: number | null };
   relativeVolume?: number | null;
   earningsInDays?: number | null;
+  /** Which side each context signal argues for, keyed by signal. Scored on
+   *  each signal's own terms, NOT relative to the verdict — otherwise the
+   *  same fact would flip its label between runs. */
+  signals?: Record<string, 'supports-hold' | 'neutral' | 'supports-trim'>;
   /** Row id of this analysis in the stored history, so the timeline can
    *  leave out the one you're currently reading. */
   analysisId?: number | null;
