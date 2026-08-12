@@ -130,10 +130,31 @@ def _position_facts(facts: dict) -> str:
         lines.append(
             "Incremental hold reward/risk: not defined (no clear level above or below)"
         )
-    if facts.get("supportAtrs") is not None:
+    support_atrs = facts.get("supportAtrs")
+    if support_atrs is not None:
+        lines.append(f"The nearest floor is {support_atrs} ATRs below the price")
+        # Saying it is "fragile" was not enough: a live WDC read cited "strong
+        # reward/risk 5.36 to 1" as its FIRST reason to hold, off a floor 0.17
+        # ATR away — while the app was captioning that same ratio NOT RELIABLE.
+        # A hedge invites the model to use the number anyway; a prohibition
+        # doesn't.
+        if support_atrs < 0.5:
+            lines.append(
+                "That floor is inside one ordinary day's movement, so the hold reward/risk "
+                "above is NOT reliable. DO NOT cite it as a reason to hold, and do not "
+                "describe it as strong or attractive."
+            )
+    # RULE-EXIT-011, told to the model rather than only enforced on our own text.
+    # A live WDC read at -10% came back recommending a sale that "protects
+    # gains" — there were none. The words matter here: selling a loser is
+    # accepting a realised loss to avoid a larger one, which is a different
+    # decision from banking a profit and must not borrow its language.
+    if facts.get("inProfit") is False:
         lines.append(
-            f"The nearest floor is {facts['supportAtrs']} ATRs below — under about 0.5 it sits "
-            "inside one ordinary day's movement, so a reward/risk built on it is fragile"
+            "IMPORTANT: this position is DOWN. There is no profit to protect, lock in or "
+            "take. Never write 'gains', 'profit' or 'protect gains' about it. Selling here "
+            "means accepting a realised loss now to avoid a bigger one; holding means "
+            "risking more to recover. Say it in those terms."
         )
     return "\n".join(lines)
 

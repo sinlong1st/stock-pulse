@@ -158,7 +158,7 @@ function HoldVsSell({ data, onTerm }: { data: Advice; onTerm: (t: string) => voi
   return (
     <Card title={t('exit.holdVsSell')}>
       <Row
-        label={t('exit.lockNow')}
+        label={t(p.inProfit ? 'exit.lockNow' : 'exit.realiseNow')}
         value={money(p.unrealizedPnl)}
         color={pnlColor(colors, p.unrealizedPnl)}
         strong
@@ -183,8 +183,13 @@ function HoldVsSell({ data, onTerm }: { data: Advice; onTerm: (t: string) => voi
               {t('exit.rr')} <Text style={{ color: colors.faint }}>?</Text>
             </Text>
             <Text style={[styles.ratio, { color: colors.text }]}>{hold.ratio.toFixed(2)}</Text>
-            <Text style={[styles.ratioLabel, { color: colors.faint }]}>
-              {t(`exit.rr.${hold.label}`)}
+            <Text
+              style={[styles.ratioLabel, { color: noisy ? colors.bear : colors.faint }]}
+            >
+              {/* Printing STRONG above a caveat that calls the same ratio
+                  meaningless is the app arguing with itself. The number
+                  stays — it is real — but the verdict on it does not. */}
+              {noisy ? t('exit.rr.unreliable') : t(`exit.rr.${hold.label}`)}
             </Text>
           </Pressable>
           {/* A floor inside one ordinary day's move makes the ratio above look
@@ -368,17 +373,37 @@ function Reasons({ data }: { data: Advice }) {
       {advice?.thesis ? (
         <Text style={[styles.thesis, { color: colors.text }]}>{advice.thesis}</Text>
       ) : null}
-      {advice?.reasonsToHold?.map((r, i) => (
-        <Text key={`h${i}`} style={[styles.reason, { color: colors.bull }]}>
-          + {r}
+      {advice?.reasonsToHold?.length ? (
+        <View style={styles.reasonGroup}>
+          <Text style={[styles.stanceLabel, { color: colors.bull }]}>
+            {t('exit.reasonsToHold')}
+          </Text>
+          {advice.reasonsToHold.map((r, i) => (
+            <Text key={`h${i}`} style={[styles.reason, { color: colors.bull }]}>
+              + {r}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+      {advice?.reasonsToSell?.length ? (
+        <View style={styles.reasonGroup}>
+          <Text style={[styles.stanceLabel, { color: colors.bear }]}>
+            {t('exit.reasonsToSell')}
+          </Text>
+          {advice.reasonsToSell.map((r, i) => (
+            <Text key={`s${i}`} style={[styles.reason, { color: colors.bear }]}>
+              − {r}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+      {/* Deterministic findings, phrased here from codes + numbers. From the
+          rule engine, not the model — worth saying so. */}
+      {findings.length ? (
+        <Text style={[styles.stanceLabel, { color: colors.muted, marginTop: 4 }]}>
+          {t('exit.checks')}
         </Text>
-      ))}
-      {advice?.reasonsToSell?.map((r, i) => (
-        <Text key={`s${i}`} style={[styles.reason, { color: colors.bear }]}>
-          − {r}
-        </Text>
-      ))}
-      {/* Deterministic findings, phrased here from codes + numbers. */}
+      ) : null}
       {findings.map((f, i) => (
         <Text key={`r${i}`} style={[styles.finding, { color: colors.muted }]}>
           ▪ {t(`exit.rule.${f.code}`, f.params as Record<string, string | number>)}
@@ -536,9 +561,14 @@ function Context({ data, onTerm }: { data: Advice; onTerm: (term: string) => voi
         );
       })}
       {market?.relative20d != null ? (
-        <Text style={[styles.market, { color: colors.muted }]}>
-          {t('exit.vsMarket', { pts: market.relative20d.toFixed(1) })}
-        </Text>
+        <Pressable onPress={() => onTerm('market')}>
+          <Text style={[styles.market, { color: colors.muted }]}>
+            {t(market.relative20d >= 0 ? 'exit.aheadOfMarket' : 'exit.behindMarket', {
+              pts: Math.abs(market.relative20d).toFixed(1),
+            })}
+            <Text style={{ color: colors.faint }}> ?</Text>
+          </Text>
+        </Pressable>
       ) : null}
       <Text style={[styles.termHint, { color: colors.faint }]}>{t('exit.termHint')}</Text>
     </Card>
@@ -717,6 +747,7 @@ const styles = StyleSheet.create({
   chipHint: { fontSize: 10, fontWeight: '900' },
   termHint: { fontSize: 9, fontWeight: '700', marginTop: 6 },
   stanceGroup: { gap: 4, marginTop: 2 },
+  reasonGroup: { gap: 2, marginTop: 4 },
   stanceLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.6 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: 24 },
   sheet: { padding: 20, gap: 8 },

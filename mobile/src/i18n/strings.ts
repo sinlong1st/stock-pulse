@@ -533,6 +533,8 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
 
   'exit.holdVsSell': { en: 'HOLD VS SELL', vi: 'GIỮ HAY BÁN' },
   'exit.lockNow': { en: 'Lock in now', vi: 'Chốt ngay bây giờ' },
+  // Under water, "lock in" is the wrong verb: there is nothing to bank.
+  'exit.realiseNow': { en: 'Sell now and take', vi: 'Bán ngay và chịu' },
   'exit.upsideTo': { en: 'If it runs to {level}', vi: 'Nếu lên tới {level}' },
   'exit.givebackTo': { en: 'If it falls to {level}', vi: 'Nếu rơi về {level}' },
   'exit.rr': { en: 'Reward vs risk from here', vi: 'Lợi/rủi ro tính từ đây' },
@@ -541,6 +543,10 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   'exit.rr.balanced': { en: 'BALANCED', vi: 'CÂN BẰNG' },
   'exit.rr.weak': { en: 'WEAK', vi: 'YẾU' },
   'exit.rr.poor': { en: 'POOR', vi: 'KÉM' },
+  // Shown instead of the band when the floor it rests on is inside daily
+  // noise — printing STRONG above a caveat calling it meaningless is the
+  // app arguing with itself.
+  'exit.rr.unreliable': { en: 'NOT RELIABLE', vi: 'KHÔNG ĐÁNG TIN' },
   'exit.noRr': {
     en: 'No clear level above or below, so there is no meaningful ratio to quote.',
     vi: 'Không có mốc rõ ràng ở trên hoặc dưới, nên không có tỷ lệ nào đáng nêu.',
@@ -666,12 +672,23 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   },
 
   'exit.why': { en: 'WHY', vi: 'VÌ SAO' },
+  'exit.reasonsToHold': { en: 'REASONS TO HOLD', vi: 'LÝ DO ĐỂ GIỮ' },
+  'exit.reasonsToSell': { en: 'REASONS TO SELL', vi: 'LÝ DO ĐỂ BÁN' },
+  'exit.checks': { en: 'AUTOMATIC CHECKS', vi: 'KIỂM TRA TỰ ĐỘNG' },
   'exit.context': { en: 'CONTEXT', vi: 'BỐI CẢNH' },
   'exit.vsSma20': { en: '{atrs} ATR vs 20D', vi: '{atrs} ATR so với 20N' },
   'exit.relVol': { en: 'VOL {x}×', vi: 'KL {x}×' },
   'exit.earningsIn': { en: 'EARNINGS IN {days}D', vi: 'BCTC SAU {days}N' },
   'exit.market': { en: 'Market {trend} · VIX {vix} ({regime})', vi: 'Thị trường {trend} · VIX {vix} ({regime})' },
-  'exit.vsMarket': { en: '{pts} pts vs market (20D)', vi: '{pts} điểm so với thị trường (20N)' },
+  // A bare "-24.8 pts" means nothing on its own. Say what it is a gap in.
+  'exit.behindMarket': {
+    en: 'This stock is {pts} percentage points BEHIND the S&P 500 over the last 20 sessions',
+    vi: 'Cổ phiếu này đang kém S&P 500 {pts} điểm phần trăm trong 20 phiên gần nhất',
+  },
+  'exit.aheadOfMarket': {
+    en: 'This stock is {pts} percentage points AHEAD of the S&P 500 over the last 20 sessions',
+    vi: 'Cổ phiếu này đang hơn S&P 500 {pts} điểm phần trăm trong 20 phiên gần nhất',
+  },
   'exit.refresh': {
     en: 'The quote is stale while the market is open — refresh before acting on this.',
     vi: 'Giá đang cũ trong lúc thị trường mở cửa — hãy làm mới trước khi hành động.',
