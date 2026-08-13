@@ -150,11 +150,26 @@ def _position_facts(facts: dict) -> str:
     # accepting a realised loss to avoid a larger one, which is a different
     # decision from banking a profit and must not borrow its language.
     if facts.get("inProfit") is False:
+        recovery = facts.get("recoveryPct")
         lines.append(
             "IMPORTANT: this position is DOWN. There is no profit to protect, lock in or "
-            "take. Never write 'gains', 'profit' or 'protect gains' about it. Selling here "
-            "means accepting a realised loss now to avoid a bigger one; holding means "
-            "risking more to recover. Say it in those terms."
+            "take. Never write 'gains', 'profit' or 'protect gains' about it."
+        )
+        if recovery is not None:
+            lines.append(
+                f"The price must rise {recovery:.1f}% from here just to reach the average "
+                f"cost of {_fmt_money(facts.get('averageCost'))}"
+            )
+        # The user's actual objection, in their words: "if I sell I lose $200,
+        # that's weird advice". It deserves an answer inside the analysis rather
+        # than a footnote — the loss is already spent, and the live question is
+        # what to do with the value that remains.
+        lines.append(
+            "If you recommend selling any of it, address this directly: the loss already "
+            "happened when the price fell, so selling realises it rather than causing it, "
+            "and holding does not undo it — it keeps the remaining value exposed. Frame the "
+            "choice as how much of what is LEFT should stay in this stock, never as "
+            "'wait to get back to break-even'."
         )
     return "\n".join(lines)
 

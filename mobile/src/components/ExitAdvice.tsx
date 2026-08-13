@@ -163,6 +163,26 @@ function HoldVsSell({ data, onTerm }: { data: Advice; onTerm: (t: string) => voi
         color={pnlColor(colors, p.unrealizedPnl)}
         strong
       />
+      {/* The answer to "why would I sell at a loss?" — as arithmetic, before
+          any prose. The loss is spent; what is still live is the value that
+          remains and how far the price has to climb to undo it. Without these
+          two lines the card reads as "sell and lose $200", which is the one
+          reading that isn't true. */}
+      {!p.inProfit ? (
+        <>
+          <Row label={t('exit.stillExposed')} value={plain(p.currentValue)} />
+          {p.recoveryPct != null ? (
+            <Row
+              label={t('exit.backToEven', { price: plain(p.averageCost) })}
+              value={`+${p.recoveryPct.toFixed(1)}%`}
+              color={colors.bear}
+            />
+          ) : null}
+          <Text style={[styles.sunkNote, { color: colors.muted }]}>
+            {t('exit.alreadySpent')}
+          </Text>
+        </>
+      ) : null}
       {hold ? (
         <>
           <Row
@@ -706,6 +726,7 @@ const styles = StyleSheet.create({
   ratio: { fontSize: 20, fontWeight: '900', fontVariant: ['tabular-nums'] },
   ratioLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.6 },
   caveat: { fontSize: 11, lineHeight: 16, marginTop: 4 },
+  sunkNote: { fontSize: 11, lineHeight: 16, marginTop: 4, marginBottom: 2 },
   yourTarget: { fontSize: 11, lineHeight: 16, marginTop: 6 },
   giveRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   giveLevel: { fontSize: 13, fontWeight: '800', fontVariant: ['tabular-nums'], width: 74 },

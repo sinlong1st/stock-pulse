@@ -443,3 +443,29 @@ def test_dicts_are_camel_case_json_scalars() -> None:
     assert scenario(
         summary, name="bull", probability=30, low=D(495), high=D(505)
     ).as_dict()["priceRange"] == {"low": 495.0, "high": 505.0}
+
+
+# --- recovery from a loss --------------------------------------------------
+
+
+def test_recovery_is_measured_from_here_not_from_the_fall() -> None:
+    """A 10% fall needs an 11.1% rise to undo. Quoting the fall would understate
+    the climb — and understating it is what makes "wait to get back to even"
+    sound reasonable."""
+    got = summarize(parse_position(shares=8, average_cost=490), parse_price(441))
+    assert got.unrealized_pnl_pct == D("-10.00")
+    assert got.recovery_pct == D("11.11")
+
+
+def test_a_winning_position_has_nothing_to_recover() -> None:
+    assert _wdc().recovery_pct is None
+
+
+def test_break_even_needs_nothing() -> None:
+    got = summarize(parse_position(shares=8, average_cost=490), parse_price(490))
+    assert got.recovery_pct is None
+
+
+def test_recovery_reaches_the_payload() -> None:
+    got = summarize(parse_position(shares=8, average_cost=490), parse_price(456))
+    assert got.as_dict()["recoveryPct"] == pytest.approx(7.46, abs=0.01)

@@ -543,6 +543,9 @@ export type PositionSummary = {
   unrealizedPnlPct: number;
   inProfit: boolean;
   status: string;
+  /** How far the price must rise from HERE to reach the average cost.
+   *  Null when already in profit. A 10% fall needs an 11.1% rise to undo. */
+  recoveryPct?: number | null;
 };
 
 export type GivebackLevel = {

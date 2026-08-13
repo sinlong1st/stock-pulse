@@ -178,6 +178,26 @@ class PositionSummary:
         return self.unrealized_pnl > 0
 
     @property
+    def recovery_pct(self) -> Decimal | None:
+        """How far the price must rise from here to reach the average cost.
+
+        ``None`` when the position is already in profit.
+
+        This is the number that answers "why is it telling me to sell at a
+        loss?". The loss itself is already spent — it happened when the price
+        fell, and selling only converts it from unrealised to realised. What is
+        still a live decision is whether the remaining value is worth exposing
+        to a stock that has to climb *this much* just to get back to even.
+
+        Deliberately measured from the current price, not from the cost basis:
+        a 10% fall needs an 11.1% rise to undo, and quoting the fall would
+        understate the climb.
+        """
+        if self.current_price >= self.average_cost:
+            return None
+        return _pct((self.average_cost - self.current_price) / self.current_price * HUNDRED)
+
+    @property
     def status(self) -> str:
         """The §22 `pnlStatus` bucket, from the percentage rather than the dollar
         amount — 8% is 8% whether the position is $800 or $80,000, and the dollar
@@ -206,6 +226,7 @@ class PositionSummary:
             "unrealizedPnlPct": _f(self.unrealized_pnl_pct),
             "inProfit": self.in_profit,
             "status": self.status,
+            "recoveryPct": _f(self.recovery_pct),
         }
 
 

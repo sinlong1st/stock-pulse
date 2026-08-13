@@ -535,6 +535,17 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
   'exit.lockNow': { en: 'Lock in now', vi: 'Chốt ngay bây giờ' },
   // Under water, "lock in" is the wrong verb: there is nothing to bank.
   'exit.realiseNow': { en: 'Sell now and take', vi: 'Bán ngay và chịu' },
+  'exit.stillExposed': { en: 'Still riding on it', vi: 'Vẫn đang đặt cược' },
+  'exit.backToEven': {
+    en: 'Needs this much to get back to {price}',
+    vi: 'Cần tăng bấy nhiêu để về lại {price}',
+  },
+  // The sunk-cost point, said once, plainly. It is the answer to "why is it
+  // telling me to sell at a loss?" and the reason the advice ignores cost.
+  'exit.alreadySpent': {
+    en: 'That loss already happened when the price fell — selling realises it, holding doesn’t undo it. The live question is how much of what’s left should stay in this stock.',
+    vi: 'Khoản lỗ đó đã xảy ra khi giá giảm — bán chỉ là ghi nhận nó, còn giữ cũng không xoá được nó. Câu hỏi thực sự là: bao nhiêu phần giá trị còn lại nên tiếp tục nằm ở cổ phiếu này.',
+  },
   'exit.upsideTo': { en: 'If it runs to {level}', vi: 'Nếu lên tới {level}' },
   'exit.givebackTo': { en: 'If it falls to {level}', vi: 'Nếu rơi về {level}' },
   'exit.rr': { en: 'Reward vs risk from here', vi: 'Lợi/rủi ro tính từ đây' },
