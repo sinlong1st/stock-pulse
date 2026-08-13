@@ -54,6 +54,39 @@ function actionColor(c: ThemeColors, action: string) {
   return c.accent;
 }
 
+/** How far right on the exposure ladder a rule pushed. Highest wins. */
+const LADDER = ['hold', 'hold-with-stop', 'partial-sell', 'reduce', 'exit'];
+
+/**
+ * The one line that justifies the headline.
+ *
+ * A rule that actually moved the verdict outranks the model's prose, because
+ * that is literally what decided it. When no rule fired, the model chose, so
+ * its own strongest argument for that direction is the honest answer.
+ */
+function primaryReason(data: Advice, t: (k: string, p?: Record<string, string | number>) => string) {
+  const driving = (data.rules?.findings ?? [])
+    .filter((f) => f.atLeast)
+    .sort((a, b) => LADDER.indexOf(b.atLeast!) - LADDER.indexOf(a.atLeast!))[0];
+  if (driving) {
+    const signals = (driving.params as { signals?: string[] })?.signals;
+    if (signals?.length) {
+      // "3 of 5" and "5 of 5" are very different cases that otherwise read
+      // identically. Name them.
+      return t('exit.rule.trend-deterioration.detail', {
+        n: signals.length,
+        list: signals.map((s) => t(`exit.signal.${s}`)).join(', '),
+      });
+    }
+    return t(`exit.rule.${driving.code}`, driving.params as Record<string, string | number>);
+  }
+  const advice = data.advice;
+  if (!advice) return null;
+  const holding = advice.action === 'hold' || advice.action === 'wait-for-confirmation';
+  const reason = holding ? advice.reasonsToHold?.[0] : advice.reasonsToSell?.[0];
+  return reason || null;
+}
+
 function Card({ title, children }: { title?: string; children: React.ReactNode }) {
   const { colors } = useTheme();
   return (
@@ -134,6 +167,17 @@ function Verdict({ data }: { data: Advice }) {
           {data.advice.provider ? ` · ${data.advice.provider}` : ''}
         </Text>
       ) : null}
+      {/* The single strongest argument for what it just told you to do.
+          Without this the headline is a verdict with no visible reason —
+          you read SELL SOME, look at a balanced reward/risk right beneath it,
+          and conclude the app is being arbitrary. The reason was always there,
+          several screens down in WHY, which is nowhere. */}
+      {(() => {
+        const because = primaryReason(data, t);
+        return because ? (
+          <Text style={[styles.verdictWhy, { color: tone }]}>{because}</Text>
+        ) : null;
+      })()}
       {/* The model's own call, when the rules moved it. Showing both is the
           honest version: it says a machine disagreed with a machine. */}
       {overridden ? (
@@ -708,6 +752,7 @@ const styles = StyleSheet.create({
   verdictKicker: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
   verdictText: { fontSize: 28, fontWeight: '900', letterSpacing: -0.8, marginTop: 2 },
   verdictConf: { fontSize: 10, fontWeight: '700', marginTop: 2, textTransform: 'uppercase' },
+  verdictWhy: { fontSize: 12.5, fontWeight: '700', marginTop: 8, lineHeight: 18 },
   verdictNote: { fontSize: 11, marginTop: 6, lineHeight: 16 },
   card: { borderWidth: 1, padding: 14, gap: 6 },
   cardTitle: { fontSize: 10, fontWeight: '900', letterSpacing: 1, marginBottom: 2 },

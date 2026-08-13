@@ -737,6 +737,18 @@ export const STRINGS: Record<string, Record<Lang, string>> = {
     en: 'Price is below every recent floor — there is nothing near to lean on.',
     vi: 'Giá đã xuống dưới mọi đáy gần đây — không còn mốc đỡ nào ở gần.',
   },
+  // The detailed form, used under the headline verdict: "3 of these turned"
+  // and "5 of these turned" are very different cases that otherwise read
+  // identically.
+  'exit.rule.trend-deterioration.detail': {
+    en: '{n} trend measures have turned against it: {list}.',
+    vi: '{n} thước đo xu hướng đã quay lưng: {list}.',
+  },
+  'exit.signal.trend-down': { en: 'the trend is down', vi: 'xu hướng giảm' },
+  'exit.signal.below-sma20': { en: 'below its 20-day average', vi: 'dưới trung bình 20 ngày' },
+  'exit.signal.below-ema21': { en: 'below its 21-day average', vi: 'dưới trung bình 21 ngày' },
+  'exit.signal.macd-negative': { en: 'momentum has rolled over', vi: 'động lượng đã đảo chiều' },
+  'exit.signal.lagging-market': { en: 'lagging the market', vi: 'tụt lại sau thị trường' },
   'exit.rule.trend-deterioration': {
     en: 'The trend that justified holding is coming apart.',
     vi: 'Xu hướng từng là lý do để giữ đang xấu đi.',
