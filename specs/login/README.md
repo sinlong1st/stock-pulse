@@ -5,6 +5,9 @@ skimmed: each file explains **the problem the thing was invented to solve**
 before explaining the thing, because a mechanism without its problem is just
 trivia you forget.
 
+> 🇻🇳 **Bản tiếng Việt: [vi/README.md](vi/README.md)** — same 13 files,
+> technical terms kept in English so you recognise them in the wild.
+
 ## How to use this
 
 Read in order. Each file assumes only the ones before it. They are short on
